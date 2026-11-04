@@ -5,6 +5,36 @@ A GPU port of NOAA/NCEP's North American Mesoscale model (NAM, nam.v4.2.11): the
 running on one NVIDIA card. NCEP retired the NAM on 2026-11-03 12Z; this package keeps the model
 running.
 
+## What it looks like
+
+The 2025-03-14 12Z case: woof-nam (left), the archived operational NAM 12 km forecast of the same cycle
+(middle) and MRMS observed composite reflectivity (right), at the same valid time.
+
+![Composite reflectivity at +24 h: ours, NAM, MRMS](docs/evidence/f024_refc_ours_nam_mrms.png)
+
+*Composite reflectivity, +24 h, valid 12Z 15 Mar 2025. Ours | NAM | MRMS, same colour scale. Both
+models wrap the comma head over the upper Midwest; both our run and the real NAM put the trailing line
+west of the observed one, and neither has MRMS's second band across Mississippi and Alabama.*
+
+![Composite reflectivity at +12 h: ours, NAM, MRMS](docs/evidence/f012_refc_ours_nam_mrms.png)
+
+*Composite reflectivity, +12 h, valid 00Z 15 Mar 2025. Ours | NAM | MRMS, same colour scale.*
+
+![Composite reflectivity at +6 h: ours, NAM, MRMS](docs/evidence/f006_refc_ours_nam_mrms.png)
+
+*Composite reflectivity, +6 h, valid 18Z 14 Mar 2025. Ours | NAM | MRMS, same colour scale.*
+
+Surface fields, ours (left) | NAM (right), same colour scale (MRMS has no surface fields):
+
+| 2 m dewpoint, +6 h (18Z 14 Mar) | 2 m dewpoint, +12 h (00Z 15 Mar) |
+|---|---|
+| ![2 m dewpoint +6 h](docs/evidence/f006_d2m_ours_nam_mrms.png) | ![2 m dewpoint +12 h](docs/evidence/f012_d2m_ours_nam_mrms.png) |
+| **2 m dewpoint, +24 h (12Z 15 Mar)** | **2 m temperature, +24 h (12Z 15 Mar)** |
+| ![2 m dewpoint +24 h](docs/evidence/f024_d2m_ours_nam_mrms.png) | ![2 m temperature +24 h](docs/evidence/f024_t2m_ours_nam_mrms.png) |
+
+Every map, including our MSLP (the archived NAM set has no forecast MSLP map, so that panel reads
+"not available"), is in [docs/evidence/](docs/evidence/).
+
 Private repository. Distribution name `woof-nam`, import name `namgpu`, version 0.1.0. Not on PyPI.
 
 ## Scope
