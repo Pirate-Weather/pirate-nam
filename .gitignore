@@ -42,3 +42,8 @@ tests/*.log
 # machine-local
 .box.bundle
 .stage/
+
+# built once for GFS starts (python -m namgpu.init.gfs_start --build-static), and README panel/sheet output
+static/
+panels/
+sheets/
