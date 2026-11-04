@@ -1,0 +1,39 @@
+name: ci
+
+# CPU-only checks on every push to main: licence check, import smoke, wheel build.
+# No GPU, no secrets, no upload.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: licence check
+        run: python tools/licence_check.py
+
+      - name: CPU import smoke (source tree)
+        run: |
+          python -m pip install --quiet numpy
+          PYTHONPATH=. python -c "import namgpu, namgpu.config, namgpu.grid; print('import ok', namgpu.__file__)"
+
+      - name: pip wheel
+        run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist
+
+      - name: CPU import smoke (built wheel)
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet numpy
+          /tmp/smoke/bin/pip install --quiet --no-deps dist/*.whl
+          cd /tmp && /tmp/smoke/bin/python -c "import namgpu, namgpu.config, namgpu.grid; print('wheel import ok', namgpu.__file__)"
