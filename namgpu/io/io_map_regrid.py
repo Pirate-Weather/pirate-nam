@@ -241,5 +241,5 @@ def write_companion(path, ctx, outputs, start: datetime, f: LambertFrame = NAM21
         nc.DY = float(f.dy)
         nc.START_DATE = start.strftime("%Y-%m-%d_%H:%M:%S")
         nc.SIMULATION_START_DATE = nc.START_DATE
-        nc.TITLE = f"nam-gpu NMMB 12 km parent regridded to {f.name} Lambert (io-map-regrid)"
+        nc.TITLE = f"WOOF-NAM NMMB 12 km parent regridded to {f.name} Lambert (io-map-regrid)"
     return path

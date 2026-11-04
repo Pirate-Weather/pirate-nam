@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 GRIB = Path(os.environ.get("NAMGPU_GFS_F006",
-                           str(Path.home() / "nam-gpu/cases/2025-03-14_12z/raw/gfs/gfs.t06z.f006.grib2")))
+                           str(Path(__file__).resolve().parents[1] / "cases/2025-03-14_12z/raw/gfs/gfs.t06z.f006.grib2")))
 FILL = 9.999e20
 
 

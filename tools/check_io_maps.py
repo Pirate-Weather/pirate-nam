@@ -33,7 +33,7 @@ def main():
     cfg = config.load()
     g = gridmod.build(cfg)
     st = statemod.State(g)
-    out_dir = Path.home() / "nam-gpu" / "runs-check" / "io-maps"
+    out_dir = Path(__file__).resolve().parents[1] / "runs-check" / "io-maps"
     shutil.rmtree(out_dir, ignore_errors=True)
     out_dir.mkdir(parents=True)
     ctx = Ctx(cfg=cfg, grid=g, st=st, stream=cp.cuda.Stream(non_blocking=True), dt=cfg.dt)

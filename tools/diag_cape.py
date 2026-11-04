@@ -7,7 +7,7 @@ import numpy as np, netCDF4
 
 import gpuwm
 B = Path(os.path.dirname(gpuwm.__file__)) / "libexec/bridges"
-TMP = Path("/work/nam-gpu/scratch/physconv/tmp")
+TMP = Path(__file__).resolve().parents[1] / "scratch/physconv/tmp"
 
 
 def inventory(path):

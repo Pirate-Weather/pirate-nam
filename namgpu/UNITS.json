@@ -1600,7 +1600,7 @@
       "id": "io-referee-sheets",
       "group": "io",
       "fortran": "-",
-      "purpose": "Three-panel sheets per hour: MRMS | nam-gpu | archived NAM (composite reflectivity, 2 m T, precip) with the Rust renderer. In: case raw + history -> PNGs.",
+      "purpose": "Three-panel sheets per hour: MRMS | WOOF-NAM | archived NAM (composite reflectivity, 2 m T, precip) with the Rust renderer. In: case raw + history -> PNGs.",
       "mode": "new",
       "deps": [
         "io-maps"

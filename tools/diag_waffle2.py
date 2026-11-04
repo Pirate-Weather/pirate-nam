@@ -1,5 +1,5 @@
-import sys, numpy as np, netCDF4
-sys.path.insert(0, "/work/nam-gpu/tools")
+import os, sys, numpy as np, netCDF4
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 h = sys.argv[1]; la0, la1, lo0, lo1 = map(float, sys.argv[2].split(","))
 d = netCDF4.Dataset(h)
 lat = np.asarray(d["XLAT"][0]); lon = np.asarray(d["XLONG"][0])

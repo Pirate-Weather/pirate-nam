@@ -186,7 +186,7 @@ def write_payload(path: Path, payload: dict) -> Path:
         nc.BOTTOM_TOP_GRID_DIMENSION = d["bottom_top"] + 1
         nc.START_DATE = start.strftime("%Y-%m-%d_%H:%M:%S")
         nc.SIMULATION_START_DATE = nc.START_DATE
-        nc.TITLE = "nam-gpu NMMB 12 km parent history"
+        nc.TITLE = "WOOF-NAM NMMB 12 km parent history"
     return path
 
 

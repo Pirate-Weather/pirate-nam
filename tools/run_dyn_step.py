@@ -1,7 +1,7 @@
 """Dynamics + boundary + driver on the REAL case state: init chain, physics init, then N whole
 NMMB steps (first step + not_first steps, physics on, wet) through Driver's plan.
 
-    source /work/nam-gpu/env-box.sh
+    source env-box.sh
     python tools/run_dyn_step.py --case 2025-03-14_12z --source native --steps 3 \
         --out scratch/dyn-int/step_native [--skip-init init-gwd-orog] [--census-each] [--keep-going]
 

@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np, netCDF4
 
 B = Path.home() / "venv/lib/python3.12/site-packages/gpuwm/libexec/bridges"
-CASE = Path.home() / "nam-gpu/cases/2025-03-14_12z"
+CASE = Path(__file__).resolve().parents[1]
 RAW = CASE / "raw"; OUT = CASE / "referee"; TMP = OUT / "tmp"
 INIT = datetime(2025, 3, 14, 12)
 TMP.mkdir(parents=True, exist_ok=True)

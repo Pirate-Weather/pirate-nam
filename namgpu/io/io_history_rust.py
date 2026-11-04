@@ -212,7 +212,7 @@ def write_history_rust(path: Path, ctx, fields: dict, start) -> Path:
         stamp = start.strftime("%Y-%m-%d_%H:%M:%S")
         _put_att(lib, schema, -1, "START_DATE", stamp)
         _put_att(lib, schema, -1, "SIMULATION_START_DATE", stamp)
-        _put_att(lib, schema, -1, "TITLE", "nam-gpu NMMB 12 km parent history")
+        _put_att(lib, schema, -1, "TITLE", "WOOF-NAM NMMB 12 km parent history")
 
         raw_path = str(path).encode()
         writer = lib.gpuwm_ncwrite_create(schema, raw_path, len(raw_path))

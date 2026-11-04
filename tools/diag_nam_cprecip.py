@@ -1,5 +1,5 @@
-import sys, numpy as np
-sys.path.insert(0, "/work/nam-gpu/tools")
+import os, sys, numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from diag_cape import inventory, dump, lcc218
 f = sys.argv[1]; boxes = {"MO-AR 33-39N 94-89W": (33, 39, -94, -89), "IA-NE-KS 38-44N 100-91W": (38, 44, -100, -91), "warm 30-40N 98-86W": (30, 40, -98, -86)}
 inv = inventory(f)

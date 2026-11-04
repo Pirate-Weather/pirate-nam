@@ -378,7 +378,7 @@ u("io-map-regrid", O, "-",
 u("io-maps", O, "-", "Maps with rw_wrfbatch (io/maps.py) beside NAM 218 and MRMS sheets.", mode="new",
   deps=["io-history", "io-map-regrid"])
 u("io-referee-sheets", O, "-",
-  "Three-panel sheets per hour: MRMS | nam-gpu | archived NAM (composite reflectivity, 2 m T, "
+  "Three-panel sheets per hour: MRMS | WOOF-NAM | archived NAM (composite reflectivity, 2 m T, "
   "precip) with the Rust renderer. In: case raw + history -> PNGs.", mode="new", deps=["io-maps"])
 u("io-max-fields", O, f"{DG}:2190-2518",
   "MAX_FIELDS_HR: hourly maxima (REFDMAX, UPHLMAX, wind max, T2 max/min ...). In: state -> maxima.",

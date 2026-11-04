@@ -45,7 +45,7 @@
 //     overlap depends on the CPU chunk (CHK), which the GPU path drops. This kernel uses the split the
 //     GFS taumol17 (radsw_main.f) and RRTM use: k <= laytrop is the lower branch, k > laytrop the upper.
 //     The value at k == laytrop therefore differs from the NMMB chunked overlap. Physics goes its own way
-//     (CLAUDE.md, 2026-08-20); this is recorded for the unit's receipt.
+//     (owner ruling, 2026-08-20); this is recorded for the unit's receipt.
 //   * The Fortran computes taumol17 only for the nday daylight columns (taumol, radsw_main_nmmb.f:3340-3365).
 //     This kernel computes every column; night columns carry values the caller does not read.
 //   * Every assignment of the Fortran routine has a term here: the Rayleigh loop, both species loops, the

@@ -1,7 +1,7 @@
 """Debug: snapshot Noah inputs, run, dump NaN columns' inputs."""
 import sys, types
 from pathlib import Path
-ROOT = Path("/work/nam-gpu"); sys.path.insert(0, str(ROOT))
+ROOT = Path(__file__).resolve().parents[1]; sys.path.insert(0, str(ROOT))
 import importlib.util as _u
 _s = _u.spec_from_file_location("rpa", ROOT / "tools" / "run_physics_a.py"); R = _u.module_from_spec(_s); _s.loader.exec_module(R)
 from namgpu.physics.driver import phys_turbl_driver as td

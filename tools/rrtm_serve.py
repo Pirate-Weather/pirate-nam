@@ -1,7 +1,7 @@
 """Physics B dev harness: build the real 2025-03-14 12Z state ONCE, then run full radiation calls on request.
 
-    source env-box.sh; NAMGPU_GWD_DEM=/work/nam-static/gmted2010.30sec.int python tools/rrtm_serve.py &
-    echo "0 863" > /work/nam-scratch/rrtm-serve/cmd     # NTIMESTEPs to run; result in .../result.log
+    source env-box.sh; NAMGPU_GWD_DEM=<dir>/gmted2010.30sec.int python tools/rrtm_serve.py &
+    echo "0 863" > scratch/rrtm-serve/cmd     # NTIMESTEPs to run; result in .../result.log
 
 Each request reloads namgpu.physics.rrtm.*, phys_rad_driver and the kernel cache, drops every ctx.tables key
 created after init (so scratch is reallocated) and runs tools/run_rrtm_real.one_call for each step. A file
@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
-D = Path("/work/nam-scratch/rrtm-serve")
+D = Path(__file__).resolve().parents[1] / "scratch/rrtm-serve"
 
 
 def main():

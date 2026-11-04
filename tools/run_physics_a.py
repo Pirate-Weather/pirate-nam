@@ -40,7 +40,7 @@ def main(argv=None):
     ap.add_argument("--step", type=int, default=0)
     ap.add_argument("--with-rad", action="store_true")
     ap.add_argument("--gwd-dem", default="", help="raw 30-arcsec int16 terrain for init-gwd-orog "
-                    "(default $NAMGPU_GWD_DEM or /work/nam-static/gmted2010.30sec.int)")
+                    "(default $NAMGPU_GWD_DEM)")
     ap.add_argument("--calls", type=int, default=1, help="physics calls (steps) to run")
     ap.add_argument("--discover", default="", help="comma list of units to stub OUT for a discovery run only "
                     "(phys-noah-driver, phys-gwd-driver, phys-bmj-driver, phys-fer-driver); never a result")
@@ -59,7 +59,7 @@ def main(argv=None):
 
     from namgpu.init import init_case_driver  # noqa: PLC0415
     import os  # noqa: PLC0415
-    dem = Path(a.gwd_dem or os.environ.get("NAMGPU_GWD_DEM", "/work/nam-static/gmted2010.30sec.int"))
+    dem = Path(a.gwd_dem or os.environ.get("NAMGPU_GWD_DEM", "gmted2010.30sec.int"))
     if dem.is_file():                     # raw 30-arcsec int16 (NOAA fix/orog gmted2010.30sec.int)
         from namgpu.init.init_gwd_orog import load_gwd_dem  # noqa: PLC0415
         ctx.tables["gwd_dem"] = load_gwd_dem(str(dem))

@@ -8,7 +8,7 @@
 import sys
 from pathlib import Path
 
-ROOT = Path.home() / "nam-gpu"
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import cupy as cp  # noqa: E402

@@ -1,7 +1,7 @@
 """Init + io subsystem on the real case: build the NAM state from an init source, write the 0 h
 history file, draw maps with the Rust renderer (rw_wrfbatch via gpuwm.rustwx).
 
-    source /work/nam-gpu/env-box.sh
+    source env-box.sh
     python tools/run_init.py --case 2025-03-14_12z --source native --out runs/init_native
     python tools/run_init.py --case 2025-03-14_12z --source gfs    --out runs/init_gfs
 

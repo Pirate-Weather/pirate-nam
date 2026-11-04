@@ -25,7 +25,7 @@ Usage:
 
 Refusals (each names the breakage it prevents):
   - a GRIB2 record whose reference time or forecast hour differs from the requested cycle/hour:
-    the archived panel would show another forecast on the same row as nam-gpu.
+    the archived panel would show another forecast on the same row as WOOF-NAM.
   - a scan mode with bit 0x20 set: column-major storage read as row-major scrambles the field.
   - a renderer that writes no PNG for a panel: the sheet would otherwise be composed from nothing.
   - no WOOF-NAM history frame at a requested valid time, or a frame without COMPOSITE (written once the

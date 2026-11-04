@@ -21,7 +21,7 @@ import time
 import types
 from pathlib import Path
 
-ROOT = Path.home() / "nam-gpu"
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 

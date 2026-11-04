@@ -172,7 +172,7 @@ def dem_from_wps_tiles(tile_dir, workers=32):
 
 def default_dem(ctx):
     """Find the 30-arcsec terrain for the run: NAMGPU_GWD_DEM (raw NPS big-endian file) if set, else the
-    WPS GMTED2010 tile set under NAMGPU_GEOG (default /work/geog, then ~/WPS_GEOG), assembled once and
+    WPS GMTED2010 tile set under NAMGPU_GEOG (else ~/WPS_GEOG), assembled once and
     cached next to it as gwd_dem_30s.npy. Returns a cupy int16 [JSRC, ISRC]."""
     import cupy as cp
     from pathlib import Path
@@ -181,7 +181,7 @@ def default_dem(ctx):
     if raw:
         return load_gwd_dem(raw)
     roots = [Path(os.environ["NAMGPU_GEOG"])] if os.environ.get("NAMGPU_GEOG") else []
-    roots += [Path("/work/geog"), Path.home() / "WPS_GEOG"]
+    roots += [Path.home() / "WPS_GEOG"]
     for r in roots:
         tiles = r / "topo_gmted2010_30s"
         if (tiles / "index").is_file():

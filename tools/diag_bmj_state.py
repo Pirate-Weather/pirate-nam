@@ -75,4 +75,4 @@ print(f"domain: active {int(act.sum())} RAINCV>0 {int((rain > 0).sum())} max {ra
 cb = bot[m & act]; ct = top[m & act]
 if cb.size:
     print("  active CUBOT (levels from bottom) p10/50/90", np.percentile(cb, [10, 50, 90]), "CUTOP", np.percentile(ct, [10, 50, 90]))
-np.savez("/work/nam-gpu/scratch/physconv/bmj_state_out.npz", rain=rain, top=top, bot=bot, act=act)
+np.savez(str(ROOT / "scratch/physconv/bmj_state_out.npz"), rain=rain, top=top, bot=bot, act=act)

@@ -352,7 +352,7 @@ What every group must know after physics A first ran on the real 2025-03-14 12Z 
 - phys-rad-driver runs with cwd = the fix dir (ctx.fix_dir, $NAMGPU_FIX_DIR, else <repo>/fix), the
   NMMB run directory where co2historicaldata_YYYY.txt and solarconstant files are opened by bare name.
 - `NAMGPU_NO_LEASE=1` (env-box.sh) makes drv_gpu_lease.gpu_lease a no-op on the dedicated box card.
-- GWD orography source on the box: /work/nam-static/gmted2010.30sec.int (NOAA fix/orog 20231027,
+- GWD orography source: NAMGPU_GWD_DEM = gmted2010.30sec.int (NOAA fix/orog 20231027,
   raw big-endian int16 43200 x 21600, row 0 north, column 0 at -180; ocean = 0 m, not -9999: declared
   difference from NPS). tools/run_physics_a.py loads it into ctx.tables['gwd_dem'] before init
   ($NAMGPU_GWD_DEM overrides); the init chain itself does not load it yet (init group).
@@ -378,7 +378,7 @@ Open, owned elsewhere (found by this run):
   carries T2 (temperature), MSLP (Pa, membrane MSLP) and, after the first microphysics call, COMPOSITE.
 - Maps: rw_wrfbatch --cf on XLAT/XLONG (io/maps.py). The wrfout route misplaces MAP_PROJ 203; do not use
   it for woof-nam output. Products: composite_reflectivity, t2m, d2m, wind10, wind850, mslp, qpf_1h.
-- GWD terrain: NAMGPU_GWD_DEM (NPS raw file) or NAMGPU_GEOG/topo_gmted2010_30s (default /work/geog).
+- GWD terrain: NAMGPU_GWD_DEM (NPS raw file) or NAMGPU_GEOG/topo_gmted2010_30s (else ~/WPS_GEOG).
 
 ## 10. Physics B (RRTM) on the real state (physics B integrator, 2026-11-04 ~10:10Z)
 
