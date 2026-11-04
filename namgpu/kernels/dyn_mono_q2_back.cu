@@ -1,4 +1,4 @@
-// nam-gpu unit dyn-mono-q2-back: after the MONO species loop, interpolate the Q2 tendency and Q2
+// WOOF-NAM unit dyn-mono-q2-back: after the MONO species loop, interpolate the Q2 tendency and Q2
 // itself from the mid-layers back to the interfaces (the q2_check block at the end of MONO).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
@@ -6,7 +6,7 @@
 // as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
 //   subroutine mono (monotonisation of the species tracer arrays)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:5204-5235 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:5204-5235 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (1-based), inside q2_check (kss <= indx_q2 <= kse; the wrapper tests this on the host,
 // it is a configuration constant, so no device branch is needed):

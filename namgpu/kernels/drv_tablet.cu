@@ -9,7 +9,7 @@
 //   subroutine tablet
 //   generates the table for finding temperature from pressure and equivalent potential temperature
 //
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:1970-2068 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:1970-2068 (nam.v4.2.11, 83df4e13c1).
 //
 // Two stages, one unit:
 //   1. tablet_build (this file): one thread per pressure row kp (ITB = 201 rows). Fills the spline

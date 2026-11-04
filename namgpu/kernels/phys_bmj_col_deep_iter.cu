@@ -1,4 +1,4 @@
-// nam-gpu unit phys-bmj-col-deep-iter: one pass of the cloud-efficiency iteration body of BMJ deep
+// WOOF-NAM unit phys-bmj-col-deep-iter: one pass of the cloud-efficiency iteration body of BMJ deep
 // convection (cloud efficiency, enthalpy conservation, lqm, temperature and moisture corrections).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
@@ -6,7 +6,7 @@
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine bmj  (deep convection; BMJ scheme)
 //   programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:1085-1179 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:1085-1179 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope: lines 1085-1179 are the body of `cloud_efficiency : do itrefi=1,itrefi_max`
 // (opened at 1088, closed at 1216). Lines 1180-1216 (heating/moistening, precipitation, the

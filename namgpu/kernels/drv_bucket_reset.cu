@@ -1,4 +1,4 @@
-// nam-gpu unit drv-bucket-reset: accumulator resets by NCLOD, NRDLW, NRDSW, NSRFC, NPREC.
+// WOOF-NAM unit drv-bucket-reset: accumulator resets by NCLOD, NRDLW, NRDSW, NSRFC, NPREC.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone; see NOTICE
 //   at the repo root). The module header of nmm/module_SOLVER_GRID_COMP.F90 (module name, purpose
@@ -43,7 +43,7 @@
 //    2016-05-09 Ferrier/Janjic - Constants epsq2,epsl function of level,
 //                        added subroutine TQadjust
 // -----------------------------------------------------------------------
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:5367-5470 and 6348-6384
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:5367-5470 and 6348-6384
 // (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran structure. Two places zero the accumulators. Each is a set of independent IF blocks,

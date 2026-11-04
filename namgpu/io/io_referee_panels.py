@@ -54,7 +54,7 @@ UNIT = "io_referee_panels"
 REFUSED_SCAN_BITS = 0x20
 MRMS_FILL = -90.0  # MRMS marks no echo with -99; anything below -90 dBZ is missing
 
-# Referee product -> renderer slug (nam-gpu wrfout path), CF variable, units, title.
+# Referee product -> renderer slug (WOOF-NAM wrfout path), CF variable, units, title.
 # Slugs verified with rw_wrfbatch --list-products: composite_reflectivity, 2m_temperature and
 # qpf_total (windowed: needs the whole-hour frames of a multi-hour history).
 # recipe / display_units / unit_factors: the renderer's colour table per product, the same rows

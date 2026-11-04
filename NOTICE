@@ -92,7 +92,7 @@ AER's licence text (github.com/AER-RC/RRTMG_LW and RRTMG_SW, LICENSE.md):
 
 NCEP's NMMB copy (radlw_main_nmmb.f, radsw_main_nmmb.f) carries AER's earlier 2002-2007 notice;
 in this package it is replaced by the BSD 3-Clause terms above. NCEP's modifications are US
-Government work. The nam-gpu port of these files is Apache-2.0.
+Government work. The WOOF-NAM port of these files is Apache-2.0.
 
 ==========================================================================
 ArWen (Python package "gpuwm")

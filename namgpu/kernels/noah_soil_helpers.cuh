@@ -1,4 +1,4 @@
-// noah_soil_helpers.cuh -- shared soil device helpers for the NAM Noah LSM port (nam-gpu).
+// noah_soil_helpers.cuh -- shared soil device helpers for the NAM Noah LSM port (WOOF-NAM).
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module (MODULE MODULE_LS_NOAHLSM, module_LS_NOAHLSM.F90) are kept as notices.

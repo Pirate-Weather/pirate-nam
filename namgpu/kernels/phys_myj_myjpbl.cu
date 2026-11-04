@@ -1,6 +1,6 @@
 // phys_myj_myjpbl.cu -- NAM MYJ PBL column driver (MYJPBL) and its column subroutines, one thread per column.
 //
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:180-753 (MYJPBL) and the subroutines it calls
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:180-753 (MYJPBL) and the subroutines it calls
 // per column: MIXLEN 758-965, PRODQ2 969-1173, DIFCOF 1178-1337, VDIFQ 1342-1420, VDIFH 1425-1522,
 // VDIFV 1527-1607 (nam.v4.2.11, MatthewPyle-NOAA/NAM @ 83df4e13c115d197db67b972cb3befec8511291a).
 // The NAM source file carries no author header block; the origin is the file named above.

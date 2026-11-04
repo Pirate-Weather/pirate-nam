@@ -1,4 +1,4 @@
-// nam-gpu unit phys-bmj-col-deep-ref: BMJ deep-convection reference temperature and humidity
+// WOOF-NAM unit phys-bmj-col-deep-ref: BMJ deep-convection reference temperature and humidity
 // profiles, freezing level and the setup of the first adjustment.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
@@ -6,7 +6,7 @@
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine bmj, deep convection section (label 300 .. comment block ahead of the cloud
 //   efficiency iteration loop)
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:940-1084 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:940-1084 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope of this unit (Fortran line ranges):
 //   940-958   depth = pbot - ptop, plume test, deep / shallow test (shallow: go to 600, the

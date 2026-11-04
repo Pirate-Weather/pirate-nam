@@ -3,7 +3,7 @@
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone; NOTICE at the
 // repo root). The Fortran has no history block of its own; its module header is kept as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:2834-2915 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:2834-2915 (nam.v4.2.11, 83df4e13c1),
 // the body of subroutine HDIFF inside vertical_loop_3 (do l = 1, lm). The per-level slope masks
 // fmlx/fmly (Fortran 2799-2829) are produced once by dyn-hdiff-coef (FMLX_3D, FMLY_3D) and read
 // here; this kernel does not recompute them. dyn-hdiff-coef produces def3d, fmlx, fmly.

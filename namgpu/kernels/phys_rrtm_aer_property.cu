@@ -7,7 +7,7 @@
 // licence file). The module header of that file (source lines 1-12) is kept as the notice:
 //   !!!!!  'module_radiation_aerosols' description
 //   !   this module contains climatological atmospheric aerosol schemes for radiation computations.
-// Ported to CUDA for nam-gpu from phys/radiation_aerosols_nmmb.f:2377-3107 (nam.v4.2.11, 83df4e13c1):
+// Ported to CUDA for WOOF-NAM from phys/radiation_aerosols_nmmb.f:2377-3107 (nam.v4.2.11, 83df4e13c1):
 //   aer_property 2377-2805 (lon/lat bracket, kp/h1 profile choice, bilinear denn/cmix, layer domain
 //                index idmaer and delz for ivflip = 1 and 0, call radclimaer, sw/lw copy-out)
 //   radclimaer   2806-3103 (rh bracket, domain 5/4/3/1/2/other optical properties, smoothing).

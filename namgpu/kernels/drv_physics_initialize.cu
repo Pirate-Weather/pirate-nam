@@ -1,10 +1,10 @@
-// nam-gpu unit drv-physics-initialize: PHYSICS_INITIALIZE selection and table kernels (NAM 12 km parent).
+// WOOF-NAM unit drv-physics-initialize: PHYSICS_INITIALIZE selection and table kernels (NAM 12 km parent).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Notice kept from the Fortran modules (nam.v4.2.11, 83df4e13c1):
 //   subroutine PHYSICS_INITIALIZE     (nmm/module_SOLVER_GRID_COMP.F90:9936-11062)
 //   subroutine gpkap, fpkapx          (phys/funcphys.f:2181-2215, 2377-2385)
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:10768-10789 (ICICE/ICLIQ special
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:10768-10789 (ICICE/ICLIQ special
 // cases), nmm/module_SOLVER_GRID_COMP.F90:10811 (LOWLYR allocate, placeholder) and
 // phys/funcphys.f:2181-2215 (GPKAP table, the pkap table read by FPKAP in radiation_gases_nmmb).
 //

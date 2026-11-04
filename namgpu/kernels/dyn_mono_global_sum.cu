@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-mono-global-sum: global mass sums per species and the conservation rescale.
+// WOOF-NAM unit dyn-mono-global-sum: global mass sums per species and the conservation rescale.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:5076-5203 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:5076-5203 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine mono, active branch use_allreduce = .true. in nam_configfile):
 //   [G1] gsums(2ks-1) = xsums(2ks-1), gsums(2ks) = xsums(2ks)        (mpi_allreduce, identity on one card)

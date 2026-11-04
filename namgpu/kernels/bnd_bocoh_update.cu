@@ -1,10 +1,10 @@
-// nam-gpu unit bnd-bocoh-update: BOCOH setup. Advances the boundary working objects on the H
+// WOOF-NAM unit bnd-bocoh-update: BOCOH setup. Advances the boundary working objects on the H
 // points of the S/N and W/E strips by their tendencies: working += tendency * dt.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   module module_fltbnds  (NMMB boundary handling, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:5064-5354 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:5064-5354 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine bocoh, lines 5064-5354), H-point boundary variables only:
 //   [S] if(s_bdy): for each 2-d var nv:  jb=1..lnsh, ib=its_h2..ite_h2:

@@ -1,6 +1,6 @@
-// init_boco_tendencies.cu -- nam-gpu unit init-boco-tendencies (CONTRACT.md sections 3 and 6).
+// init_boco_tendencies.cu -- WOOF-NAM unit init-boco-tendencies (CONTRACT.md sections 3 and 6).
 //
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:8155-9298 (UPDATE_BC_TENDS,
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:8155-9298 (UPDATE_BC_TENDS,
 // nam.v4.2.11, 83df4e13c1). NOAA/NCEP NMMB source: US government work, the NOAA author headers
 // are kept as notices (NOTICE).
 //

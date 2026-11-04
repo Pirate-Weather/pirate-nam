@@ -4,7 +4,7 @@
 // NMMB dynamics, NOAA/NCEP/EMC) has no author or history header block of its own; the NOAA
 // source notice in NOTICE applies. NAM is US Government work with no licence file.
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3553-3592 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3553-3592 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran source covered (CDWDT, lateral diffusion of w, after the local derivative of w):
 //   3556       if(diffw)   diffw = (dt .gt. 0), set at lines 3421-3424; the backward digital-filter

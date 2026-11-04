@@ -1,4 +1,4 @@
-// nam-gpu unit init-gfs-wind-rotate: GFS earth-relative (east, north) winds to the rotated
+// WOOF-NAM unit init-gfs-wind-rotate: GFS earth-relative (east, north) winds to the rotated
 // B-grid components (grid-i, grid-j) at V points, on the boundary strips only.
 //
 // Mode "new": there is no NAM Fortran routine for this step in the NMMB solver tree or in the NPS

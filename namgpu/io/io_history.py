@@ -6,7 +6,7 @@ Driver entry (namgpu/driver.py DIAGNOSTICS): ``("io-history", "history")``, gate
 Input: ``ctx.history_fields`` -- name -> (device array, wrf dims), built by unit
 io-history-fields (its wrapper sets it on the ctx).  Output: ``<ctx.out_dir>/wrfout_d01_<valid>``.
 Start time: ``ctx.start_time`` (datetime, set by the driver from the run's start date).
-Output directory: ``ctx.out_dir`` (set by Driver.run; defaults to nam-gpu/runs/<start>).
+Output directory: ``ctx.out_dir`` (set by Driver.run; defaults to runs/<start> in the working folder).
 
 No CUDA kernel and no device arithmetic.  The unit does two things per output hour:
   1. the device->host copy of every history field, queued on ctx.stream into pinned host buffers

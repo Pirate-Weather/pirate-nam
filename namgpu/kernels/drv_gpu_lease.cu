@@ -7,7 +7,7 @@
 // card the lease handed out is usable by this build (NVRTC compile + a launch). No host sync
 // happens here; the host reads the flag only in drv_gpu_lease.verify(), off the step path.
 //
-// Written for nam-gpu (private tree). Float32, single precision like every nam-gpu kernel.
+// Written for WOOF-NAM (private tree). Float32, single precision like every WOOF-NAM kernel.
 #include "nmmb_common.cuh"
 
 extern "C" __global__ void lease_probe(float* __restrict__ flag, const int n)

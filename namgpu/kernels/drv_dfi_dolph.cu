@@ -1,4 +1,4 @@
-// drv_dfi_dolph.cu -- nam-gpu unit drv-dfi-dolph: DOLPH, the Dolph-Chebyshev window of the
+// drv_dfi_dolph.cu -- WOOF-NAM unit drv-dfi-dolph: DOLPH, the Dolph-Chebyshev window of the
 // digital (TDFI) filter weights, with its helper CHEBY.
 //
 // NOTICE: NOAA/NCEP NAM source (nam.v4.2.11, MatthewPyle-NOAA/NAM @ 83df4e13c1), a US government
@@ -7,7 +7,7 @@
 //   Design and Applications, McGraw-Hill. CHEBY: Numerical Recipes, p. 184, Chebyshev recurrence.
 // No licence file accompanies the NAM source.
 //
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:929-1039 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:929-1039 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE DOLPH(DELTAT, TAUS, M, WINDOW): WINDOW(0:2M) (float32). N = 2M+1.
 // Launch: one thread per NT = 0..M (the Fortran DO NT=0,M loop). Each thread runs the whole

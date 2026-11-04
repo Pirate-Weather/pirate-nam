@@ -1,11 +1,11 @@
-// nam-gpu unit drv-tqadjust: TQADJUST, consistency of T, Q, CW and the condensate fractions after
+// WOOF-NAM unit drv-tqadjust: TQADJUST, consistency of T, Q, CW and the condensate fractions after
 // the physics. Ferrier-Aligo supersaturation removal, Janjic-style lapse-rate smoothing (theta
 // mixing of unstable layers above the PBL), then the second supersaturation pass and the update
 // of Q, CWM (or QC with SPEC_ADV), F_ICE and F_RAIN.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Source
 // author header: FERRIER, JANJIC, NP22, 5 APR 2016 (nmm/module_SOLVER_GRID_COMP.F90).
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:11777-12113 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:11777-12113 (nam.v4.2.11, 83df4e13c1).
 //
 // Mapping: one thread per (i, j) column (kernels.grid_cols). The column arrays of the Fortran
 // (Tcol, Pcol, QVcol, QCcol, EXNcol, THcol, DPcol, DTHcol, Fcol) are per-thread locals. They are

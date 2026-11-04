@@ -1,6 +1,6 @@
-// bnd_write_bc.cu -- nam-gpu unit bnd-write-bc (CONTRACT.md sections 3 and 6).
+// bnd_write_bc.cu -- WOOF-NAM unit bnd-write-bc (CONTRACT.md sections 3 and 6).
 //
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:3928-5059 (write_bc, nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:3928-5059 (write_bc, nam.v4.2.11, 83df4e13c1).
 // NOAA/NCEP NMMB source: US government work, the NOAA author headers are kept as notices (NOTICE).
 //
 // write_bc, per boundary side (N, S, W, E) and per boundary variable:

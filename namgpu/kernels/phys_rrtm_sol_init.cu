@@ -8,7 +8,7 @@
 //           =10 fixed new solar constant (con_solr); anything else is a selection error.
 //   outputs (module variables): isolflg (solar constant scheme control flag), solc0 (solar constant, W/m2).
 //   mar 2012 - y.-t. hou: sol_init sets module parameters at start of run; sol_update runs in the time loop.
-// Ported to CUDA for nam-gpu from phys/radiation_astronomy_nmmb.f:113-259 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_astronomy_nmmb.f:113-259 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (lines 157-257), every assignment and its counterpart here:
 //   isolflg = isolar                                  -> out_isolflg = isolar           (157)

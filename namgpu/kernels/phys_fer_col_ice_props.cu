@@ -1,10 +1,10 @@
-// phys_fer_col_ice_props.cu -- nam-gpu unit phys-fer-col-ice-props.
+// phys_fer_col_ice_props.cu -- WOOF-NAM unit phys-fer-col-ice-props.
 //
 // NOTICE: NAM source module_MP_FER_HIRES.F90 (NCEP/EMC, US Government work). The file has no
 // copyright or licence block; its "Modified fer_hires microphysics" changelog (lines 1-82) is the
 // notice, kept as in fer_hires.cuh.
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1029-1320 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1029-1320 (nam.v4.2.11, 83df4e13c1).
 //
 // What the range computes, per level, in Fortran order:
 //   1029-1058  TK2, TFACTOR, DYNVIS, THERM_COND, DIFFUS (air properties), GAMMAS (ice fall-speed

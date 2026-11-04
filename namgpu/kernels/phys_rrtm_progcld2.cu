@@ -1,11 +1,11 @@
-// phys_rrtm_progcld2.cu -- nam-gpu unit phys-rrtm-progcld2: PROGCLD2, Ferrier prognostic cloud
+// phys_rrtm_progcld2.cu -- WOOF-NAM unit phys-rrtm-progcld2: PROGCLD2, Ferrier prognostic cloud
 // optical properties for the RRTM radiation (np3d = 3, Ferrier microphysics).
 //
 // NOTICE: NOAA/NCEP NMMB source, US government work (no licence file in the NAM clone). Header of
 // phys/radiation_clouds_nmmb.f, module_radiation_clouds (NMMB version; authors Brad Ferrier,
 // Yu-Tai Hou, Hsin-Mu Lin; progcld2 and rsipath2_tmp are the NMMB progcld2 branch):
 //   "computes cloud related quantities using Ferrier's prognostic cloud microphysics scheme"
-// Ported to CUDA for nam-gpu from phys/radiation_clouds_nmmb.f:787-1323 (nam.v4.2.11, 83df4e13c1)
+// Ported to CUDA for WOOF-NAM from phys/radiation_clouds_nmmb.f:787-1323 (nam.v4.2.11, 83df4e13c1)
 // with the two routines it calls, rsipath2_tmp (:2779-2964) and gethml (:2167-2494), inlined as
 // device code so the unit is one launch.
 //

@@ -1,11 +1,11 @@
-// nam-gpu unit phys-myj-vdifq: VDIFQ, vertical diffusion of Q2 (2 x TKE) in the MYJ PBL,
+// WOOF-NAM unit phys-myj-vdifq: VDIFQ, vertical diffusion of Q2 (2 x TKE) in the MYJ PBL,
 // one column per thread, one launch over the whole [IM, JM] grid.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   module module_BL_MYJPBL (NMMB, nam.v4.2.11), subroutine VDIFQ (phys/module_BL_MYJPBL.F90:1342-1420).
 //   PARAMETERs ESQ = 5.0 and ELZ0 = 0. are module_BL_MYJPBL.F90 line 58 (inside the PARAMETER block).
 //   The EPSQ2 floor is the caller's Q2(I,J,K)=MAX(Q2K(K),EPSQ2(K)) for K=1..LM (module_BL_MYJPBL.F90:515-517).
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1342-1420 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:1342-1420 (nam.v4.2.11, 83df4e13c1).
 //
 // Apache-2.0 origin of the copied arithmetic: the expression shapes are adapted from
 // namgpu/third_party/arwen/core/kernels/myjpbl.cu (ArWen, Apache-2.0), its VDIFQ block. The ArWen kernel keeps

@@ -1,6 +1,6 @@
-// nam-gpu unit io-quasipost-mslp: smoothMSLP (Shuell/NAM membrane MSLP smoothing).
+// WOOF-NAM unit io-quasipost-mslp: smoothMSLP (Shuell/NAM membrane MSLP smoothing).
 //
-// Ported to CUDA for nam-gpu from nmm/module_QUASIPOST.F90:817-852 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_QUASIPOST.F90:817-852 (nam.v4.2.11, 83df4e13c1).
 // module_QUASIPOST.F90 carries no author header block (it starts at "module module_quasipost"),
 // so no NOAA header is carried here; the source is in the NOTICE.
 //

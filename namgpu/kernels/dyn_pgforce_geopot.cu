@@ -4,7 +4,7 @@
 // NMMB dynamics, NOAA/NCEP/EMC) has no author or history header block of its own; the NOAA
 // source notice in NOTICE applies. NAM is US Government work with no licence file.
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:51-248 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:51-248 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran source covered (subroutine pgforce, lines 51-248):
 //   175-185  filo(i,j) = fis(i,j)                       -> filo register init

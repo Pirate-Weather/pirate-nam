@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 // !!!!!              sw-rrtm3 radiation package description              !!!!!
 // !!!!!  ==============================================================  !!!!!
 // !                                                                          !
@@ -10,8 +10,8 @@
 // !   code from aer inc.                                                     !
 // !                                                                          !
 // !   notice: the cloud coefficient tables (module_radsw_cldprtb, radsw_datatb.f) and the    !
-// !   subroutine cldprop are NOAA/NCEP code (nam.v4.2.11). Ported to CUDA for nam-gpu.       !
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:1400-1822 (nam.v4.2.11, 83df4e13c1).
+// !   subroutine cldprop are NOAA/NCEP code (nam.v4.2.11). Ported to CUDA for WOOF-NAM.      !
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:1400-1822 (nam.v4.2.11, 83df4e13c1).
 //
 // CLDPROP: SW cloud optical properties per cloud layer and per SW band (14 bands, Fortran
 // NBLOW..NBHGH = 16..29): taucw, ssacw, asycw, the plain cloud fraction cldfrc = cfrac/cf1 when

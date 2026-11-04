@@ -4,7 +4,7 @@
 // Notice: nmm/module_DYNAMICS_ROUTINES.F90 carries no PROGRAM HISTORY LOG / author block in the
 // NAM source at 83df4e13c1; the NAM notice in NOTICE applies (NOAA/NCEP/EMC, US Government work).
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4609-4763 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:4609-4763 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (adv2, after the species loop, `if(.not.global.and.adv_upstream)`), one level l:
 //   enhp = -dt*rdyh*0.25*idtadt                                   (once per call)

@@ -1,4 +1,4 @@
-// nam-gpu unit init-case-driver: device-side non-finite census for the init chain.
+// WOOF-NAM unit init-case-driver: device-side non-finite census for the init chain.
 //
 // Mode "new": there is no NAM Fortran counterpart. The unit is the init-chain driver (CONTRACT.md
 // section 0 and 6). The only device work it needs is the done-rule check that no array written by

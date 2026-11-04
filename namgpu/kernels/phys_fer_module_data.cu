@@ -2,7 +2,7 @@
 //
 // NOTICE: NAM source file phys/module_MP_FER_HIRES.F90:1-207 (NCEP/EMC, US Government work, no
 // licence block; changelog kept as the notice in fer_hires.cuh).
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1-207 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1-207 (nam.v4.2.11, 83df4e13c1).
 //
 // Lines 1-207 contain no executable statements: they are the module header, the USE list, PUBLIC /
 // PRIVATE statements, PARAMETER declarations and SAVE declarations. Every PARAMETER maps to a macro in

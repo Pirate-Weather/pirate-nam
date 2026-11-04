@@ -3,7 +3,7 @@
 // NOTICE: NAM source file nmm/module_CONTROL.F90 (NOAA/NCEP/EMC, US Government work, no licence file).
 // The Fortran module carries no licence block; the module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:123-345 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:123-345 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine CONSTS(global, dt, smag2, codamp, wcor, pt, tph0d, tlm0d, sbd, wbd, dphd, dlmd,
 //                         ..., lnsh, lnsad, adv_standard, adv_upstream, nboco, tboco,

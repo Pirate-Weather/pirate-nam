@@ -4,7 +4,7 @@
 // Notice: nmm/module_DYNAMICS_ROUTINES.F90 carries no PROGRAM HISTORY LOG / author block in the
 // NAM source at 83df4e13c1; the NAM notice in NOTICE applies (NOAA/NCEP/EMC, US Government work).
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:249-289 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:249-289 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran source (vertical_loop body, one level l; all levels are independent once the
 // geopotential unit dyn-pgforce-geopot has filled FIM_3D, APEL_3D, DFI_3D):

@@ -1,16 +1,16 @@
-// phys_rrtm_lw_taugb10.cu -- nam-gpu unit phys-rrtm-lw-taugb10: subroutine taugb10, the RRTM
+// phys_rrtm_lw_taugb10.cu -- WOOF-NAM unit phys-rrtm-lw-taugb10: subroutine taugb10, the RRTM
 // longwave band 10 (1390-1480 cm-1; low key h2o, high key h2o) optical depths and Planck fractions.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). Header of
 // phys/radlw_main_nmmb.f (lw-rrtm3 package, NCEP modifications of RRTM-LW from AER; nam.v4.2.11,
 // 83df4e13c1), kept as the notice:
 //   lw-rrtm3 radiation package description. this package includes ncep's modifications of the
 //   rrtm-lw radiation code from aer inc.
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:5317-5387 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:5317-5387 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran coverage (whole subroutine, 5317-5387):
 //   use module_radlw_kgb10          -> k-tables absa, absb, selfref, forref, fracrefa, fracrefb

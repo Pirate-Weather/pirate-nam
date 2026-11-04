@@ -1,7 +1,7 @@
 """phys-rrtm-driver-prep: NMMB RRTM driver inputs from the NMMB state (module_RA_RRTM.F90:98-878).
 
 NOAA notice: module_RA_RRTM.F90 (NCEP/EMC NAM nam.v4.2.11, 83df4e13c1), US government work.
-Ported to nam-gpu from that line range. Kernel: namgpu/kernels/phys_rrtm_driver_prep.cu
+Ported to WOOF-NAM from that line range. Kernel: namgpu/kernels/phys_rrtm_driver_prep.cu
 (rrtm_prep_p8w, then rrtm_prep_columns). Two launches, no host sync, no per-step allocation.
 
 What it does, in Fortran order:

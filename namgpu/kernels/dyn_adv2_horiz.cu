@@ -4,7 +4,7 @@
 // Notice: nmm/module_DYNAMICS_ROUTINES.F90 carries no PROGRAM HISTORY LOG / author block in the NAM
 // source at 83df4e13c1; the NAM notice in NOTICE applies (NOAA/NCEP/EMC, US Government work).
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4570-4599 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:4570-4599 (nam.v4.2.11, 83df4e13c1),
 // with the species/level prologue of the same loop nest (4560-4569) as kernel adv2_h_ss1.
 //
 // Fortran source, per species ks (outer loop), per level l (inner loop):

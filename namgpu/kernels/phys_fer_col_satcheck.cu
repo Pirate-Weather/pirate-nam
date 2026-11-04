@@ -1,4 +1,4 @@
-// phys_fer_col_satcheck.cu -- nam-gpu unit phys-fer-col-satcheck: grid-scale saturation checks,
+// phys_fer_col_satcheck.cu -- WOOF-NAM unit phys-fer-col-satcheck: grid-scale saturation checks,
 // effective saturation mixing ratios, RHO, THICK and process initialisation (Fortran lines 911-1028).
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US government work, no licence file in the
@@ -6,7 +6,7 @@
 //   MODULE MODULE_MP_FER_HIRES (Ferrier-Aligo high-resolution microphysics, nam.v4.2.11)
 //   "Modified" fer_hires microphysics - 11 July 2016 version
 //   SUBPROGRAM EGCP01COLUMN_hr (Ferrier, Jin; WRF structure modification).
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:911-1028 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:911-1028 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope: the body of the top-down loop DO L=1,LSFC after the setup part (phys-fer-col-setup,
 // lines 856-910): the saturation tests and, for levels that are not CLEAR, RHO, RRHO, DTRHO,

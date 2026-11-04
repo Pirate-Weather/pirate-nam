@@ -1,9 +1,9 @@
-// nam-gpu unit drv-h-to-v-tend: H_TO_V_TEND_3D, update the 3-D V-point arrays (U, V) with the
+// WOOF-NAM unit drv-h-to-v-tend: H_TO_V_TEND_3D, update the 3-D V-point arrays (U, V) with the
 // H-point wind tendencies (DUDT, DVDT) accumulated over NPHS steps.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   module_H_TO_V.F90, MODULE MODULE_H_TO_V (NCEP NMMB, nam.v4.2.11). Author headers kept as the notice.
-// Ported to CUDA for nam-gpu from nmm/module_H_TO_V.F90:128-224 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_H_TO_V.F90:128-224 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (H_TO_V_TEND_3D, lines 185-221):
 //   DELTA_T = DT*NSTEPS                                   (wrapper, single precision, passed in)

@@ -1,11 +1,11 @@
-// phys_noah_driver.cu -- NOAHLSM driver for nam-gpu: per land point prep, the SFLX column call,
+// phys_noah_driver.cu -- NOAHLSM driver for WOOF-NAM: per land point prep, the SFLX column call,
 // and write-back of soil, snow, canopy, skin temperature, fluxes and runoff.
 //
 // Notice: module_LS_NOAHLSM.F90 in NAM nam.v4.2.11 (MatthewPyle-NOAA/NAM @ 83df4e13c1, NMMB
 // physics, NOAA/NCEP/EMC) keeps its author headers. There is no licence file in the NAM tree;
 // the NOAA source notice in NOTICE applies. NAM is US Government work.
 //
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:188-1161 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:188-1161 (nam.v4.2.11, 83df4e13c1),
 // the NOAHLSM subroutine body. The SFLX call (module_LS_NOAHLSM.F90:688) is the phys-noah-sflx
 // unit, called here as noah_sflx(...) from phys_noah_sflx.cuh with the Fortran argument order
 // (prototype below). This kernel contains every other statement of the NOAHLSM body.

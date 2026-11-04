@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The lw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  lw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep modifications of the rrtm-lw radiation code from aer inc.     !
 //
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:1863-2121 (SUBROUTINE setcoef).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:1863-2121 (SUBROUTINE setcoef).
 // The lookup tables it reads are the RRTM reference data the NMMB build links: module_radlw_avplank
 // totplnk (radlw_datatb.f:58-728), module_radlw_ref preflog/tref/chi_mls (radlw_datatb.f:733-905) and
 // the band width delwave (radlw_param.f:133), passed in by the wrapper. radlw_datatb_nmmb.f defines

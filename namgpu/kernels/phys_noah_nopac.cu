@@ -1,8 +1,8 @@
-// phys_noah_nopac.cu -- NOPAC: no-snow energy and water balance (Noah LSM), nam-gpu.
+// phys_noah_nopac.cu -- NOPAC: no-snow energy and water balance (Noah LSM), WOOF-NAM.
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3204-3387 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3204-3387 (nam.v4.2.11, 83df4e13c1).
 //
 // One thread per column (i, j), one launch, no host sync. The body is the Fortran NOPAC in order.
 // Its callee closure is transcribed from the NAM Fortran, not from ArWen's WRF-lineage noah.cu

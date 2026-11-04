@@ -1,14 +1,14 @@
 // phys_rad_driver.cu -- RADIATION, the outer driver of the NMMB radiation package, for the
 // configuration the 12 km NAM parent runs (shortwave rrtm, longwave rrtm, cldfraction default).
 //
-// Ported to CUDA for nam-gpu from nmm/module_RADIATION.F90:66-995 (NAM nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_RADIATION.F90:66-995 (NAM nam.v4.2.11, 83df4e13c1).
 // NOAA notice (documentation block of RADIATION, module_RADIATION.F90 SUBPROGRAM header):
 //   SUBPROGRAM:    RADIATION   RADIATION OUTER DRIVER
 //   PRGRMMR: BLACK           ORG: W/NP22     DATE: 2002-06-04
 //   ABSTRACT: RADIATION SERVES AS THE INTERFACE BETWEEN THE NMMB PHYSICS COMPONENT
 //             AND THE WRF RADIATION DRIVER.
 //
-// What the Fortran does on every call, and where it lives in nam-gpu:
+// What the Fortran does on every call, and where it lives in WOOF-NAM:
 //   (a) radupdate_nmmb (line 395, every call while either scheme is rrtm): solar declination
 //       and constant, a scalar call. Host wrapper (namgpu/physics/driver/phys_rad_driver.py) calls
 //       the phys-rrtm-radupdate unit; no kernel here.

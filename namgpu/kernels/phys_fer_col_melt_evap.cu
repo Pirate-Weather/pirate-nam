@@ -1,10 +1,10 @@
-// phys_fer_col_melt_evap.cu -- nam-gpu unit phys-fer-col-melt-evap.
+// phys_fer_col_melt_evap.cu -- WOOF-NAM unit phys-fer-col-melt-evap.
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (NCEP/EMC, "Modified fer_hires microphysics";
 // US Government work, no licence file in the NAM clone). Module changelog lines 1-82 are the notice,
 // as kept in fer_hires.cuh.
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1479-1587 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1479-1587 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran line map (every statement has a counterpart below):
 //   1479-1483  comments only                                   -> none

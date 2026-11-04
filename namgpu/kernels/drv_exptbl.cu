@@ -1,9 +1,9 @@
-// nam-gpu unit drv-exptbl: EXPTBL exponential look-up table (and the scalars zjexp reads).
+// WOOF-NAM unit drv-exptbl: EXPTBL exponential look-up table (and the scalars zjexp reads).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:1780-1820 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:1780-1820 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine exptbl; kexm = 10001 from module_CONTROL.F90:33, kfpt = single):
 //   xmax = 30.;  xmin = -30.

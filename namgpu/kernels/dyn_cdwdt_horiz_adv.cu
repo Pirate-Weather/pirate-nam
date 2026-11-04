@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-cdwdt-horiz-adv: horizontal advection of w (dw/dt, horizontal part).
+// WOOF-NAM unit dyn-cdwdt-horiz-adv: horizontal advection of w (dw/dt, horizontal part).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3653-3727 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3653-3727 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine cdwdt, section "advection of w", inside the do l=1,lm loop that starts at 3651;
 // dwdt = DWDT, w = W, pfx/pfy/pfne/pfnw = mass fluxes, fah = FAH, dsg2/pdsg1/pdo as in CONTRACT):

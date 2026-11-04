@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3666-3725 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3666-3725 (nam.v4.2.11, 83df4e13c1).
 //
 // Starting point: ArWen (gpuwm, Apache-2.0) namgpu/third_party/arwen/core/kernels/noah.cu, function
 // noah_rosr12 (the same tridiagonal algorithm), copied with its Apache-2.0 notice (the ArWen header

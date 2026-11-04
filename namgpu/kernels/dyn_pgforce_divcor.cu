@@ -4,7 +4,7 @@
 // NOTICE: NAM source file nmm/module_DYNAMICS_ROUTINES.F90 (NOAA/NCEP/EMC, US Government work,
 // no licence file). The file carries no author/history block of its own; see NOTICE at the repo
 // root. The section is the divergence-correction part of subroutine PGFORCE.
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:290-451 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:290-451 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (one level l; every level is independent, so all levels run in one launch):
 //   global branch (global = .true.), jw = 1 (module_DYNAMICS_ROUTINES.F90:72):

@@ -1,4 +1,4 @@
-// phys_rrtm_gas_update.cu -- nam-gpu unit phys-rrtm-gas-update.
+// phys_rrtm_gas_update.cu -- WOOF-NAM unit phys-rrtm-gas-update.
 //
 // NOTICE: NOAA/NCEP NAM source phys/radiation_gases_nmmb.f (US government work; the NAM clone
 // has no licence file). Source header block of the file reproduced as the notice:
@@ -43,7 +43,7 @@
 // !       'module machine'                    in 'machine.f'             !
 // !       'module funcphys'                   in 'funcphys.f'            !
 //
-// Ported to CUDA for nam-gpu from phys/radiation_gases_nmmb.f:488-838 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_gases_nmmb.f:488-838 (nam.v4.2.11, 83df4e13c1).
 #include "nmmb_common.cuh"
 
 // gas_update, CO2 2-D monthly field assembly. One thread per (i, j) of the IMXCO2 x JMXCO2 input

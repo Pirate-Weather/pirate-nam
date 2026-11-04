@@ -4,7 +4,7 @@
 // The Fortran subroutine header is kept here as the notice:
 //   subprogram: rad_initialize - a subprogram to initialize radiation
 //   mar 2012 - yu-tai hou  create the program to initialize fixed control variables for radiaion processes.
-// Ported to CUDA for nam-gpu from phys/rad_initialize_nmmb.f:2-224 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/rad_initialize_nmmb.f:2-224 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine rad_initialize_nmmb(si, levr, ictm, isol, ico2, iaer, iaer_mdl, ialb, iems, ntcw,
 //     num_p3d, ntoz, iovr_sw, iovr_lw, isubc_sw, isubc_lw, icliq_sw, icice_sw, icliq_lw, icice_lw,

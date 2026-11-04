@@ -1,6 +1,6 @@
 // phys_jsfc_sfcdif.cu -- SFCDIF, Janjic similarity surface layer (NAM JSFC), one thread per column.
 //
-// Ported to CUDA for nam-gpu from phys/module_SF_JSFC.F90:357-1011 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_SF_JSFC.F90:357-1011 (nam.v4.2.11, 83df4e13c1).
 // Source header (kept as the notice; NOAA/NCEP work, no licence file in the NAM clone):
 //   SUBROUTINE SFCDIF -- SURFACE LAYER, Janjic (module_SF_JSFC.F90, MODULE MODULE_SF_JSFC).
 //

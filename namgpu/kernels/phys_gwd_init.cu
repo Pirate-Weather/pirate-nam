@@ -1,9 +1,9 @@
 // phys_gwd_init.cu -- unit phys-gwd-init: GWD_init, gravity-wave-drag constants and grid rotation
-// (nam-gpu), CONTRACT.md section 3.
+// (WOOF-NAM), CONTRACT.md section 3.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   MODULE_GWD (nmm/module_GWD.F90, Ferrier/Janjic GWD + mountain blocking), nam.v4.2.11.
-// Ported to CUDA for nam-gpu from nmm/module_GWD.F90:32-119 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_GWD.F90:32-119 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran GWD_init, module_GWD.F90:32-119 (line numbers checked against the NAM source):
 //  - NMTVR = 14 (:79), DELTIM = DTPHS (:80), RDELTIM = 1./DTPHS (:81): module-level PRIVATE scalars

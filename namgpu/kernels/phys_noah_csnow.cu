@@ -19,9 +19,9 @@
 // !-----------------------------------------------------------------------
 // !
 //
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2472-2511 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2472-2511 (nam.v4.2.11, 83df4e13c1).
 //
-// Copied from ArWen gpuwm/core/kernels/noah.cu (Apache-2.0) for nam-gpu, 2026-11-04. The formula is
+// Copied from ArWen gpuwm/core/kernels/noah.cu (Apache-2.0) for WOOF-NAM, 2026-11-04. The formula is
 // ArWen's noah_csnow (2.0f * 0.11631f * (0.328f * powf(10.0f, 2.25f * dsnow))), the same arithmetic
 // in the same order as the Fortran below. ArWen is Copyright 2026 ArWen contributors, licensed under
 // the Apache License, Version 2.0 (namgpu/third_party/arwen/LICENSE; https://www.apache.org/licenses/LICENSE-2.0).

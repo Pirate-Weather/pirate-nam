@@ -3,7 +3,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:5312-5369 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:5312-5369 (nam.v4.2.11, 83df4e13c1).
 // Executed statements: see phys_noah_wdfcnd.cuh (every term is there).
 //
 // Layout: 3-D point kernel. One thread per (i, j, soil layer), soil layer on grid.z (grid_2d with

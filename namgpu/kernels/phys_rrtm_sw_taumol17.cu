@@ -1,8 +1,8 @@
-// phys_rrtm_sw_taumol17.cu -- unit phys-rrtm-sw-taumol17: NMMB RRTM shortwave band 17 optical depths, nam-gpu.
+// phys_rrtm_sw_taumol17.cu -- unit phys-rrtm-sw-taumol17: NMMB RRTM shortwave band 17 optical depths, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The sw-rrtm3
 //   header of phys/radsw_main_nmmb.f and the module headers of phys/radsw_datatb.f and
@@ -10,7 +10,7 @@
 //   apply to this port. Band-17 k-tables: namgpu/data/rrtm_sw/kgb17.npz (extracted by
 //   tools/extract-rrtm-sw-kgb17.py from module_radsw_kgb17_nmmb; the GFS-named module_radsw_kgb17 that
 //   taumol17 USEs is numerically identical, checked 2026-11-04).
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:3495-3627 (subroutine taumol17, internal to
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:3495-3627 (subroutine taumol17, internal to
 //   taumol; nam.v4.2.11, 83df4e13c1).
 //
 // Band 17: 3250-4000 cm-1, low key H2O and CO2, high key H2O and CO2. NG17 = 12 g-points at

@@ -1,10 +1,10 @@
-// dyn_mono_fix.cu -- nam-gpu unit dyn-mono-fix: MONO setup and per-species monotonisation
+// dyn_mono_fix.cu -- WOOF-NAM unit dyn-mono-fix: MONO setup and per-species monotonisation
 // (local min/max limiter, per-species sums of positive and negative limited changes).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). The Fortran
 // module module_DYNAMICS_ROUTINES.F90 has no author/history block of its own; the NOAA notice is
 // in the NOTICE file at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4768-5075 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:4768-5075 (nam.v4.2.11, 83df4e13c1),
 // the allreduce branch of MONO (use_allreduce = true, parm/nam_configfile line 159).
 //
 // Fortran subroutine MONO(idtadt, kss, kse, lm, dsg2, pdsg1, epsq2, dare, pd, indx_q2, s, inpes,

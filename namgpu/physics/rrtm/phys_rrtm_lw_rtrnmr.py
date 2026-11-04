@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-lw-rtrnmr: rtrnmr, maximum-random overlap LW flux and heating-rate transfer (RRTM group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_main_nmmb.f:2489-3054, subroutine rtrnmr.

@@ -15,7 +15,7 @@
 //   !   2008-07-28  Vasic - SMSTAV, SMSTOT, SMOIS reset for plotting.
 //   !               Vasic - SOILW limitted to positive values.
 //
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3153-3201 (HSTEP) and
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3153-3201 (HSTEP) and
 // phys/module_LS_NOAHLSM.F90:3666-3725 (ROSR12, the solve HSTEP calls) (nam.v4.2.11, 83df4e13c1).
 //
 // Adapted from ArWen gpuwm/core/kernels/noah.cu (noah_hstep, noah_rosr12), namgpu/third_party/arwen/

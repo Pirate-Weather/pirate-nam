@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2514-2554 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2514-2554 (nam.v4.2.11, 83df4e13c1).
 //
 // The point function is in phys_noah_devap.cuh (shared with the EVAPO kernel). Apache-2.0 notice of
 // the ArWen-derived starting point: namgpu/third_party/arwen/LICENSE (Copyright 2026 ArWen contributors,

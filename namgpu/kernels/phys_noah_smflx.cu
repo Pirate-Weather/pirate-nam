@@ -16,7 +16,7 @@
 //   !   2008-07-28  Vasic - SMSTAV, SMSTOT, SMOIS reset for plotting.
 //   !               Vasic - SOILW limitted to positive values.
 //
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3799-3916 (SMFLX),
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3799-3916 (SMFLX),
 // 4603-4852 (SRT), 4855-4942 (SSTEP), 3666-3725 (ROSR12) and 5312-5369 (WDFCND)
 // (nam.v4.2.11, 83df4e13c1).
 //

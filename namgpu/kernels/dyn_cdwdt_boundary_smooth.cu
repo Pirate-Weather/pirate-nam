@@ -3,7 +3,7 @@
 //
 // NOTICE: NAM source file nmm/module_DYNAMICS_ROUTINES.F90 (NOAA/NCEP/EMC, US Government work,
 // no licence file). This routine has no author/history block of its own; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3278-3532 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3278-3532 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine CDWDT, lines 3278-3532 only (the local dw/dt derivative after 3532 belongs to a
 // later unit). Arguments used in this range: global, hydro, restart, lm, ntsd, dt (only for diffw,

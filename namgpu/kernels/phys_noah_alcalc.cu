@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:1976-2001 (the albedo and snow-cover
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:1976-2001 (the albedo and snow-cover
 // branch of NOAHLSM, which calls SNFRAC and ALCALC) and SUBROUTINE ALCALC at 2281-2328.
 //
 // Fortran, every executed statement, per land point in the NOAHLSM B1 loop:

@@ -1,10 +1,10 @@
-// nam-gpu unit bnd-boundary-init: boundary-zone working arrays filled from the full-domain
+// WOOF-NAM unit bnd-boundary-init: boundary-zone working arrays filled from the full-domain
 // fields at the four lateral edges (S, N, W, E), for the H-point and V-point variables.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:1145-1774 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:1145-1774 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine boundary_init (1-based indices, full domain IM x JM, single process, all four
 // edge flags true: w_bdy=(its==ids), e_bdy=(ite==ide), s_bdy=(jts==jds), n_bdy=(jte==jde)).

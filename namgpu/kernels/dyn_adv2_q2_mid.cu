@@ -1,4 +1,4 @@
-// nam-gpu unit dyn-adv2-q2-mid: ADV2 setup for a tracer group.
+// WOOF-NAM unit dyn-adv2-q2-mid: ADV2 setup for a tracer group.
 //   (1) floor every species of the group at the ADV2 epsq (1e-20), every level;
 //   (2) Q2 (2*TKE) from interfaces to midlayers, in place, level LM down to 2, then level 1;
 //   (3) s1 = sqrt(s) for every species of the group (sqrt transform for positive definiteness);
@@ -7,7 +7,7 @@
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4238-4461 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:4238-4461 (nam.v4.2.11, 83df4e13c1).
 //
 // Index ranges: its_h1 = max(its-1, ids) = 1 and ite_h1 = min(ite+1, ide) = IM
 // (module_DM_PARALLEL.F90:808-809); the same for j. The single-card regional layout covers every

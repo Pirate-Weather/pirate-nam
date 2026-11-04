@@ -7,7 +7,7 @@
 //   co2_glb, co2vmr_sav, co2cyc_sav, gco2cyc.
 //   ICTM -2/-1/0/1/yyyy# data time control; ICO2 0/1/2 CO2 source; IOZN ozone source (0 climatology,
 //   >0 interactive); iflip vertical order.
-// Ported to CUDA for nam-gpu from phys/radiation_gases_nmmb.f:186-483 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_gases_nmmb.f:186-483 (nam.v4.2.11, 83df4e13c1).
 //
 // Split (CONTRACT.md section 3, one launch per Fortran section):
 //   The file reads (ozone climatology NIO3CLM, CO2 user/cycle files NICO2CN) and every branch

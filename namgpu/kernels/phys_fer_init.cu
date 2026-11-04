@@ -1,10 +1,10 @@
-// nam-gpu unit phys-fer-init: FERRIER_INIT_hr, the once-per-run build of the Ferrier-Aligo
+// WOOF-NAM unit phys-fer-init: FERRIER_INIT_hr, the once-per-run build of the Ferrier-Aligo
 // microphysics constants, growth table and saturation-vapour-pressure tables.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The routine's own documentation block (module_MP_FER_HIRES, Ferrier and Jin, WRF heritage)
 // is the notice; NAM keeps it in the Fortran file.
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2391-2744 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2391-2744 (nam.v4.2.11, 83df4e13c1),
 // with the routines it calls: MY_GROWTH_RATES_NMM_hr (2746-2785), GPVS_hr (2791-2836),
 // FPVS0 (2894-2911), FPVSX (2915-2971) and FPVSX0 (2974-2989).
 //

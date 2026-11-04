@@ -3,7 +3,7 @@
 //
 // NOTICE: NAM source file nmm/module_DYNAMICS_ROUTINES.F90 (NOAA/NCEP/EMC, US Government work,
 // no licence file). This file has no author/history block of its own; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3140-3235 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3140-3235 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine CDZDT, section "grand horizontal loop" (lines 3140-3235), inside the
 // vertical_loop over l = 1..LM. Fortran arrays per CONTRACT.md section 1:

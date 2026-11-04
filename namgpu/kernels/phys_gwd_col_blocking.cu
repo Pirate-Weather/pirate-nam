@@ -15,7 +15,7 @@
 //   Routine GWD_col: original GFS documentation block and version history as in
 //   nmm/module_GWD.F90:368-420 (Lott & Miller mountain blocking, *j*, 4/02).
 //
-// Ported to CUDA for nam-gpu from nmm/module_GWD.F90:368-897 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_GWD.F90:368-897 (nam.v4.2.11, 83df4e13c1).
 //
 // PRECISION: kind_phys = SELECTED_REAL_KIND(13,60) (module_GWD.F90 line 19 neighbourhood, real*8),
 // so every REAL(kind=kind_phys) variable and PARAMETER of GWD_col is double here. The tunables

@@ -3,7 +3,7 @@
 Same file as unit io-history (io/history.py, shaped like a WRF wrfout, dims Time / south_north /
 west_east / bottom_top), written by libnetcdf_writer.so instead of netCDF4-python. The C ABI is
 the one gpuwm's ctypes seam speaks (gpuwm/io/nc_writer_bridge.py, NCWRITE_ABI = 1); this module
-binds the same entry points itself so nam-gpu does not import the gpuwm package.
+binds the same entry points itself so WOOF-NAM does not import the gpuwm package.
 
 Library: env NAMGPU_NCWRITE_LIB if set, else $GPUWM_BRIDGES/libnetcdf_writer.so (the gpuwm bridges copy)
 (built from tools/rustwx/crates/netcdf-writer with cargo build --release --locked --offline

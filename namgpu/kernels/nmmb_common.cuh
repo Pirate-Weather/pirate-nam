@@ -1,4 +1,4 @@
-// nmmb_common.cuh -- shared index macros and constants for every nam-gpu kernel.
+// nmmb_common.cuh -- shared index macros and constants for every WOOF-NAM kernel.
 //
 // Layout (CONTRACT.md): Fortran A(i,j,l) with i=1..IM, j=1..JM, l=1..LM (l=1 = model top)
 // lives in a CuPy C-ordered float32 array a[l][j][i]  (shape [LM, JM, IM]).

@@ -4,7 +4,7 @@
 // NOTICE: NAM source file nmm/module_DYNAMICS_ROUTINES.F90 (NOAA/NCEP/EMC, US Government work,
 // no licence file). The routine has no author/history block of its own; see NOTICE at the repo root.
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:2920-3139 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:2920-3139 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine cdzdt(global, hydro, lm, dt, dsg2, pdsg1, fah, fis, pd, pdo, psgdt, cw, q,
 // rtop, t, pint, dwdt, pdwdt, w, baro, z, pfne, pfnw, pfx, pfy). Covered:

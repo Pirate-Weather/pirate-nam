@@ -1,9 +1,9 @@
-// phys_rrtm_dayparts.cu -- DAYPARTS sunlit-point selection (+ COSZMN_NMMB), nam-gpu.
+// phys_rrtm_dayparts.cu -- DAYPARTS sunlit-point selection (+ COSZMN_NMMB), WOOF-NAM.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   phys/grrad_nmmb.f and phys/radiation_astronomy_nmmb.f (nam.v4.2.11, 83df4e13c1). The NOAA
 //   author headers are kept in the NAM clone and are the notice for this port.
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:606-656 (nam.v4.2.11, 83df4e13c1), with the
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:606-656 (nam.v4.2.11, 83df4e13c1), with the
 //   COSZMN_NMMB call (grrad_nmmb.f:621-628 -> radiation_astronomy_nmmb.f:744-848).
 //
 // Fortran DAYPARTS is called once per row J by module_RA_RRTM.F90:879-881 with LENIVEC = IM points

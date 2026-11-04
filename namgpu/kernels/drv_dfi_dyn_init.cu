@@ -4,7 +4,7 @@
 // file in the NAM clone; see NOTICE at the repo root). Module header kept as the notice:
 //   MODULE module_DIGITAL_FILTER_NMM -- "a generic digital filter for any model under ESMF"
 //   March 2007 Hann-Ming Henry Juang; Feb 2008-Sep 2011 Weiyu Yang; July 2012 T Black
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:46-203 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:46-203 (nam.v4.2.11, 83df4e13c1).
 //
 // The routine has two parts, split into two launches (CONTRACT.md section 3):
 //

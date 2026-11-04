@@ -1,11 +1,11 @@
-// nam-gpu unit phys-bmj-ttblex: TTBLEX, table look-up of the moist-adiabat temperature from the
+// WOOF-NAM unit phys-bmj-ttblex: TTBLEX, table look-up of the moist-adiabat temperature from the
 // BMJ tables (ttbl) for one parcel. Used by the BMJ column scheme (bmjdrv and its cloud-base,
 // cloud-top and deep/shallow iteration units) and by nothing else.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran module has no licence block; its module header is kept here as the notice:
 //   MODULE MODULE_CU_BMJ (Betts-Miller-Janjic convection, NMMB, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from sorc/nam_nems_nmmb.fd/src/atmos/phys/module_CU_BMJ.F90:2071-2154 (nam.v4.2.11, 83df4e13c1,
+// Ported to CUDA for WOOF-NAM from sorc/nam_nems_nmmb.fd/src/atmos/phys/module_CU_BMJ.F90:2071-2154 (nam.v4.2.11, 83df4e13c1,
 // NAM_SRC=<a NAM clone>). The cmp copy has no TTBLEX; do not diff against it.
 //
 // Two entry points:

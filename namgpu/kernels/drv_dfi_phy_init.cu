@@ -1,10 +1,10 @@
-// nam-gpu unit drv-dfi-phy-init: DIGITAL_FILTER_PHY_INIT_NMM, allocate and zero the physics save
+// WOOF-NAM unit drv-dfi-phy-init: DIGITAL_FILTER_PHY_INIT_NMM, allocate and zero the physics save
 // arrays of the digital filter (array_save_2d_phys, array_save_3d_phys) once, on the first filter call.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   nmm/module_DIGITAL_FILTER_NMM.F90, SUBROUTINE DIGITAL_FILTER_PHY_INIT_NMM (module header authors
 //   Weiyu Yang, 2008-2011, kept as the notice).
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:650-736 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:650-736 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran semantics (650-736) and where the port does each part:
 //   - Bundle walk and rank counting (FieldBundleGet, FieldGet dimCount, TOT_RANK_2D/3D_PHYS): the wrapper

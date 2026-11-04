@@ -1,10 +1,10 @@
-// nam-gpu unit phys-myj-mixlen: MIXLEN, the level 2.5 master mixing length of the Mellor-Yamada-
+// WOOF-NAM unit phys-myj-mixlen: MIXLEN, the level 2.5 master mixing length of the Mellor-Yamada-
 // Janjic (MYJ) PBL scheme (NMMB module_BL_MYJPBL, nam.v4.2.11).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). The
 // module header of module_BL_MYJPBL is kept as the notice:
 //   MODULE MODULE_BL_MYJPBL, "THE MYJ PBL SCHEME" (NMMB, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:758-965 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:758-965 (nam.v4.2.11, 83df4e13c1).
 // Constants: module_BL_MYJPBL.F90:36-118 (PARAMETER block), evaluated in double and rounded to
 // float here (Fortran single-precision evaluation may differ by one ulp; not claimed bitwise).
 //

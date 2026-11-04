@@ -1,6 +1,6 @@
 """phys-turbl-driver: TURBL outer driver (nmm/module_TURBULENCE.F90:89-1420, nam.v4.2.11, 83df4e13c1).
 
-Ported to nam-gpu. Kernel: namgpu/kernels/phys_turbl_driver.cu (15 entry points, one launch each).
+Ported to WOOF-NAM. Kernel: namgpu/kernels/phys_turbl_driver.cu (15 entry points, one launch each).
 run(ctx) is called on the physics cadence (NPHS = 2 steps, CONTRACT.md section 2 step 16). Inside,
 the Fortran's own gates are kept: the surface and PBL blocks run when NTSD == 1 or
 mod(NTSD, NPHS) == 0, and the NTSD == 0 block runs only on the first step.

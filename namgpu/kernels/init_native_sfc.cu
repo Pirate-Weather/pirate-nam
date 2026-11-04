@@ -1,4 +1,4 @@
-// nam-gpu unit init-native-sfc: surface and soil initial state from the NAM native analysis
+// WOOF-NAM unit init-native-sfc: surface and soil initial state from the NAM native analysis
 // (bgrd3d00 GRIB2 fields) into the NMMB state arrays of namgpu.state.State.
 //
 // Mode "new": no Fortran counterpart. Names, units and layouts follow the NAM state tables

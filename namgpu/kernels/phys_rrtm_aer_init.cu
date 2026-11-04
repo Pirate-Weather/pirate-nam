@@ -5,7 +5,7 @@
 // licence file). The module header of that file is kept here as the notice:
 //   'module_radiation_aerosols' -- climatological atmospheric aerosol schemes for radiation.
 //   program history: apr 2003 y.-t. hou created; ... NCEP-Radiation_aerosols v5.2 Jan 2013 (VTAGAER).
-// Ported to CUDA for nam-gpu from phys/radiation_aerosols_nmmb.f:445-816 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_aerosols_nmmb.f:445-816 (nam.v4.2.11, 83df4e13c1).
 // Subprograms covered: aer_init (445-572), wrt_aerlog (host print, not ported, writes no state),
 // set_spectrum (the wavenumber loops), set_volcaer (allocation only).
 //

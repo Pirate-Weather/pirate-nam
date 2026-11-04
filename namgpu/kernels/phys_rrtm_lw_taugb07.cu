@@ -1,8 +1,8 @@
-// phys_rrtm_lw_taugb07.cu -- unit phys-rrtm-lw-taugb07: LW band 7 optical depths and Planck fractions, nam-gpu.
+// phys_rrtm_lw_taugb07.cu -- unit phys-rrtm-lw-taugb07: LW band 7 optical depths and Planck fractions, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). Header of
 //   phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), kept verbatim as the notice:
@@ -47,7 +47,7 @@
 // |  !          outputs:                                                        !
 // |  !            hlwc,topflx,sfcflx,                                           !
 //
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:4687-4942 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:4687-4942 (nam.v4.2.11, 83df4e13c1).
 // The Fortran reads module_radlw_kgb07 (phys/radlw_datatb.f:21919-24540): namgpu/data/rrtm_lw/kgb07.npz.
 
 // Fortran routine (radlw_main_nmmb.f:4687-4942), band 7 = 980-1080 cm-1 (low key h2o,o3; low minor co2;

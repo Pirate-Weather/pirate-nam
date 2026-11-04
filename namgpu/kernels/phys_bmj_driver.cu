@@ -1,9 +1,9 @@
-// nam-gpu unit phys-bmj-driver: CUCNVC glue for every NPRECIP (BMJ convection branch).
+// WOOF-NAM unit phys-bmj-driver: CUCNVC glue for every NPRECIP (BMJ convection branch).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran module has no licence block; its module header is kept here as the notice:
 //   MODULE MODULE_CONVECTION (NMMB convection drivers and packages, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from nmm/module_CONVECTION.F90:48-658 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONVECTION.F90:48-658 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope: the CUCNVC body for CONVECTION == "bmj" (CU_PHYSICS = BMJSCHEME = 2, nam_configfile
 // `convection: bmj`). The BMJ call itself (bmjdrv, module_CU_BMJ.F90:117-395) is unit

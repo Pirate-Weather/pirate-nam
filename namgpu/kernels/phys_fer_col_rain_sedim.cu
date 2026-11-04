@@ -1,9 +1,9 @@
-// phys_fer_col_rain_sedim.cu -- nam-gpu unit phys-fer-col-rain-sedim (one thread per column).
+// phys_fer_col_rain_sedim.cu -- WOOF-NAM unit phys-fer-col-rain-sedim (one thread per column).
 //
 // NOTICE: NOAA/NCEP NMMB source, US government work (no licence file in the NAM clone). The header
 // of phys/module_MP_FER_HIRES.F90 (lines 1-82, "Modified fer_hires microphysics" changelog) is the
 // notice; see fer_hires.cuh.
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1588-2159 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1588-2159 (nam.v4.2.11, 83df4e13c1),
 // the tail of the level loop of SUBROUTINE EGCP01COLUMN_hr (lines 650-2382).
 //
 // Scope: the Fortran range, with the per-level values that the upstream units write (see the

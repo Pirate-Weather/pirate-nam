@@ -1,10 +1,10 @@
-// nam-gpu unit phys-myj-vdifv: vertical diffusion of the horizontal velocity components (MYJ PBL).
+// WOOF-NAM unit phys-myj-vdifv: vertical diffusion of the horizontal velocity components (MYJ PBL).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Header kept
 // as the notice:
 //   MODULE MODULE_BL_MYJPBL  (NMMB, nam.v4.2.11), THE MYJ PBL SCHEME
 //   SUBROUTINE VDIFV(LMH,DTDIF,UZ0,VZ0,RKMS,D,U,V,RKM,Z,RHO,I,J,LM)  (phys/module_BL_MYJPBL.F90)
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1527-1607 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:1527-1607 (nam.v4.2.11, 83df4e13c1).
 // The arithmetic is the NAM routine's, in its order: the tridiagonal coefficients CR and CM, the
 // forward sweep for RSU/RSV, the top (LMH) row with the surface-exchange terms UZ0/VZ0, and the back
 // substitution. Lower-case k below is the NAM level index: k0 = K-1, with K = 1 the MODEL TOP.

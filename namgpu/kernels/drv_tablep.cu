@@ -1,4 +1,4 @@
-// nam-gpu unit drv-tablep: TABLEP, the saturation-pressure table ptbl(itb,jtb) used by the moist
+// WOOF-NAM unit drv-tablep: TABLEP, the saturation-pressure table ptbl(itb,jtb) used by the moist
 // processes (convection, microphysics) to find pressure from saturation specific humidity and
 // potential temperature.  Also fills the row constants qs0(jtb), sqs(jtb).  The module scalars
 // rdth and rdq are set by the wrapper with the same float32 operations as the Fortran.
@@ -6,7 +6,7 @@
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:1868-1964 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:1868-1964 (nam.v4.2.11, 83df4e13c1).
 // The Fortran CALL SPLINE (module_CONTROL.F90:2074-2183, unit drv-spline) is inlined as the
 // __device__ function tablep_spline below, specialised to nold = nnew = ITB (the only call in
 // TABLEP), so the kernel has no dependency on the drv-spline kernel and no host call.

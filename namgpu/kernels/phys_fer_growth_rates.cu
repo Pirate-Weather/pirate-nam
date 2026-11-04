@@ -1,4 +1,4 @@
-// phys_fer_growth_rates.cu -- nam-gpu unit phys-fer-growth-rates: MY_GROWTH_RATES_NMM_hr.
+// phys_fer_growth_rates.cu -- WOOF-NAM unit phys-fer-growth-rates: MY_GROWTH_RATES_NMM_hr.
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US government work, no licence file in the
 // NAM clone). The module header block is kept here verbatim as the notice (comment-prefixed):
@@ -109,7 +109,7 @@
 // !-----------------------------------------------------------------------------
 // !
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2746-2785 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2746-2785 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (SUBROUTINE MY_GROWTH_RATES_NMM_hr(DTPH)):
 //   REAL DT_ICE; REAL MY_600(35) (DATA, 35 values, g);

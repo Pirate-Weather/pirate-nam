@@ -1,4 +1,4 @@
-// phys_fer_get_indexr.cu -- nam-gpu unit phys-fer-get-indexr: GET_INDEXR (rain-size table index).
+// phys_fer_get_indexr.cu -- WOOF-NAM unit phys-fer-get-indexr: GET_INDEXR (rain-size table index).
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (nam.v4.2.11, 83df4e13c1), a US government work
 // with no licence file in the NAM clone. The module header block is reproduced verbatim below
@@ -38,7 +38,7 @@
 // ---- end NOAA module header ----
 // and later revisions).
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2297-2380 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2297-2380 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran: INTEGER FUNCTION GET_INDEXR(RR) returns the mean rain drop diameter in microns for a rain
 // rate RR (kg m-2 s-1). It is a piecewise power-law fit of the rain-table diameter against RR, clamped

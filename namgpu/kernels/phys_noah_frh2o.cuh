@@ -5,7 +5,7 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90), HISTORY
 // LOG 2008-07-28 Vasic. The routine's own comment block (Koren et al. 1999, JGR 104(D16),
 // 19569-19585, eqn 17; Flerchinger explicit form) is kept in the Fortran source.
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2644-2782 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2644-2782 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE FRH2O(FREE,TKELV,SMC,SH2O,SMCMAX,BEXP,PSIS), every executed statement:
 //   BX = BEXP; IF (BEXP > BLIM) BX = BLIM                           (BLIM = 5.5)

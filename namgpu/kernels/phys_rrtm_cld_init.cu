@@ -1,9 +1,9 @@
-// phys_rrtm_cld_init.cu -- unit phys-rrtm-cld-init: cld_init, cloud scheme flags, nam-gpu.
+// phys_rrtm_cld_init.cu -- unit phys-rrtm-cld-init: cld_init, cloud scheme flags, WOOF-NAM.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   MODULE_RADIATION_CLOUDS_NMMB (phys/radiation_clouds_nmmb.f, nam.v4.2.11). Author header kept in
 //   the NAM clone; VTAGCLD 'NCEP-Radiation_clouds v5.1 Nov 2012'.
-// Ported to CUDA for nam-gpu from phys/radiation_clouds_nmmb.f:225-349 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_clouds_nmmb.f:225-349 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE cld_init(si, NLAY, me), every statement accounted for:
 //  - 290-296  if (icldflg == 0): call rhtable(me, ier) and stop on ier < 0. The rhtable routine is

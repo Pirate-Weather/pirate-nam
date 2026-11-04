@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-adv1-coriolis: Coriolis/curvature tendency on V points and the
+// WOOF-NAM unit dyn-adv1-coriolis: Coriolis/curvature tendency on V points and the
 // diagonally averaged mass fluxes used by ADV1 horizontal momentum advection.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1838-1866 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1838-1866 (nam.v4.2.11, 83df4e13c1),
 // the body of subroutine adv1 (module_DYNAMICS_ROUTINES.F90:1233), inside the grand vertical loop over l.
 //
 // Fortran (per level l). Stage [0] is the Adams-Bashforth extrapolation at Fortran 1829-1833

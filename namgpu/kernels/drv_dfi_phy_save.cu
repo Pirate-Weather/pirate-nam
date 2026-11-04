@@ -1,9 +1,9 @@
-// nam-gpu unit drv-dfi-phy-save: save the physics ('R' restore) state before the digital filter.
+// WOOF-NAM unit drv-dfi-phy-save: save the physics ('R' restore) state before the digital filter.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   module_DIGITAL_FILTER_NMM.F90, module header (Hann-Ming Henry Juang, Weiyu Yang, T Black;
 //   author headers kept as the notice). Routine DIGITAL_FILTER_PHY_SAVE_NMM.
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:741-824 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:741-824 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (for every 2-D field n: array_save_2d_phys(i,j,n) = hold_2d(i,j), and for every 3-D field n:
 //   array_save_3d_phys(i,j,l,n) = hold_3d(i,j,l) for l = 1..size(hold_3d,3)), with ITS..ITE x JTS..JTE.

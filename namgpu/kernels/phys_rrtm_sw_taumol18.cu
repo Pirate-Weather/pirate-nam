@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:3632-3738 (subroutine taumol18, nam.v4.2.11,
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:3632-3738 (subroutine taumol18, nam.v4.2.11,
 // 83df4e13c1). Notice (source header of radsw_main_nmmb.f): sw-rrtm3 radiation package, NCEP modifications
 // of the RRTM-SW radiation code from AER Inc. Band 18 is 4000-4650 cm-1 (low: H2O, CH4; high: CH4).
 // The k-tables are namgpu/data/rrtm_sw/kgb18.npz (module_radsw_kgb18_nmmb, phys/radsw_datatb_nmmb.f:7133-8634,

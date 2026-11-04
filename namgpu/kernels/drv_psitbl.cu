@@ -1,9 +1,9 @@
-// nam-gpu unit drv-psitbl: surface-layer integral stability functions (PSITBL) table.
+// WOOF-NAM unit drv-psitbl: surface-layer integral stability functions (PSITBL) table.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:2189-2300 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:2189-2300 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine psitbl (responsible person z.janjic) fills, on the sea (1) and land (2) tables:
 //   psim1, psih1, psim2, psih2 (1:kztm, kfpt = single) on z/L in [ztmin, ztmax] with step dzeta,

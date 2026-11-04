@@ -1,4 +1,4 @@
-// phys_gwd_driver.cu -- GWD_DRIVER for nam-gpu: column prep (rotate winds to geodetic, pressure
+// phys_gwd_driver.cu -- GWD_DRIVER for WOOF-NAM: column prep (rotate winds to geodetic, pressure
 // and exner, geopotential), the GWD_col call, and the write-back of wind tendencies rotated back
 // to model coordinates, plus the surface stress diagnostics.
 //
@@ -9,7 +9,7 @@
 //    Initially incorporated into the WRF NMM from the GFS by B. Ferrier in April/May 2007.
 //    Ratko added in NMM-B (July 2008). Mountain blocking made more robust in July 2016 by BSF."
 //
-// Ported to CUDA for nam-gpu from nmm/module_GWD.F90:125-362 (nam.v4.2.11, 83df4e13c1), the
+// Ported to CUDA for WOOF-NAM from nmm/module_GWD.F90:125-362 (nam.v4.2.11, 83df4e13c1), the
 // GWD_driver subroutine body. The GWD_col call (module_GWD.F90:368-1132) is the phys-gwd-col-blocking
 // and phys-gwd-col-wave units, called here as gwd_col(...) from phys_gwd_col.cuh (prototype
 // expected from those units; argument order = the Fortran CALL GWD_col list). This kernel contains

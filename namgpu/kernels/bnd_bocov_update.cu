@@ -4,7 +4,7 @@
 //
 // NOTICE: NAM source file nmm/module_FLTBNDS.F90 (NOAA/NCEP/EMC, US Government work, no licence
 // file). Keep the NOAA author headers of that file as notice; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:6392-6589 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:6392-6589 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine BOCOV(lm, lnsv, dt, nvars_bc_2d_v, nvars_bc_3d_v, bnd_vars_v), update block only.
 //   south(ib,jb,[l,]1) = south(ib,jb,[l,]1) + south(ib,jb,[l,]2) * dt

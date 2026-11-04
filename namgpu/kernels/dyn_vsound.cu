@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-vsound: implicit vertically propagating sound waves (one tridiagonal per column).
+// WOOF-NAM unit dyn-vsound: implicit vertically propagating sound waves (one tridiagonal per column).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3904-4234 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3904-4234 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine vsound; hydro = false, ntsd >= 2, global = false, single process):
 //   [A] l=1 init: pone = pnp1 = pstr = pt  (its_b1..ite_b1 x jts_b1..jte_b1)

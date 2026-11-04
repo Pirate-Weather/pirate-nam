@@ -1,8 +1,8 @@
-// nam-gpu unit phys-bmj-col-shallow-adjust: BMJ shallow convection adjustment for every shallow column.
+// WOOF-NAM unit phys-bmj-col-shallow-adjust: BMJ shallow convection adjustment for every shallow column.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice: MODULE MODULE_CU_BMJ (Betts-Miller-Janjic convection, NMMB, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:1450-2067 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:1450-2067 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope: the shallow part of subroutine bmj, from the per-level setup at 1450 to the relaxation at 820 and
 // the end of the routine at 2067. It runs only for columns the shallow-top unit marked shallow (Fortran

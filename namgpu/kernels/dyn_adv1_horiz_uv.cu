@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-adv1-horiz-uv: horizontal momentum advection inside NMMB ADV1 (secadv = true, second
+// WOOF-NAM unit dyn-adv1-horiz-uv: horizontal momentum advection inside NMMB ADV1 (secadv = true, second
 // order), the 4th-order diagonal branch (secadv = false) and the Adams-Bashforth advection of u1d/v1d.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1867-2021 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1867-2021 (nam.v4.2.11, 83df4e13c1),
 // the body of subroutine adv1 inside the grand vertical loop over l (vertical_loop2).
 //
 // Fortran, per level l (1-based indices below; kernels use 0-based i0 = i-1, j0 = j-1, l0 = l-1):

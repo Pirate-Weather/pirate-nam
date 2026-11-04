@@ -1,8 +1,8 @@
-// nam-gpu unit io-quasipost-3d: calculate_3D, the 3-D diagnostic fields of NAM's unified post
+// WOOF-NAM unit io-quasipost-3d: calculate_3D, the 3-D diagnostic fields of NAM's unified post
 // (heights, temperature/Tv and RH-bounded extrapolation on the NCEP post pressure levels, and the
 // 500/700/850 mb winds, vorticity and 10-m wind magnitude/vorticity).
 //
-// Ported to CUDA for nam-gpu from nmm/module_QUASIPOST.F90:257-686 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_QUASIPOST.F90:257-686 (nam.v4.2.11, 83df4e13c1).
 // The Fortran file has no NOAA header block; the notice is in NOTICE.
 //
 // Launch order (wrapper io/io_quasipost_3d.py), one launch per section of the routine:

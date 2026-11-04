@@ -112,7 +112,7 @@
 // !=============================================!
 
 // phys_rrtm_aer_update.cu -- AER_UPDATE / TROP_UPDATE fill (module_radiation_aerosols_nmmb).
-// Ported to CUDA for nam-gpu from phys/radiation_aerosols_nmmb.f:1504-1839 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_aerosols_nmmb.f:1504-1839 (nam.v4.2.11, 83df4e13c1).
 //
 // Split of the Fortran routine:
 //   - The 12 monthly records are text on disk. Host file I/O cannot run on the device, so the wrapper

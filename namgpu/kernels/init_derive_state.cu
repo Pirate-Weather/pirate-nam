@@ -4,7 +4,7 @@
 // author or history header block of their own; the NOAA source notice in NOTICE applies. NAM is US
 // Government work with no licence file.
 //
-// Ported to CUDA for nam-gpu from (nam.v4.2.11, 83df4e13c1). Every kernel below is cold-start unless
+// Ported to CUDA for WOOF-NAM from (nam.v4.2.11, 83df4e13c1). Every kernel below is cold-start unless
 // it says otherwise. On a restart, native reads these fields from the restart file (the restart branch of
 // nmm/module_INIT_READ_BIN.F90, lines 639-2763), so the kernels leave them alone.
 //
@@ -34,7 +34,7 @@
 //                                          REFL_10CM = DBZmin (-20), TADJ = 0, QSH = 0. Restart reads all three,
 //                                          so these are set on a cold start only.
 //   TRACERS(indx_q, indx_cw, indx_q2) = Q, CW, Q2: NMMB keeps Q/CW/Q2 as aliases of TRACERS slots
-//          (module_PARENT_CHILD_CPL_COMP.F90:3112); nam-gpu keeps separate arrays, so the slots are copied.
+//          (module_PARENT_CHILD_CPL_COMP.F90:3112); WOOF-NAM keeps separate arrays, so the slots are copied.
 //
 // Not derived here: FIS is a read-only input (read from the file at module_INIT_READ_BIN.F90:1549-1553; the
 // presence check is in the Python wrapper). F_ICE/F_RAIN/F_RIMEF cold fills are owned by phys-fer-init. T/U/V

@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2644-2782 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2644-2782 (nam.v4.2.11, 83df4e13c1).
 // Executed statements: see phys_noah_frh2o.cuh (every term is there).
 // Start point: namgpu/third_party/arwen/core/kernels/noah.cu noah_frh2o (Apache-2.0, ArWen). The NAM
 // Fortran structure is kept as written (NLOG/KCOUNT loop, BX clamp, option 2 fallback).

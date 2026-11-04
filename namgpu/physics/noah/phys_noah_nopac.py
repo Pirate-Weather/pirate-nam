@@ -1,4 +1,4 @@
-"""phys-noah-nopac: NOPAC, the no-snow energy and water balance (Noah LSM), nam-gpu.
+"""phys-noah-nopac: NOPAC, the no-snow energy and water balance (Noah LSM), WOOF-NAM.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. The module's NOAA header is
 kept as the notice in the kernel file.

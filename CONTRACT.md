@@ -238,7 +238,7 @@ gas_update reopens the CO2 file during the forecast. Paths a unit writes must be
   uploads the table once into `ctx.tables`. Recorded 2026-11-04 (review of phys-rrtm-lw-table-avplank).
 - One `.cu` per unit in `namgpu/kernels/<unit_id with '-' -> '_'>.cu`, starting with the NOAA
   header block of the Fortran routine as a notice (NOTICE) and the line
-  `// Ported to CUDA for nam-gpu from <path>:<lines> (nam.v4.2.11, 83df4e13c1).`
+  `// Ported to CUDA for WOOF-NAM from <path>:<lines> (nam.v4.2.11, 83df4e13c1).`
 - `#include "nmmb_common.cuh"`; kernels are `extern "C" __global__`.
 - One launch per Fortran routine (or per routine section, as the unit is split). All arguments
   are device pointers (`float*`, `const float* __restrict__`) or scalars (`int`, `float`).

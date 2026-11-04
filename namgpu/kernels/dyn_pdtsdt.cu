@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-pdtsdt: surface-pressure tendency, vertical mass flux and PD update.
+// WOOF-NAM unit dyn-pdtsdt: surface-pressure tendency, vertical mass flux and PD update.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1045-1228 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1045-1228 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine pdtsdt, lm = LM, dt = DT, sg2 = SG2(1:lm+1), temporaries div/tdiv):
 //   [A] l=2..lm, b1 range:   div(i,j,l) = div(i,j,l-1) + div(i,j,l)      (cumulative, in place)

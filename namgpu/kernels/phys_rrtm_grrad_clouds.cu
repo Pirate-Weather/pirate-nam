@@ -150,7 +150,7 @@
 //
 //=============================================!
 
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:1577-1794 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:1577-1794 (nam.v4.2.11, 83df4e13c1).
 //
 // Covered (Fortran line ranges in grrad_nmmb.f):
 //   1577-1717  cloud dispatch branches of grrad_nmmb (np3d == 4, 3, 5, 8; else diagnostic):

@@ -3,7 +3,7 @@
 // NOTICE: NAM source file phys/module_MP_FER_HIRES.F90 (NOAA/NCEP/EMC, US Government work, no
 // licence file). Subroutine name kept as the notice: SUBROUTINE FER_HIRES (NOAA/NCEP/EMC,
 // Ferrier-Aligo high-resolution microphysics, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:208-604 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:208-604 (nam.v4.2.11, 83df4e13c1).
 //
 // Mapping (Fortran -> CUDA). One thread per (i,j) column. Every statement of 208-604 is either a
 // term below or listed in the "dropped" notes.

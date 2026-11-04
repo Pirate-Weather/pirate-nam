@@ -7,7 +7,7 @@
 //   this code is originally written By Shrinivas Moorthi
 //   modified to make output o3mmr has same vertical index order as given by control flag 'iflip'
 //   by Apr. 03, y-t hou
-// Ported to CUDA for nam-gpu from phys/radiation_gases_nmmb.f:984-1094 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_gases_nmmb.f:984-1094 (nam.v4.2.11, 83df4e13c1).
 //
 // Line-by-line counterpart of the routine's statements in that range:
 //   elte = blte + (JMR-1)*dlte                                    -> elte in this kernel

@@ -1,4 +1,4 @@
-// phys_fer_calmict.cu -- nam-gpu unit phys-fer-calmict: CALMICT, Ferrier radar reflectivity
+// phys_fer_calmict.cu -- WOOF-NAM unit phys-fer-calmict: CALMICT, Ferrier radar reflectivity
 // (REFL_10CM composite) for one point. Device function nam_calmict() plus the eval kernel
 // fer_calmict_eval (one thread per (i, j, l) point; every point is independent).
 //
@@ -7,7 +7,7 @@
 // phys/module_MP_FER_HIRES.F90 (NOAA "Modified" fer_hires) and phys/module_MP_ETANEW.F90 for the
 // MASSI/MASSR tables, FPVS and RQR_DR*/CN0r* scalars.
 //
-// Ported to CUDA for nam-gpu from nmm/module_DIAGNOSE.F90:1589-1798 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIAGNOSE.F90:1589-1798 (nam.v4.2.11, 83df4e13c1).
 // Fortran-to-CUDA review (every statement of CALMICT):
 //   1589-1600  arguments: P1D,T1D,Q1D,C1D,FI1D,FR1D,FS1D,CUREFL -> inputs; DBZ1 -> output;
 //              I, J, Ilook, Jlook, MY_DOMAIN_ID are debug-print indices only (the commented

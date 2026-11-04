@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radsw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The package header of radsw_main_nmmb.f is kept as the notice:
 //   "sw-rrtm3 radiation package description ... this package includes ncep's modifications of the
 //    rrtm-sw radiation code from aer inc."
 // The AER copyright notice that follows that header in the source file (Copyright 2002-2007,
-// Atmospheric & Environmental Research, Inc.) is reproduced in NOTICE of the nam-gpu tree.
+// Atmospheric & Environmental Research, Inc.) is reproduced in NOTICE of the WOOF-NAM tree.
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:374-1239 (subroutine swrad, module
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:374-1239 (subroutine swrad, module
 // module_radsw_main), statements of swrad itself. The routines swrad calls are separate units and
 // are NOT in this file:
 //   cldprop      radsw_main_nmmb.f:1400-1822   unit phys-rrtm-sw-cldprop    (cloudy columns only)

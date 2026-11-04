@@ -1,11 +1,11 @@
-// phys_noah_sfcdiags.cu -- SFCDIAGS for nam-gpu: 2 m temperature, 2 m theta and 2 m specific
+// phys_noah_sfcdiags.cu -- SFCDIAGS for WOOF-NAM: 2 m temperature, 2 m theta and 2 m specific
 // humidity from the surface sensible and latent heat fluxes and the surface exchange coefficients.
 //
 // Notice: module_LS_NOAHLSM.F90 in NAM nam.v4.2.11 (MatthewPyle-NOAA/NAM @ 83df4e13c1, NMMB
 // physics, NOAA/NCEP/EMC) keeps its author headers. There is no licence file in the NAM tree;
 // the NOAA source notice in NOTICE applies. NAM is US Government work.
 //
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:5609-5656 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:5609-5656 (nam.v4.2.11, 83df4e13c1),
 // the SFCDIAGS subroutine. Every executable statement of that routine is here.
 //
 // Caller: nmm/module_TURBULENCE.F90:925 (after NOAHLSM, on the NPHS physics cadence). Actual ->

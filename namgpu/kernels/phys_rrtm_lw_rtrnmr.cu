@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NAM source file phys/radlw_main_nmmb.f (NCEP/EMC, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file).
 // The routine header (module_radlw_main_nmmb, rtrnmr) is kept as the notice:
@@ -14,7 +14,7 @@
 //   cloudy atmosphere.  clouds are assumed as in maximum-randomly overlaping in a vertical colum.
 //   NCEP lw-rrtm3 package (rrtm-lw from AER, NCEP modifications, NMMB version, Nov 2012).
 //
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:2489-3054 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:2489-3054 (nam.v4.2.11, 83df4e13c1).
 //
 // Index conventions (kept from the Fortran call; see the wrapper docstring):
 //   Fortran k = 1 is the lowest layer (surface side), k = nlay the top; the interface arrays

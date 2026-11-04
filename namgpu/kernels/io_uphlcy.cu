@@ -1,9 +1,9 @@
-// nam-gpu unit io-uphlcy: updraft helicity over two layers (2-5 km and 0-3 km AGL), hourly max/min.
+// WOOF-NAM unit io-uphlcy: updraft helicity over two layers (2-5 km and 0-3 km AGL), hourly max/min.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   MODULE MODULE_DIAGNOSE (NMMB diagnostics, nam.v4.2.11), nmm/module_DIAGNOSE.F90.
-// Ported to CUDA for nam-gpu from nmm/module_DIAGNOSE.F90:2114-2186 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIAGNOSE.F90:2114-2186 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE CALC_UPHLCY, regional single-card case (ITS=1, ITE=IDE=IM, JTS=1,
 // JTE=JDE=JM, no halo). The NAM fer_hires path calls it twice from SUBROUTINE MAX_FIELDS_HR

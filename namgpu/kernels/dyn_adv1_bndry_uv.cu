@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-adv1-bndry-uv: upstream advection of momentum along the four lateral
+// WOOF-NAM unit dyn-adv1-bndry-uv: upstream advection of momentum along the four lateral
 // boundaries (regional branch of ADV1), accumulated into TCU and TCV.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:2022-2186 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:2022-2186 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (last block of vertical_loop2, l = 1..lm; executed when .not.global and adv_upstream):
 //   envp = -dt*rdyv

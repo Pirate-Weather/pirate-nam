@@ -1,4 +1,4 @@
-// phys_rrtm_driver_call.cu -- nam-gpu unit phys-rrtm-driver-call.
+// phys_rrtm_driver_call.cu -- WOOF-NAM unit phys-rrtm-driver-call.
 //
 // NOTICE: NOAA/NCEP NAM source phys/module_RA_RRTM.F90 (US government work, no licence file in the
 // NAM clone). The source header block is reproduced below as the notice.
@@ -44,7 +44,7 @@
 // !Moved to here from out of the RRTM routine to fix races found by Intel Inspector, jm 20131222,20131226
 //       LOGICAL       :: CNCLD=.TRUE.
 //
-// Ported to CUDA for nam-gpu from phys/module_RA_RRTM.F90:879-1112 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_RA_RRTM.F90:879-1112 (nam.v4.2.11, 83df4e13c1).
 //
 // What it computes (per column, whole domain, one thread per (i,j); the Fortran DAYPART chunking
 // is a CPU detail and is dropped, CONTRACT section 5):

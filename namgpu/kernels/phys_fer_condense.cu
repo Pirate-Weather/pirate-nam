@@ -1,11 +1,11 @@
-// phys_fer_condense.cu -- nam-gpu unit phys-fer-condense: CONDENSE, cloud water condensation
+// phys_fer_condense.cu -- WOOF-NAM unit phys-fer-condense: CONDENSE, cloud water condensation
 // (Asai 1965 iteration) used by the Ferrier-Aligo microphysics.
 //
 // NOTICE: NAM source file phys/module_MP_FER_HIRES.F90 (NOAA/NCEP/EMC, US Government work, no licence
 // file in the NAM clone). Notice is the module changelog block (lines 1-82, "Modified fer_hires
 // microphysics - 11 July 2016 version") and the module header, as in fer_hires.cuh.
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2160-2225 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2160-2225 (nam.v4.2.11, 83df4e13c1).
 //
 // Statement map (every statement of CONDENSE has a counterpart below, or a reason):
 //   2160          FUNCTION CONDENSE(PP,QW,TK,WV,RHgrd,I,J,L) -> nam_condense (device), same argument order

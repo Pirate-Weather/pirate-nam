@@ -2,7 +2,7 @@
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Module header
 // kept as the notice: MODULE MODULE_CU_BMJ (NMMB convection packages, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:399-2067 (nam.v4.2.11, 83df4e13c1), the BMJ
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:399-2067 (nam.v4.2.11, 83df4e13c1), the BMJ
 // subroutine called by bmjdrv (phys-bmj-bmjdrv). Integration (Opus integrator, 2026-11-04): one
 // device function, a statement-for-statement transliteration of the Fortran, labels and GO TOs kept
 // (C++ goto; every local is declared at the top, as in the Fortran, so no jump crosses an

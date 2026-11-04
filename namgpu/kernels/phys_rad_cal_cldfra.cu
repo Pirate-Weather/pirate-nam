@@ -1,11 +1,11 @@
-// phys_rad_cal_cldfra.cu -- nam-gpu unit phys-rad-cal-cldfra: CAL_CLDFRA, cloud fraction from
+// phys_rad_cal_cldfra.cu -- WOOF-NAM unit phys-rad-cal-cldfra: CAL_CLDFRA, cloud fraction from
 // condensate (QC and QI) as a hard threshold.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Module
 // header of nmm/module_RADIATION.F90 (the routine carries no author block of its own):
 //   MODULE MODULE_RADIATION  ***  THE RADIATION DRIVERS AND PACKAGES
 //   Modifications: 2010-04-02 Vasic - Removed WFR driver
-// Ported to CUDA for nam-gpu from nmm/module_RADIATION.F90:1045-1134 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_RADIATION.F90:1045-1134 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE CAL_CLDFRA(CLDFRA, QC, QI, F_QC, F_QI, IDS..KDE, IMS..KME, ITS..ITE,
 //                              JTS..JTE, KTS..KTE)

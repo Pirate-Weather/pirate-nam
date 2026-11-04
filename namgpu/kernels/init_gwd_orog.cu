@@ -3,7 +3,7 @@
 // NOTICE: NAM source file nam_nps.fd/sorc/NMMB_init/NPS/geogrid/src/gridgen_sfc/lsmask_orog.f
 // (NOAA/NCEP/EMC, US Government work, no licence file). Kept as notice:
 //   module lsmask_orog  (NPS geogrid, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nam_nps.fd/sorc/NMMB_init/NPS/geogrid/src/gridgen_sfc/lsmask_orog.f
+// Ported to CUDA for WOOF-NAM from nam_nps.fd/sorc/NMMB_init/NPS/geogrid/src/gridgen_sfc/lsmask_orog.f
 //   calc_orog 1236-1973, find_bounds_ll (find_bounds_ll.f) and ll2xy_bgrid_pt_loc 2768-2835
 //   (nam.v4.2.11, 83df4e13c1), reached through process_ncep_module.F90 GWD block (do_gwd,
 //   ncep_proc_domain_type = bgrid, namelist.nps_input:33).

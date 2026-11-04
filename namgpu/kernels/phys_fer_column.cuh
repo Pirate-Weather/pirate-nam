@@ -3,7 +3,7 @@
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US Government work, no licence file in the
 // NAM clone). SUBPROGRAM EGCP01COLUMN_hr header kept as authorship: "Grid-scale microphysical
 // processes - condensation & precipitation", PRGRMMR: Ferrier (W/NP22, 08-2001), Jin (WRF structure).
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:650-2159 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:650-2159 (nam.v4.2.11, 83df4e13c1).
 // Integration (Opus integrator, 2026-11-04): one device function, statement-for-statement from the
 // Fortran level loop (big_loop) with every section in Fortran order; the section units
 // phys-fer-col-setup / -satcheck / -ice-props / -processes / -melt-evap / -rain-sedim were reviewed

@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-cdwdt-extmode: cos^2 attenuation of dw/dt in the top layers, then removal of the
+// WOOF-NAM unit dyn-cdwdt-extmode: cos^2 attenuation of dw/dt in the top layers, then removal of the
 // external (barotropic) mode from dw/dt.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3700-3756 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3700-3756 (nam.v4.2.11, 83df4e13c1).
 //   3700-3726: cos^2 attenuation of dwdt in the top layers (subroutine cdwdt, dwdt control range)
 //   3728-3756: external mode taken out of dwdt
 //   3758-3770: global swaphn/polehn and halo_exch are dropped (single card, regional, global=false)

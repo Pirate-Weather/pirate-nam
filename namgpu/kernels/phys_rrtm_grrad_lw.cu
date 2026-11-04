@@ -10,7 +10,7 @@
 // !   this is the radiation driver module.  it prepares atmospheric      !
 // !   profiles and invokes main radiation calculations.                  !
 //
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:1959-2075 (LW radiation block, under
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:1959-2075 (LW radiation block, under
 // if (lslwr)), 2082-2169 (LW, cloud and cldcov accumulations under if (lssav)) and 2201
 // (coszen copy, moved to post_flux). Constant CPATHFAC4LW = 1.5 is module_RA_RRTM.F90:212,
 // passed in by the wrapper. Rows j = 1 and j = JM get no LW work (see the row guards).

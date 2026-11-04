@@ -5,7 +5,7 @@
 // Routine header kept as the notice (module_radiation_driver_nmmb, grrad_nmmb):
 //   this is the radiation driver module. it prepares atmospheric profiles and invokes main
 //   radiation calculations. (NOAA/NCEP radiation driver, NMMB version; nam.v4.2.11, 83df4e13c1)
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:1397-1539 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:1397-1539 (nam.v4.2.11, 83df4e13c1).
 //
 // Line-by-line counterpart of the routine's own statements in that range:
 //   1397-1407  call getozn(prslk1, xlat, IM, LMK, olyr)  (ntoz == 0 branch) -> SIBLING CALL, not in this kernel

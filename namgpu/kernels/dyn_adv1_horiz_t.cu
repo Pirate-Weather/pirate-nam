@@ -4,7 +4,7 @@
 // Notice: nmm/module_DYNAMICS_ROUTINES.F90 carries no PROGRAM HISTORY LOG / author block in the
 // NAM source at 83df4e13c1; the NAM notice in NOTICE applies (NOAA/NCEP/EMC, US Government work).
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1539-1570 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1539-1570 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran source (ADV1, vertical_loop1 body, one level l):
 //   [1] t1(i,j)  = t(i,j,l)*cfc + tp(i,j,l)*bfc          (all h points, j in jts_h1..jte_h1)

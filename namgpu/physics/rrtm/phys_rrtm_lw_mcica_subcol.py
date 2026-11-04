@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-lw-mcica-subcol: McICA sub-column cloud generator of the NMMB RRTM longwave.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_main_nmmb.f:1702-1858 (mcica_subcol), called from
@@ -34,7 +34,7 @@ i is taken as the 1-based flat column index j * IM + i + 1. For isubclw == 2 the
 seed array in ctx.tables["rrtm_lw_ipseed"] (icseed).
 
 Unverified: the column-to-(i, j) mapping of the Fortran npts loop (radlw_main_nmmb.f:630-646) is set by
-the NMMB caller grrad.f, which is in the source tree but whose call site is not wired into nam-gpu yet.
+the NMMB caller grrad.f, which is in the source tree but whose call site is not wired into WOOF-NAM yet.
 The j-major flat order used here is an assumption and is not claimed correct until that call site is checked.
 """
 from __future__ import annotations

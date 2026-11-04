@@ -1,7 +1,7 @@
 // drv_rdtemp.cu -- RDTEMP: radiative temperature change applied every step, with the
 // zenith-angle scaling of the shortwave tendency between radiation calls.
 //
-// Ported to CUDA for nam-gpu from phys/module_RA_GFDL.F90:116-233 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_RA_GFDL.F90:116-233 (nam.v4.2.11, 83df4e13c1).
 // NOAA notice (documentation block of RDTEMP, module_RA_GFDL.F90:121-143):
 //   SUBPROGRAM: RDTEMP      RADIATIVE TEMPERATURE CHANGE
 //   PRGRMMR: BLACK          ORG: W/NP22     DATE: 93-12-29

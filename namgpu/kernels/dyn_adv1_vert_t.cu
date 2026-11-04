@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-adv1-vert-t: ADV1 setup and Crank-Nicolson (uncentred w1/w2) vertical advection of T.
+// WOOF-NAM unit dyn-adv1-vert-t: ADV1 setup and Crank-Nicolson (uncentred w1/w2) vertical advection of T.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1233-1538 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1233-1538 (nam.v4.2.11, 83df4e13c1).
 //   This unit covers the vertical Crank-Nicolson block of subroutine adv1 only: the pdop setup
 //   (Fortran lines 1292-1297) and the rcmt/crt/rstt forward sweep and back substitution that write
 //   tct (Fortran lines 1298-1357, the non-SMP path). The horizontal T advection that follows

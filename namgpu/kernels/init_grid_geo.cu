@@ -4,7 +4,7 @@
 // NOTICE: NAM source file nmm/module_CONTROL.F90 (NOAA/NCEP/EMC, US Government work, no licence file).
 // The Fortran module carries no licence block; the module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:351-1139 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:351-1139 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine GRID_CONSTS(global, ..., tph0d, tlm0d, sbd, wbd, dphd, dlmd, ...).
 // This unit owns the geographic-coordinate statements of GRID_CONSTS only. The rest of GRID_CONSTS

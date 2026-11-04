@@ -1,11 +1,11 @@
-// phys_rrtm_setaer.cu -- SETAER (aerosol optical properties per layer), RRTM group, nam-gpu.
+// phys_rrtm_setaer.cu -- SETAER (aerosol optical properties per layer), RRTM group, WOOF-NAM.
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1). NOAA US government work; the NOAA header of
 // phys/radiation_aerosols_nmmb.f (module_radiation_aerosols_nmmb) is kept as the notice:
 //   NOAA / NCEP, module_radiation_aerosols_nmmb ("climatological atmospheric aerosol schemes for
 //   radiation computations"; subroutine setaer, NCEP radiation_aerosols v5.2 Jan 2013 tag).
 //
-// Ported to CUDA for nam-gpu from phys/radiation_aerosols_nmmb.f:1845-2371 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_aerosols_nmmb.f:1845-2371 (nam.v4.2.11, 83df4e13c1).
 //
 // Unit split (CONTRACT section 7, UNITS.json): this file holds the setaer routine's own code.
 // The call to aer_property (Fortran line 2045, unit phys-rrtm-aer-property, kernel file

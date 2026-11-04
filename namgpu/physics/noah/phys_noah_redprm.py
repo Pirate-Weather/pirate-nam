@@ -25,7 +25,7 @@
 # NOTICE, ArWen (Apache-2.0): the start point is ArWen gpuwm/third_party/arwen/core/kernels/noah.cu.
 # The ArWen LICENSE (Apache-2.0) is the repo root LICENSE. noah.cu carries no per-file copyright or
 # licence header (checked 2026-11-04), so none is reproduced here.
-# Copied from ArWen gpuwm/third_party/arwen/core/kernels/noah.cu (Apache-2.0) for nam-gpu, 2026-11-04.
+# Copied from ArWen gpuwm/third_party/arwen/core/kernels/noah.cu (Apache-2.0) for WOOF-NAM, 2026-11-04.
 """phys-noah-redprm: REDPRM, per-point Noah LSM parameters (NAM v4.2.11, phys/module_LS_NOAHLSM.F90:3471-3664).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1). NOAA US government work; the module's NOAA header is kept

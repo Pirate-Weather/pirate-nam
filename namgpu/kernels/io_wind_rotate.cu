@@ -28,9 +28,9 @@
 // C     INCR   - FORECAST INTERVAL BETWEEN HISTORY FILES IN MINUTES
 // C
 //
-// Ported to CUDA for nam-gpu from sorc/nam_post0.fd/PROF_NMMB.f:2115-2150 and 2232-2237 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from sorc/nam_post0.fd/PROF_NMMB.f:2115-2150 and 2232-2237 (nam.v4.2.11, 83df4e13c1).
 //
-// nam-gpu unit io-wind-rotate: grid-relative winds at V points to earth-relative (east, north) winds
+// WOOF-NAM unit io-wind-rotate: grid-relative winds at V points to earth-relative (east, north) winds
 // at H points.
 //
 // The post (PROF_NMMB.f 2115-2150, 2232-2237) rotates with UE = U*COSALP + V*SINALP and

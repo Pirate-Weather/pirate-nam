@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radsw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The notice is the sw-rrtm3 package description of that file:
 //   sw-rrtm3 radiation package description; ncep modifications of the rrtm-sw radiation code
 //   from aer inc. The k-table module is phys/radsw_datatb_nmmb.f module_radsw_kgb23_nmmb.
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:4206-4272 (SUBROUTINE taumol23, internal to
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:4206-4272 (SUBROUTINE taumol23, internal to
 // taumol). Tables: module_radsw_kgb23_nmmb (phys/radsw_datatb_nmmb.f:15195-15436), uploaded by the
 // wrapper from namgpu/data/rrtm_sw/kgb23.npz. Constants: NS23 = 56 (radsw_param_nmmb.f NS table, band
 // 23 slot), NG23 = 10, MSA23 = 65, MSF23 = 10, MFR23 = 3, givfac = 1.029 (radsw_datatb_nmmb.f:15225),

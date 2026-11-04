@@ -1,4 +1,4 @@
-// nam-gpu unit init-native-atm: map the decoded NAM bgrd3d00 fields onto the NMMB state
+// WOOF-NAM unit init-native-atm: map the decoded NAM bgrd3d00 fields onto the NMMB state
 // (cold start). Each term follows the NMM cold-start reader and the NPS (nemsinterp) writer
 // that produced the file the NMM reader consumes, cited per term.
 //
@@ -38,7 +38,7 @@
 //                 formula at the edges too (edge value in NPS is not traced).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:937-941,
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:937-941,
 // nmm/module_INIT_READ_NEMSIO.F90 (cold branch 137-856), nam_nps.fd NMMB_init/NPS/nemsinterp
 // (output_nemsinit.F90, module_vinterp_routines.F90) (nam.v4.2.11, 83df4e13c1).
 //

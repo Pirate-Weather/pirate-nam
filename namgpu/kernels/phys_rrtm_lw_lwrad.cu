@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The package header of radlw_main_nmmb.f is kept as the notice:
@@ -12,7 +12,7 @@
 // the BSD-3-Clause licence). This file ships under those BSD-3-Clause terms with AER's notice (the
 // header above and NOTICE).
 //
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:352-1139 (subroutine lwrad, module
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:352-1139 (subroutine lwrad, module
 // module_radlw_main_nmmb), statements of lwrad itself. The routines lwrad calls are separate units and
 // are NOT in this file:
 //   cldprop   radlw_main_nmmb.f:1344-1697   unit phys-rrtm-lw-cldprop

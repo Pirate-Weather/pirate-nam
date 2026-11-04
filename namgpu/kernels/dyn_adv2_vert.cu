@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-adv2-vert: Crank-Nicolson (uncentred w1/w2) vertical advection of the tracer group in ADV2.
+// WOOF-NAM unit dyn-adv2-vert: Crank-Nicolson (uncentred w1/w2) vertical advection of the tracer group in ADV2.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4463-4569 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:4463-4569 (nam.v4.2.11, 83df4e13c1).
 //   Subroutine adv2, the vertical Crank-Nicolson block only (pdops smoothing, pvvlo/vvlo/cms forward
 //   sweep, rsts forward sweep, level-lm closure, tcs back substitution).
 //   The horizontal Adams-Bashforth part that follows (Fortran 4570 onward: ss1/ssx/ssy/ssne/ssnw and the

@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2785-3035 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2785-3035 (nam.v4.2.11, 83df4e13c1).
 // The helpers FRH2O, TBND, TDFCND, TMPAVG and SNKSRC come from noah_soil_helpers.cuh (single source,
 // shared with phys-noah-tbnd and phys-noah-tmpavg).
 //

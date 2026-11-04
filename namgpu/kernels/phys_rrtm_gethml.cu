@@ -1,4 +1,4 @@
-// phys_rrtm_gethml.cu -- nam-gpu unit phys-rrtm-gethml: subroutine gethml (high, mid, low, total
+// phys_rrtm_gethml.cu -- WOOF-NAM unit phys-rrtm-gethml: subroutine gethml (high, mid, low, total
 // and boundary-layer cloud fractions, plus the cloud top/bottom layer indices per domain).
 //
 // NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). Header of
@@ -8,7 +8,7 @@
 //   layer indices for model diagnostic output. the three cloud domain boundaries are defined by
 //   ptopc. the cloud overlapping method is defined by control flag 'iovr'.
 //   program history log: 04-29-2004 yu-tai hou - separated to become individule subprogram.
-// Ported to CUDA for nam-gpu from phys/radiation_clouds_nmmb.f:2167-2494 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_clouds_nmmb.f:2167-2494 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran lines covered:
 //   2167-2212  argument list and declarations            -> kernel signature

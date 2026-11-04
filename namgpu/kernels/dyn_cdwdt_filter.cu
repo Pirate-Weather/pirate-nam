@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-cdwdt-filter: lateral spatial filter of DWDT, the cdwdt clamp and the
+// WOOF-NAM unit dyn-cdwdt-filter: lateral spatial filter of DWDT, the cdwdt clamp and the
 // time-smoothing blend, and DWDT = 1 on the regional boundary H rows.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3773-3899 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3773-3899 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine cdwdt, lines 3773-3899), with g = gravity, wad, wp, epsn, epsp as declared
 // at lines 3296-3315 (wad = 0, wp = 0, epsn = -9.80, epsp = +9.80):

@@ -6,7 +6,7 @@
 // NOTICE: NAM source file nmm/module_CONTROL.F90 (NOAA/NCEP/EMC, US Government work, no licence file).
 // The Fortran module carries no licence block; the module header is kept here as the notice:
 //   module module_control  (NMMB control, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:351-1139 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:351-1139 (nam.v4.2.11, 83df4e13c1).
 //
 // Kernel sequence (the wrapper launches them in this order on one stream; each step reads only
 // what earlier steps wrote, so every Fortran loop-carried dependence is kept):

@@ -22,14 +22,14 @@ Writes:
       "ptopc"  float32 [4]         PTOPC(1..4), Pa
       "nxsd"   310
 
-SFULL binding. SHALF, and therefore every LTOP(1..3) value, is a function of SGM. nam-gpu does not
+SFULL binding. SHALF, and therefore every LTOP(1..3) value, is a function of SGM. WOOF-NAM does not
 carry SGM on the live path yet (no reader supplies ctx.tables["vcoord_header"]; see init_vcoord_recover.py).
 There is no stand-in: grid.sg2 is a different quantity (the interfaces the grid was built from, not the
 NAM SGM header), so substituting it would give wrong cloud-layer limits. The unit refuses until the init
 carries SGM. Refusal names the breakage: LTOP and PTOPC feed the RRTM diagnostic cloud layers.
 
 Domain. The Fortran EMISS loop runs over the tile, DO J=JTS,JTE / DO I=ITS,ITE (:1475-1479 of RRTM_INIT,
-caller limits from int_state, :509-517 of the caller). nam-gpu runs one card with one tile covering the
+caller limits from int_state, :509-517 of the caller). WOOF-NAM runs one card with one tile covering the
 whole domain, so ITS=1, ITE=IDE=IM, JTS=1, JTE=JDE=JM. The single-tile equality ITE==IDE is the NMMB
 convention (module_DOMAIN_GRID_COMP.F90:3770 tests ITE==IDE for the eastern boundary task), and
 init_derive_state.py sets IDE=IM, JDE=JM for the single-card tile. The kernel covers i0<IM, j0<JM.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol28: TAUMOL28, SW band 28 (38000-50000 cm-1, O3 and O2) optical depths and Rayleigh.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:4559-4678 (internal subroutine

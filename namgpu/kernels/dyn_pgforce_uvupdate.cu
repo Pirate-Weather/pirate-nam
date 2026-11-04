@@ -4,7 +4,7 @@
 // Notice: nmm/module_DYNAMICS_ROUTINES.F90 carries no PROGRAM HISTORY LOG / author block in the
 // NAM source at 83df4e13c1; the NAM notice in NOTICE applies (NOAA/NCEP/EMC, US Government work).
 //
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:452-493 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:452-493 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran source (vertical_loop body, one level l):
 //   if(.not.first.or.restart) then                              ! UPDATE = 1

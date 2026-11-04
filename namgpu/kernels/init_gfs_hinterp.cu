@@ -1,4 +1,4 @@
-// nam-gpu unit init-gfs-hinterp: horizontal interpolation of GFS fields onto the B-grid boundary
+// WOOF-NAM unit init-gfs-hinterp: horizontal interpolation of GFS fields onto the B-grid boundary
 // strips (lnsh = lnsv = 5 rows/columns, H and V points), the new-unit replacement for the
 // WPS/metgrid step that NAM's boundary input uses.
 //

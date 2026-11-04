@@ -1,13 +1,13 @@
-// phys_rrtm_lw_taugb15.cu -- unit phys-rrtm-lw-taugb15: RRTM LW band 15 optical depths, nam-gpu.
+// phys_rrtm_lw_taugb15.cu -- unit phys-rrtm-lw-taugb15: RRTM LW band 15 optical depths, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The
 //   lw-rrtm3 header of phys/radlw_main_nmmb.f and the module header of phys/radlw_datatb.f
 //   (module_radlw_kgb15) are kept in the NAM clone and apply to this port.
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:5980-6184 (subroutine taugb15, internal to
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:5980-6184 (subroutine taugb15, internal to
 //   taumol; nam.v4.2.11, 83df4e13c1). Its tables are module_radlw_kgb15 from phys/radlw_datatb.f
 //   (lines 31225-31611, the module this routine USEs at line 5988), extracted by
 //   tools/extract-rrtm-lw-kgb15.py to namgpu/data/rrtm_lw/kgb15.npz.

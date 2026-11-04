@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-ddamp-extmode: DDAMP external-mode divergence damping (vertically integrated)
+// WOOF-NAM unit dyn-ddamp-extmode: DDAMP external-mode divergence damping (vertically integrated)
 // and the internal-mode U/V divergence-damping update.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:801-999 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:801-999 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine ddamp, extmod = .true. parameter; lm = LM, dvd = ddmpv, freerun, fcxm):
 //   [A] b1 range (its_b1..ite_b2, jts_b1..jte_b2):  apd(i,j) = ((pd sum)*cfc + (pdo sum)*bfc)*0.25

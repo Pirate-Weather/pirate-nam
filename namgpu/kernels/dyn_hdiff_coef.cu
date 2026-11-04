@@ -1,10 +1,10 @@
-// nam-gpu unit dyn-hdiff-coef: HDIFF setup and the grand vertical loop that builds the deformation
+// WOOF-NAM unit dyn-hdiff-coef: HDIFF setup and the grand vertical loop that builds the deformation
 // coefficient DEF3D and the slope/coast masks FMLX_3D / FMLY_3D consumed by dyn-hdiff-apply.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:2531-2833 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:2531-2833 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine hdiff (1-based indices, full domain IM x JM x LM, one card, regional, hydro off):
 //   [A] l=1..lm, boundary zeroing: def3d(i,1,l)=0 (s_bdy), def3d(i,jm,l)=0 (n_bdy),

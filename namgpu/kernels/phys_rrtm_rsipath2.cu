@@ -1,4 +1,4 @@
-// phys_rrtm_rsipath2.cu -- nam-gpu unit phys-rrtm-rsipath2.
+// phys_rrtm_rsipath2.cu -- WOOF-NAM unit phys-rrtm-rsipath2.
 //
 // NOAA notice: phys/radiation_clouds_nmmb.f (NCEP/EMC NAM nam.v4.2.11, 83df4e13c1), subroutine
 // rsipath2_tmp. NOAA/NCEP US government work; the NAM clone carries no licence file. The routine
@@ -8,7 +8,7 @@
 //   05-20-2004 y. hou       added vertical index flag, rearranged to match radiation programs
 //   02-24-2012 b. ferrier   simple temporary fix to separate cloud ice and snow
 //
-// Ported to CUDA for nam-gpu from phys/radiation_clouds_nmmb.f:2779-2964 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_clouds_nmmb.f:2779-2964 (nam.v4.2.11, 83df4e13c1).
 // Constants: phys/physcons.f (con_g, con_rd, con_rv, con_fvirt, con_t0c) and the routine's own
 // PARAMETERs (CEXP, EPSQ, CN0r0, TNW), plus recwat_def and resnow_def (radiation_clouds_nmmb.f:180,183).
 //

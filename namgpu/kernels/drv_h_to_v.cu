@@ -4,7 +4,7 @@
 // the NAM clone; see NOTICE at the repo root). Module header kept as the notice:
 //   MODULE MODULE_H_TO_V
 //   MOVE DATA RESIDING ON B-GRID H POINTS TO V POINTS.
-// Ported to CUDA for nam-gpu from nmm/module_H_TO_V.F90:42-122 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_H_TO_V.F90:42-122 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (both routines, identical stencil):
 //   ARRAY_V(I,J[,K]) = (ARRAY_H(I,J,K) + ARRAY_H(I+1,J,K)

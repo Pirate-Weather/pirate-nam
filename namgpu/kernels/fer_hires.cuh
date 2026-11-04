@@ -2,7 +2,7 @@
 //
 // NOTICE: NAM source file phys/module_MP_FER_HIRES.F90:1-207 (NCEP/EMC, US Government work).
 // The file has no copyright or licence block. Its changelog (lines 1-105, "Modified fer_hires
-// microphysics") is the notice. Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1-207
+// microphysics") is the notice. Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1-207
 // (nam.v4.2.11, 83df4e13c1).
 //
 // Statement map for lines 1-207 of phys/module_MP_FER_HIRES.F90 (Fortran line numbers, checked

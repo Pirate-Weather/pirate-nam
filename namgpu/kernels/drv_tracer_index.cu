@@ -1,10 +1,10 @@
-// nam-gpu unit drv-tracer-index: tracer slot indices of the NMMB TRACERS array.
+// WOOF-NAM unit drv-tracer-index: tracer slot indices of the NMMB TRACERS array.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Notice kept from the Fortran module (nam.v4.2.11, 83df4e13c1):
 //   module module_SOLVER_INTERNAL_STATE  (nmm/module_SOLVER_INTERNAL_STATE.F90)
 //   module module_VARS_STATE             (nmm/module_VARS_STATE.F90)
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_INTERNAL_STATE.F90:864-953 (NUM_WATER, P_*,
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_INTERNAL_STATE.F90:864-953 (NUM_WATER, P_*,
 // NUM_TRACERS_MET/TOTAL), nmm/module_SOLVER_INTERNAL_STATE.F90:1379-1453 (INDX_Q, INDX_CW, INDX_Q2,
 // INDX_WATER_START/END, INDX_QC..INDX_NR) and nmm/module_VARS_STATE.F90:797 (INDX_Q2 = 3).
 //

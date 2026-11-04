@@ -1,9 +1,9 @@
 // phys_jsfc_init.cu -- unit phys-jsfc-init: JSFC_INIT (surface-layer integral-function tables,
-// initial USTAR), nam-gpu.
+// initial USTAR), WOOF-NAM.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   MODULE_SF_JSFC (Janjic J surface scheme, module_SF_JSFC.F90), nam.v4.2.11.
-// Ported to CUDA for nam-gpu from phys/module_SF_JSFC.F90:1014-1251 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_SF_JSFC.F90:1014-1251 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran JSFC_INIT, every term accounted for:
 //  - Stability-function tables (module arrays KZTM=10001 entries, module_SF_JSFC.F90:65-69):

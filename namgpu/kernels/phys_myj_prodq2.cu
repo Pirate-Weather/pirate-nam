@@ -1,6 +1,6 @@
 // phys_myj_prodq2.cu -- MYJ level 2.5 TKE production/dissipation (PRODQ2), one thread per column.
 //
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:969-1173 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:969-1173 (nam.v4.2.11, 83df4e13c1).
 // Start point: ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (PRODQ2 block, Apache-2.0, see
 // namgpu/third_party/arwen/LICENSE), brought to the NAM file: top-down levels (NAM K = 1 is the model top,
 // zero-based k0 = K-1), per-level EPSL / EPSQ2 arrays instead of ArWen scalars, the NAM lower

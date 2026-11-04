@@ -1,13 +1,13 @@
-// phys_rrtm_lw_taugb03.cu -- unit phys-rrtm-lw-taugb03: TAUGB03, nam-gpu.
+// phys_rrtm_lw_taugb03.cu -- unit phys-rrtm-lw-taugb03: TAUGB03, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA/NCEP NMMB source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone), module
 //   MODULE_RADLW_MAIN and the band-3 k-table module (radlw_main_nmmb.f, radlw_datatb.f, nam.v4.2.11).
 //   Author header retained in the NAM clone.
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:3792-4094 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:3792-4094 (nam.v4.2.11, 83df4e13c1).
 //
 // What it computes: LW band 3 (500-630 cm-1) optical depths taug and Planck fractions fracs for every
 // g-point of the band (NG03 = 16), for every layer of one column. Lower atmosphere (k = 1..laytrop)

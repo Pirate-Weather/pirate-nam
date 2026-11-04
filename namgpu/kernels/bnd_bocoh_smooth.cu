@@ -2,7 +2,7 @@
 //
 // NOTICE: NAM source file nmm/module_FLTBNDS.F90 (NOAA/NCEP/EMC, US Government work, no licence
 // file). The BOCOH subroutine carries NOAA author/history headers; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:5963-6387 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:5963-6387 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (BOCOH, smoothing block, `if(nsmud>=1)`): for ks = 1..nsmud, for each side in the order
 // South, North, West, East, for each H boundary working array (var_2d, then var_3d, then var_4d

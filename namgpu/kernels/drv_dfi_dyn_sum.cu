@@ -1,11 +1,11 @@
-// nam-gpu unit drv-dfi-dyn-sum: DIGITAL_FILTER_DYN_SUM, add the Dolph-weighted state each step.
+// WOOF-NAM unit drv-dfi-dyn-sum: DIGITAL_FILTER_DYN_SUM, add the Dolph-weighted state each step.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   module module_DIGITAL_FILTER_NMM  (NMMB digital filter, nam.v4.2.11)
 //   a generic digital filter for any model under ESMF
 //   March 2007 Hann-Ming Henry Juang; Feb 2008 - Jul 2012 Weiyu Yang, T Black (NCEP/EMC)
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:208-383 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:208-383 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (digital_filter_dyn_sum_nmm), dolph branch (dolph = .true. in the routine):
 //   kstep = kstep + 1                                  (host, in the wrapper)

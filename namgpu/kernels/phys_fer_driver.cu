@@ -1,4 +1,4 @@
-// phys_fer_driver.cu -- nam-gpu unit phys-fer-driver: GSMDRIVE glue for NPRECIP microphysics
+// phys_fer_driver.cu -- WOOF-NAM unit phys-fer-driver: GSMDRIVE glue for NPRECIP microphysics
 // (fer_hires route): column preparation, the FER_HIRES call (its own unit, launched from the
 // wrapper between the two kernels here), precipitation accumulation and the T / TRAIN update.
 //
@@ -7,7 +7,7 @@
 // authorship and history lines:
 //   11-06-2009 W. Wang - Put NAM/Ferrier microphysics into a single module.
 //   02-10-2010 W. Wang added wsm6
-// Ported to CUDA for nam-gpu from nmm/module_MICROPHYSICS.F90:60-558 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from nmm/module_MICROPHYSICS.F90:60-558 (nam.v4.2.11, 83df4e13c1),
 // SUBROUTINE GSMDRIVE. The fer_hires branch (lines 362-382) is the FER_HIRES call and is not in
 // this file.
 //

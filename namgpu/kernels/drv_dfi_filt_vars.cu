@@ -1,4 +1,4 @@
-// nam-gpu unit drv-dfi-filt-vars: classify each DFI filter/restore table entry.
+// WOOF-NAM unit drv-dfi-filt-vars: classify each DFI filter/restore table entry.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone; see NOTICE
 // at the repo root). Notice kept from the Fortran routine (module module_DOMAIN_GRID_COMP,
@@ -9,7 +9,7 @@
 //   original state after filtering has occurred. Insert the appropriate internal states into the
 //   appropriate bundles.
 //   PROGRAM HISTORY LOG (module): 2010-11-03  Pyle  - Revised for digital filters.
-// Ported to CUDA for nam-gpu from sorc/nam_nems_nmmb.fd/src/atmos/nmm/module_DOMAIN_GRID_COMP.F90:5844-6055 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from sorc/nam_nems_nmmb.fd/src/atmos/nmm/module_DOMAIN_GRID_COMP.F90:5844-6055 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (BUILD_FILT_BUNDLE, per table line after the comment and blank skip):
 //   IF (CH_FILTREST(1:1)=='F')      FILT_TYP_INT = 1                 (filter)

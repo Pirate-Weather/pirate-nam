@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol22: TAUMOL22, SW band 22 (7700-8050 cm-1) optical depths and Rayleigh depth.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:4085-4201 (SUBROUTINE taumol22).
@@ -26,7 +26,7 @@ OWNER SIGN-OFF), and speccomb == 0 takes the ratio as 0 (witnessed equal output)
 
 Precision: kind_taum = 4 (SINGLE_PREC build of machine.f). The native Linux gnu configure
 (src/conf/configure.nems.Linux.gnu) does not define SINGLE_PREC, so the native default build is kind_taum = 8.
-That choice is a project-lead decision and is declared in STATUS.md; this unit follows the nam-gpu single-precision
+That choice is a project-lead decision and is declared in STATUS.md; this unit follows the WOOF-NAM single-precision
 run.
 
 The Fortran comparison is tools/check-phys-rrtm-sw-taumol22-fortran.py (the real subroutine compiled with

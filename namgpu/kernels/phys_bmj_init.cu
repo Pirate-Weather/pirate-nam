@@ -1,11 +1,11 @@
-// nam-gpu unit phys-bmj-init: BMJ_INIT look-up tables for the Betts-Miller-Janjic convection
+// WOOF-NAM unit phys-bmj-init: BMJ_INIT look-up tables for the Betts-Miller-Janjic convection
 // scheme (module-private tables of module_CU_BMJ, plus cldefi and the spline they call).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   module module_cu_bmj  (NMMB, nam.v4.2.11): "the convection drivers and packages",
 //   "for bmj convection". Subroutines bmj_init (2158-2425) and spline (after bmj_init).
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:2158-2425 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:2158-2425 (nam.v4.2.11, 83df4e13c1),
 // with the SPLINE routine of the same module (after bmj_init, end of file section).
 //
 // Kernels (one launch each, CONTRACT section 2 "per routine section"):

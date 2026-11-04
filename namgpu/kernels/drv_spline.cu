@@ -1,11 +1,11 @@
-// nam-gpu unit drv-spline: one-dimensional cubic spline (table build, host-side init only).
+// WOOF-NAM unit drv-spline: one-dimensional cubic spline (table build, host-side init only).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module and routine header kept as the notice:
 //   module module_control  (NMMB, nam.v4.2.11)
 //   subroutine spline(jtb,nold,xold,yold,y2,nnew,xnew,ynew,p,q)
 //   programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from nmm/module_CONTROL.F90:2074-2188 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_CONTROL.F90:2074-2188 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran -> CUDA, one thread per independent spline (batch index s). Every loop and every term of
 // the routine is kept; the Fortran goto structure is mapped as:

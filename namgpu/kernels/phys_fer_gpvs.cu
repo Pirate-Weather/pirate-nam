@@ -5,7 +5,7 @@
 // NOTICE: NAM source file phys/module_MP_FER_HIRES.F90 (NOAA/NCEP/EMC, US Government work, no
 // licence file). Module header kept as the notice:
 //   MODULE MODULE_MP_FER_HIRES (Ferrier-Aligo high-resolution microphysics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2791-2836 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2791-2836 (nam.v4.2.11, 83df4e13c1).
 // FPVSX / FPVSX0 that GPVS_hr calls (module_MP_FER_HIRES.F90:2915-2989) are defined once in
 // fer_fpvs_common.cuh and shared with the phys-fer-fpvs unit.
 //

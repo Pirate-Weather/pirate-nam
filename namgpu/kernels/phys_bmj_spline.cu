@@ -1,11 +1,11 @@
-// nam-gpu unit phys-bmj-spline: one-dimensional cubic spline for the BMJ convection tables (init only).
+// WOOF-NAM unit phys-bmj-spline: one-dimensional cubic spline for the BMJ convection tables (init only).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module and routine header kept as the notice:
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine spline(jtbx,nold,xold,yold,y2,nnew,xnew,ynew,p,q)
 //   programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:2429-2547 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:2429-2547 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran -> CUDA, one thread per independent spline (batch index s). The Fortran goto structure:
 //   [start]    dxl, dxr, dydxl, dydxr, rtdxc, p(1), q(1)                    (2445-2455)

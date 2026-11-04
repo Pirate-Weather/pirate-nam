@@ -3,7 +3,7 @@
 // NOTICE: NOAA/NCEP NMMB source, nmm/module_DIGITAL_FILTER_NMM.F90 (US Government work, no licence
 // file in the NAM clone; see NOTICE at the repo root). Routine kept as the notice:
 //   SUBROUTINE DIGITAL_FILTER_DYN_AVERAGE_NMM (module_DIGITAL_FILTER_NMM, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:388-646 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:388-646 (nam.v4.2.11, 83df4e13c1).
 //
 // What the routine does (Fortran order kept):
 //   1. TOTALSUMI = 1.0 / TOTALSUM                                      (line 439)

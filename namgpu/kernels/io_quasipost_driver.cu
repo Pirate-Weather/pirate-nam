@@ -1,6 +1,6 @@
 // io_quasipost_driver.cu -- QUASIPOST driver: in-model post fields for history.
 //
-// Ported to CUDA for nam-gpu from nmm/module_QUASIPOST.F90:68-255 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_QUASIPOST.F90:68-255 (nam.v4.2.11, 83df4e13c1).
 // The NAM source file has no header block of its own; the NOAA/NCEP/EMC notice is in NOTICE at the
 // repo root (US Government work, no licence file).
 //

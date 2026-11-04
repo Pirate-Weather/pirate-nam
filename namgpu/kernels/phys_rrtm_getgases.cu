@@ -6,7 +6,7 @@
 //   currently only co2 has the options from observed values, all other gases are asigned to the
 //   climatological values.
 //   NCEP RRTM gas profiles (NMMB version, module_radiation_gases_nmmb v5.1, Nov 2012).
-// Ported to CUDA for nam-gpu from phys/radiation_gases_nmmb.f:843-979 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_gases_nmmb.f:843-979 (nam.v4.2.11, 83df4e13c1).
 //
 // Line-by-line counterpart of the routine's statements in that range:
 //   843-849   subroutine getgases(plvl, xlon, xlat, IMAX, LMAX, gasdat)  -> kernel args. The Fortran

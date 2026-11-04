@@ -1,10 +1,10 @@
-// nam-gpu unit phys-bmj-col-prep: BMJ arguments, locals and column preparation (BMJ subroutine,
+// WOOF-NAM unit phys-bmj-col-prep: BMJ arguments, locals and column preparation (BMJ subroutine,
 // lines 399-597), one thread per column.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran module has no licence block; its module header is kept here as the notice:
 //   MODULE MODULE_CU_BMJ (Betts-Miller-Janjic convection, NMMB, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:399-597 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:399-597 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope: the preparation statements of SUBROUTINE bmj that run before the buoyancy search
 // (line 600 onward is unit phys-bmj-col-cloudbase / cloudtop). The locals that the later BMJ

@@ -1,8 +1,8 @@
-// nam-gpu unit phys-bmj-bmjdrv: BMJDRV per-column setup, BMJ call, tendencies and precipitation out.
+// WOOF-NAM unit phys-bmj-bmjdrv: BMJDRV per-column setup, BMJ call, tendencies and precipitation out.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice: MODULE MODULE_CU_BMJ (NMMB convection packages, nam.v4.2.11).
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:117-395 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:117-395 (nam.v4.2.11, 83df4e13c1).
 //
 // Scope of this file: the bmjdrv subroutine body only. The routine calls BMJ (module_CU_BMJ.F90:399-2067),
 // which is the work of units phys-bmj-col-prep ... phys-bmj-col-shallow-adjust; that call is made here

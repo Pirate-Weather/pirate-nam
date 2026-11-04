@@ -1,11 +1,11 @@
-// nam-gpu unit phys-bmj-col-shallow-top: shallow cloud top search (virtual-temperature excess) and
+// WOOF-NAM unit phys-bmj-col-shallow-top: shallow cloud top search (virtual-temperature excess) and
 // gather of the shallow convection points, for the BMJ convection scheme.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module and routine header kept as the notice:
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine bmj(...)  -- programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:1317-1449 (nam.v4.2.11, 83df4e13c1), with the
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:1317-1449 (nam.v4.2.11, 83df4e13c1), with the
 // per-column state that the Fortran sets before the deep test (555, 953-955, 1225-1226) written here too.
 //
 // Per-column paths (Fortran control flow of subroutine bmj):

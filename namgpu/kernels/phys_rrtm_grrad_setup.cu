@@ -1,4 +1,4 @@
-// phys_rrtm_grrad_setup.cu -- nam-gpu unit phys-rrtm-grrad-setup: the argument, layer-array and
+// phys_rrtm_grrad_setup.cu -- WOOF-NAM unit phys-rrtm-grrad-setup: the argument, layer-array and
 // unit-conversion setup of NMMB grrad_nmmb (one thread per column, every level in a loop).
 //
 // NOTICE: NAM source file phys/grrad_nmmb.f (NOAA/NCEP/EMC, nam.v4.2.11, 83df4e13c1), subroutine
@@ -9,7 +9,7 @@
 // Functions from phys/funcphys.f (fpvs, fpvsx, fpkapx) and constants from phys/physcons.f are
 // reproduced below with their line references.
 //
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:660-1396 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:660-1396 (nam.v4.2.11, 83df4e13c1).
 // Scope: from the subroutine header (660) through the local-array setup, ending before the
 // climatological ozone call (getozn, line 1397 onward, unit phys-rrtm-grrad-gases). olyr is written
 // here only for ntoz > 0 (Fortran lines 1386-1392); the ntoz == 0 branch belongs to that unit.

@@ -6,7 +6,7 @@
 //   set_aercoef maps the pre-tabulated aerosol optical spectral data onto the sw and lw radiation bands
 //   (solar-flux and ir-flux weights per aerosol data band); optavg computes the band-mean optical properties
 //   for each species (follows the GFDL approach for thick-cloud optical properties in sw, 2000).
-// Ported to CUDA for nam-gpu from phys/radiation_aerosols_nmmb.f:821-1498 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_aerosols_nmmb.f:821-1498 (nam.v4.2.11, 83df4e13c1).
 //
 // Host side (namgpu/physics/rrtm/phys_rrtm_clim_aerinit.py) reads the data file
 // parm/nam_climaeropac_global.txt (the 12 monthly global distributions are skipped, as the Fortran does)

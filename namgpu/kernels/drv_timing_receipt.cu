@@ -1,4 +1,4 @@
-// nam-gpu unit drv-timing-receipt: device-side wall-clock stamp for the run receipt.
+// WOOF-NAM unit drv-timing-receipt: device-side wall-clock stamp for the run receipt.
 //
 // Mode "new": there is no NAM Fortran counterpart. The unit is driver glue that the run receipt
 // needs (CONTRACT.md section 0 and 6; the receipt stage table in namgpu/steps/drv_timing_receipt.py).

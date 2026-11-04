@@ -1,11 +1,11 @@
-// phys_fer_col_processes.cu -- nam-gpu unit phys-fer-col-processes (fer_hires column processes).
+// phys_fer_col_processes.cu -- WOOF-NAM unit phys-fer-col-processes (fer_hires column processes).
 //
 // NOTICE: NOAA/NCEP NAM source phys/module_MP_FER_HIRES.F90 (US government work; no licence file in
 // the NAM clone). Header of SUBROUTINE EGCP01COLUMN_hr (lines 650-690), kept as authorship:
 //   SUBPROGRAM:  Grid-scale microphysical processes - condensation & precipitation
 //   PRGRMMR: Ferrier         ORG: W/NP22     DATE: 08-2001
 //   PRGRMMR: Jin  (Modification for WRF structure)
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:1321-1478 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:1321-1478 (nam.v4.2.11, 83df4e13c1),
 // the block "Calculate individual processes" through the opening of the melting/evaporation IF.
 // CONDENSE (2160-2225) and DEPOSIT (2231-2289) are called from this range. Their device functions are
 // nam_condense (phys_fer_condense.cu, unit phys-fer-condense) and nam_deposit (phys_fer_deposit.cu, unit

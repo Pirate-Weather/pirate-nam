@@ -1,10 +1,10 @@
-// nam-gpu unit drv-cltend: CLTEND, spread the microphysics/convection temperature change over
+// WOOF-NAM unit drv-cltend: CLTEND, spread the microphysics/convection temperature change over
 // NPRECIP steps (Told, Tadj).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   module_SOLVER_GRID_COMP.F90, SUBROUTINE CLTEND (documentation block: PRGRMMR FERRIER,
 //   ORG W/NP22, DATE 01-09-26). Author headers kept as the notice.
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:11597-11681 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:11597-11681 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran loop coverage: ITS..ITE x JTS..JTE x 1..LM. On one card the tile is the whole domain
 // (CONTRACT.md section 1), so the kernel covers i0 in [0, IM), j0 in [0, JM), l0 in [0, LM).

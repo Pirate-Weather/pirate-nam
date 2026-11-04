@@ -1,10 +1,10 @@
-// nam-gpu unit phys-jsfc-jsfc: JSFC surface-layer driver (Janjic), one thread per surface column.
+// WOOF-NAM unit phys-jsfc-jsfc: JSFC surface-layer driver (Janjic), one thread per surface column.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module and routine kept as the notice:
 //   module module_SF_JSFC  (NMMB, nam.v4.2.11)
 //   subroutine JSFC        (driver: vertical setup, PBLH, call to SFCDIF, 2 m / 10 m supersaturation removal)
-// Ported to CUDA for nam-gpu from phys/module_SF_JSFC.F90:80-354 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_SF_JSFC.F90:80-354 (nam.v4.2.11, 83df4e13c1).
 //
 // Apache-2.0 portions: the shelter supersaturation block and the surface-state layout follow
 // ArWen namgpu/third_party/arwen/core/kernels/myjsfc.cu (Apache-2.0, see namgpu/third_party/arwen/LICENSE).

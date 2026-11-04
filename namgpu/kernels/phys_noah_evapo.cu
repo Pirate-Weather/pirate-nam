@@ -4,7 +4,7 @@
 // module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90),
 //   HISTORY LOG: 2008-07-28  Vasic - SMSTAV, SMSTOT, SMOIS reset for plotting.
 //                2008-07-28  Vasic - SOILW limitted to positive values.
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2557-2641 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:2557-2641 (nam.v4.2.11, 83df4e13c1).
 // The callees are carried in this file, because the unit is one launch:
 //   SUBROUTINE DEVAP   phys/module_LS_NOAHLSM.F90:2514-2554  (called from EVAPO)
 //   SUBROUTINE TRANSP  phys/module_LS_NOAHLSM.F90:5200-5309  (called from EVAPO)

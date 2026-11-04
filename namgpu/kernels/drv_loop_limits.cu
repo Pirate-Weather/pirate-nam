@@ -1,9 +1,9 @@
-// nam-gpu unit drv-loop-limits: looplimits and the tile loop limits as a device table.
+// WOOF-NAM unit drv-loop-limits: looplimits and the tile loop limits as a device table.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module header kept as the notice:
 //   module module_dm_parallel  (NMMB distributed-memory parallel layer, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DM_PARALLEL.F90:1941-1969 (looplimits)
+// Ported to CUDA for WOOF-NAM from nmm/module_DM_PARALLEL.F90:1941-1969 (looplimits)
 // and nmm/module_DM_PARALLEL.F90:777-822 (ihalo/jhalo use, ims..jme and ids_p1 ... jte_b1_h2)
 // (nam.v4.2.11, 83df4e13c1).
 //

@@ -3,7 +3,7 @@
 //
 // NOAA NAM / NMMB nemsinterp (public domain, US government work); NOAA author headers are kept in the
 // Fortran source. Source tree: $NMMB_INIT = sorc/nam_nps.fd/sorc/NMMB_init/NPS/nemsinterp/src.
-// Ported to CUDA for nam-gpu from module_vinterp_routines.F90:1363-1955 (compute_nmm_surfacep),
+// Ported to CUDA for WOOF-NAM from module_vinterp_routines.F90:1363-1955 (compute_nmm_surfacep),
 // 1956-2038 (compute_3d_pressure), 2039-2251 (interp_press2press_lin), 2433-2524 (wind_adjust),
 // 2525-2666 (interp_press2press_log), 2667-2802 (rh_to_mxrat), with the caller at 423-1010
 // (nam.v4.2.11, 83df4e13c1).

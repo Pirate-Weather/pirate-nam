@@ -1,11 +1,11 @@
-// phys_fer_deposit.cu -- nam-gpu unit phys-fer-deposit: DEPOSIT, ice deposition at T < T_ICE.
+// phys_fer_deposit.cu -- WOOF-NAM unit phys-fer-deposit: DEPOSIT, ice deposition at T < T_ICE.
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US government work, no licence file in the
 // NAM clone). Module header block kept as in phys_fer_growth_rates.cu (NOAA "Modified" fer_hires,
 // 11 July 2016 and later revisions). The routine comment ("Also uses the Asai (1965) algorithm, but
 // uses a different target vapor pressure for the adjustment") is reproduced in the device function.
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2231-2289 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2231-2289 (nam.v4.2.11, 83df4e13c1).
 //
 // Statement map (Fortran -> CUDA):
 //   2231       REAL FUNCTION DEPOSIT (PP,Tdum,WVdum,RHgrd,I,J,L) -> nam_deposit(), __device__. Tdum and WVdum are

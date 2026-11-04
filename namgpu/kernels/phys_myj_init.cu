@@ -2,7 +2,7 @@
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   module_BL_MYJPBL (Janjic Mellor-Yamada-Janjic PBL), nam.v4.2.11.
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1612-1657 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:1612-1657 (nam.v4.2.11, 83df4e13c1).
 //
 // Term-by-term review of MYJPBL_INIT (1612-1657):
 //   args EXCH_H (INTENT OUT, IMS:IME x JMS:JME x 1:LM), RESTART, IDS..LM, IMS..JME, ITS..JTE.

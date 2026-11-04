@@ -1,10 +1,10 @@
-// nam-gpu unit phys-myj-vdifh: VDIFH, vertical diffusion of the mass variables (heat, water
+// WOOF-NAM unit phys-myj-vdifh: VDIFH, vertical diffusion of the mass variables (heat, water
 // vapour, cloud condensate) in the NMMB MYJ PBL scheme. The momentum sibling is VDIFV (phys-myj-vdifv).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Module
 // header kept as the notice:
 //   MODULE MODULE_BL_MYJPBL (NMMB nam.v4.2.11, 83df4e13c1), "THE MYJ PBL SCHEME".
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:552-625 (caller column prep and
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:552-625 (caller column prep and
 // tendencies, MYJPBL main_integration) and 1425-1522 (SUBROUTINE VDIFH), nam.v4.2.11, 83df4e13c1.
 //
 // Three kernels, one launch sequence (wrapper namgpu/physics/myj/phys_myj_vdifh.py):

@@ -4,7 +4,7 @@
 // Routine header kept as the notice:
 //   subprogram: radinit  initialization of radiation calculations
 //   program history: 08-14-2003 yu-tai hou created
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:226-451 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:226-451 (nam.v4.2.11, 83df4e13c1).
 //
 // Line-by-line counterpart of the routine's own computations. Inputs are the physparam state that
 // rad_initialize_nmmb set (rip = ctx.tables['rad_physparam'], slots RI_* of phys_rrtm_rad_initialize.py),

@@ -1,4 +1,4 @@
-// drv_update_water.cu -- nam-gpu unit drv-update-water: UPDATE_WATER, the coupling between the
+// drv_update_water.cu -- WOOF-NAM unit drv-update-water: UPDATE_WATER, the coupling between the
 // total condensate CW (CWM in the Fortran) and the species QC, QR, QS, QI, QG with the fractions
 // F_ICE, F_RAIN, F_RIMEF.
 //
@@ -10,7 +10,7 @@
 //     UPDATE WATER ARRAY FOR FERRIER MICROPHYSICS
 //   PROGRAM HISTORY LOG (with changes to called routines) :
 //     2009-08     FERRIER     - Synchronize WATER array with CWM, F_rain, F_ice arrays
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:11069-11530 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:11069-11530 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran SUBROUTINE UPDATE_WATER(CWM, F_ICE, F_RAIN, F_RIMEF, T, QC, QR, QS, QI, QG,
 //                                 MICROPHYSICS, SPEC_ADV, NTIMESTEP, IDS..ITE, LM)

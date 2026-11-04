@@ -1,9 +1,9 @@
-// nam-gpu unit drv-dfi-tdfi-driver: RUN_DIGITAL_FILTER_NMM, TDFI branch (filter_method 3).
+// WOOF-NAM unit drv-dfi-tdfi-driver: RUN_DIGITAL_FILTER_NMM, TDFI branch (filter_method 3).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 //   nmm/module_NMM_GRID_COMP.F90, SUBROUTINE RUN_DIGITAL_FILTER_NMM (lines 3624-5418), and
 //   nmm/module_DOMAIN_GRID_COMP.F90, SUBROUTINE NMM_FILTERING (lines 4839-5321). Author headers
-//   kept as the notice. Ported to CUDA for nam-gpu from nmm/module_NMM_GRID_COMP.F90:3624-5418
+//   kept as the notice. Ported to CUDA for WOOF-NAM from nmm/module_NMM_GRID_COMP.F90:3624-5418
 //   and nmm/module_DOMAIN_GRID_COMP.F90:4839-5321 (nam.v4.2.11, 83df4e13c1).
 //
 // This unit owns no per-cell arithmetic. The TDFI routine is a control loop: it sets clocks,

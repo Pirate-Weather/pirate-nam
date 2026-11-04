@@ -1,4 +1,4 @@
-// phys_turbl_driver.cu -- TURBL outer driver glue for nam-gpu (column prep, H->V wind averaging,
+// phys_turbl_driver.cu -- TURBL outer driver glue for WOOF-NAM (column prep, H->V wind averaging,
 // surface-layer / LSM / PBL / GWD call sequencing, flux and state updates).
 //
 // Notice: module_TURBULENCE.F90 in NAM nam.v4.2.11 (MatthewPyle-NOAA/NAM @ 83df4e13c1, NMMB
@@ -6,7 +6,7 @@
 // licence file in the NAM tree; the NOAA source notice in NOTICE applies. NAM is US Government
 // work. The routine's own header block (Fortran lines 1-30) is kept as that notice.
 //
-// Ported to CUDA for nam-gpu from nmm/module_TURBULENCE.F90:89-1420 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_TURBULENCE.F90:89-1420 (nam.v4.2.11, 83df4e13c1).
 //
 // Scheme selection (parm/nam_configfile: turbulence myj, sfc_layer myj, land_surface noah,
 // gwdflg true, microphysics fer_hires, np3d 3):

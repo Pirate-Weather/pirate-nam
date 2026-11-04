@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NAM source file phys/radsw_main_nmmb.f (NCEP/EMC, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file; see
 // NOTICE). The sw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  sw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep's modifications of the rrtm-sw radiation code from aer inc.   !
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:4450-4481 (SUBROUTINE taumol26, nam.v4.2.11,
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:4450-4481 (SUBROUTINE taumol26, nam.v4.2.11,
 // 83df4e13c1). The routine USEs module_radsw_kgb26, whose only content is rayl(NG26): six Rayleigh
 // coefficients, one per g-point (phys/radsw_datatb_nmmb.f:17124-17154), extracted by
 // tools/extract-rrtm-sw-kgb26.py into namgpu/data/rrtm_sw/kgb26.npz.

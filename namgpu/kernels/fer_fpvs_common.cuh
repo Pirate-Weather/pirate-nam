@@ -3,7 +3,7 @@
 // phys-fer-fpvs and its callers evaluate them). One definition, so the formula cannot drift.
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US government work, no licence file in the
-// NAM clone). Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90:2915-2971 (FPVSX) and
+// NAM clone). Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90:2915-2971 (FPVSX) and
 // 2974-2989 (FPVSX0) (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran FPVSX (2915-2971) chooses the water branch (XA, XB) for T >= TTP and the ice branch (XAI, XBI)

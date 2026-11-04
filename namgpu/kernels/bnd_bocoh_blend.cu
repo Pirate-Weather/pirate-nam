@@ -2,7 +2,7 @@
 //
 // NOTICE: NAM source file nmm/module_FLTBNDS.F90 (NOAA/NCEP/EMC, US Government work, no licence
 // file). Its NOAA header is the notice; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:5355-5962 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:5355-5962 (nam.v4.2.11, 83df4e13c1).
 // The blend sits inside subroutine BOCOH (module_FLTBNDS.F90:5064-6387). Its blending weights
 // wh(k) = 1 - (0.9/(lnsh-1))*(k-1) are set at module_FLTBNDS.F90:5156-5159.
 //

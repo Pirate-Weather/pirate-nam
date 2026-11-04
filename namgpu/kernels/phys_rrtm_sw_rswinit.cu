@@ -1,8 +1,8 @@
-// phys_rrtm_sw_rswinit.cu -- unit phys-rrtm-sw-rswinit: RSWINIT, nam-gpu.
+// phys_rrtm_sw_rswinit.cu -- unit phys-rrtm-sw-rswinit: RSWINIT, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA/NCEP NAM source file sorc/nam_nems_nmmb.fd/src/atmos/phys/radsw_main_nmmb.f (nam.v4.2.11,
 //   83df4e13c1), NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone. Its package header (Fortran
@@ -266,7 +266,7 @@
 // 
 // !========================================!
 //
-// Ported to CUDA for nam-gpu from sorc/nam_nems_nmmb.fd/src/atmos/phys/radsw_main_nmmb.f:1244-1395 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from sorc/nam_nems_nmmb.fd/src/atmos/phys/radsw_main_nmmb.f:1244-1395 (nam.v4.2.11, 83df4e13c1).
 //
 // What this unit computes, every term of the Fortran RSWINIT accounted for:
 //  - Parameters: BPADE = 1.0/0.278 (radsw_main.f:293, declared real(kind=kind_phys)); NTBMX = 10000

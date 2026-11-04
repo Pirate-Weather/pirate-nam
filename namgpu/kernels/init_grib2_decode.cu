@@ -1,4 +1,4 @@
-// nam-gpu unit init-grib2-decode: GRIB2 record gather into the NMMB [j, i] float32 layout.
+// WOOF-NAM unit init-grib2-decode: GRIB2 record gather into the NMMB [j, i] float32 layout.
 //
 // What is decoded where:
 //   - The gpuwm Rust bridge grib2_dump decodes every packing on the host (simple, complex with
@@ -9,7 +9,7 @@
 //     the GRIB2 scan-mode flags (WMO Table 3.4), and convert to float32. Non-finite values are
 //     replaced by the declared missing value and counted on the device.
 //
-// NOTICE: new nam-gpu code, not a port of a NAM Fortran routine. The NAM reads GRIB2 through
+// NOTICE: new WOOF-NAM code, not a port of a NAM Fortran routine. The NAM reads GRIB2 through
 // NCEPLIBS/NEMS (no NEMS framework code is used here). The scan-mode convention is the GRIB2
 // Table 3.4 definition as the gpuwm bridge caller normalises it (gpuwm, Apache-2.0,
 // mapped_source.py _regular_latlon_frame: scan 0x40 passes through, scan 0x00 reverses rows).

@@ -2,7 +2,7 @@
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
 //   MODULE_LS_NOAHLSM (Noah land surface model), nam.v4.2.11.
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:1164-1293 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:1164-1293 (nam.v4.2.11, 83df4e13c1).
 // FRH2O (phys/module_LS_NOAHLSM.F90:2644-2782) is ported here too: NOAH_LSM_INIT is its only caller.
 //
 // Term-by-term review of NOAH_LSM_INIT (1164-1293):

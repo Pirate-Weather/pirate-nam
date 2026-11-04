@@ -1,4 +1,4 @@
-// nam-gpu unit drv-dfi-phy-restore: DIGITAL_FILTER_PHY_RESTORE_NMM, copy the physics state that was
+// WOOF-NAM unit drv-dfi-phy-restore: DIGITAL_FILTER_PHY_RESTORE_NMM, copy the physics state that was
 // saved before the digital filter (drv-dfi-phy-save) back into the physics fields after DFI.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). Author headers
@@ -6,14 +6,14 @@
 // the notice:
 //   a generic digital filter for any model under ESMF
 //   March 2007 Hann-Ming Henry Juang; Feb 2008-Sep 2011 Weiyu Yang; July 2012 T Black
-// Ported to CUDA for nam-gpu from nmm/module_DIGITAL_FILTER_NMM.F90:829-921 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DIGITAL_FILTER_NMM.F90:829-921 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (DIGITAL_FILTER_PHY_RESTORE_NMM):
 //   DO N=1,TOT_RANK_2D_PHYS: HOLD_2D(I,J) = ARRAY_SAVE_2D_PHYS(I,J,N)  for J=JTS..JTE, I=ITS..ITE
 //   DO N=1,TOT_RANK_3D_PHYS: LDIM = SIZE(HOLD_3D,3); HOLD_3D(I,J,L) = ARRAY_SAVE_3D_PHYS(I,J,L,N)
 //                             for L=1..LDIM, J, I
 // HOLD_2D/HOLD_3D are the ESMF field arrays of the N-th physics field of FILT_BUNDLE (named by
-// NAME_SAVE_2D/3D_PHYS(N)); in nam-gpu they are the device arrays of ctx.st, passed here as a table of
+// NAME_SAVE_2D/3D_PHYS(N)); in WOOF-NAM they are the device arrays of ctx.st, passed here as a table of
 // device pointers (one entry per field, built once by the wrapper).
 // The Fortran HALO_EXCH calls are dropped (single card, the whole domain is one tile, CONTRACT.md 1).
 // Loop limits ITS..ITE, JTS..JTE are the full domain 1..IM, 1..JM (zero-based 0..IM-1, 0..JM-1).

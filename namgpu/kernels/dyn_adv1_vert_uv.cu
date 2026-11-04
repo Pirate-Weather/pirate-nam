@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-adv1-vert-uv: Crank-Nicolson vertical advection of U and V (ADV1, vertical section).
+// WOOF-NAM unit dyn-adv1-vert-uv: Crank-Nicolson vertical advection of U and V (ADV1, vertical section).
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1706-1837 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1706-1837 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine adv1, "crank-nicholson vertical advection" section; w1 = 0.9, w2 = 2 - w1,
 // dts = dt*(0.25*0.25)). Per column (i,j), with 1-based l:

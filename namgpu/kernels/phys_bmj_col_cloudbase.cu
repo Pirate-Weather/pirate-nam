@@ -1,11 +1,11 @@
-// nam-gpu unit phys-bmj-col-cloudbase: BMJ cloud-base search (max-buoyancy parcel, table
+// WOOF-NAM unit phys-bmj-col-cloudbase: BMJ cloud-base search (max-buoyancy parcel, table
 // indices, saturation point, cloud base) for one column.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // Module and routine header kept as the notice:
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine bmj(...)   programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:598-696 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:598-696 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran -> CUDA, one thread per column. Fortran line map:
 //   590      thesp(l) = 0, l = 1..lmh (prep range; repeated here so the array is defined)

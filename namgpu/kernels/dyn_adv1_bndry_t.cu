@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-adv1-bndry-t: regional upstream advection of T along the lateral boundary strips.
+// WOOF-NAM unit dyn-adv1-bndry-t: regional upstream advection of T along the lateral boundary strips.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:1571-1705 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:1571-1705 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine adv1, inside vertical_loop1 do l=1,lm, regional branch, adv_upstream true):
 //   enhp = -dt*rdyh*0.25

@@ -10,10 +10,10 @@
 //     and equation of time (module variables sollag, sindec, cosdec).
 //   program history: mar-xx-1989 kenneth campana; fall-1988 hualu pan; dec-15-2003 yu-tai hou; mar 2012
 //     yu-tai hou (sol_init / sol_update split); jul-08-2012 hsin-mu lin (astronomy_nmmb fix).
-// Ported to CUDA for nam-gpu from phys/radiation_astronomy_nmmb.f:265-570 (sol_update_nmmb) and
+// Ported to CUDA for WOOF-NAM from phys/radiation_astronomy_nmmb.f:265-570 (sol_update_nmmb) and
 // :575-739 (solar) (nam.v4.2.11, 83df4e13c1).
 //
-// Precision: kind_phys is 4 in the SINGLE_PREC build (phys/machine.f:20, the nam-gpu build), so every
+// Precision: kind_phys is 4 in the SINGLE_PREC build (phys/machine.f:20, the WOOF-NAM build), so every
 // kind_phys quantity here is float. solc0 is read from the double table storage that phys-rrtm-sol-init
 // writes, and rounded to float once, as the Fortran single build holds it.
 //

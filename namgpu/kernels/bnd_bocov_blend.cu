@@ -4,7 +4,7 @@
 //
 // NOTICE: NAM source file nmm/module_FLTBNDS.F90 (NOAA/NCEP/EMC, US Government work, no licence
 // file). Keep the NOAA author headers of that file as notice; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:6590-7010 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:6590-7010 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran: the blend block of subroutine BOCOV (lines 6590-7010), which follows the update block
 // (bnd-bocov-update, lines 6392-6589). wv(1:lnsv) is computed by BOCOV at lines 6461-6464 and is

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NAM source file phys/radsw_main_nmmb.f (NCEP/EMC, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file).
 // The routine header (module_radsw_main_nmmb, swflux) is kept as the notice:
@@ -14,7 +14,7 @@
 //   interface: "swflux" is called by "spcvrc" and "spcvrm"
 //   NCEP sw-rrtm package (rrtm-sw from AER, NCEP modifications, NMMB version).
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:2977-3102 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:2977-3102 (nam.v4.2.11, 83df4e13c1).
 //
 // Level order: the Fortran index k = 1 is the lowest interface (the surface side) and k = NLP1 the top;
 // the arrays are dimensioned (CHK, nlp1) and every k is kept exactly as in the Fortran. Kernel-local

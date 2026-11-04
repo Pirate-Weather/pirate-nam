@@ -1,4 +1,4 @@
-// phys_rrtm_init.cu -- unit phys-rrtm-init: RRTM_INIT + GAUSIN, nam-gpu.
+// phys_rrtm_init.cu -- unit phys-rrtm-init: RRTM_INIT + GAUSIN, WOOF-NAM.
 //
 // NOTICE: NOAA/NCEP NMMB source, module MODULE_RA_RRTM (phys/module_RA_RRTM.F90, nam.v4.2.11,
 //   83df4e13c1). US government work; no licence file in the NAM clone. Notice block copied from the
@@ -6,7 +6,7 @@
 //     module_RA_RRTM.F90:1424-1426  SUBROUTINE RRTM_INIT(EMISS,SFULL,SHALF,PPTOP, ...
 //     module_RA_RRTM.F90:1499       and xsd # of standard deviation (03/22/2004  Hsin-mu Lin)
 //   The GAUSIN author credit is Hsin-Mu Lin (2004).
-// Ported to CUDA for nam-gpu from phys/module_RA_RRTM.F90:1424-1517 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_RA_RRTM.F90:1424-1517 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran RRTM_INIT / GAUSIN, every term accounted for:
 //  - Module constants (module_RA_RRTM.F90:44-47): XSDmax = 3.1, DXSD = .01, NXSD = XSDmax/DXSD = 310

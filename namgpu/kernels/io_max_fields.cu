@@ -1,4 +1,4 @@
-// nam-gpu unit io-max-fields: MAX_FIELDS_HR, the hourly maxima, minima and running averages of
+// WOOF-NAM unit io-max-fields: MAX_FIELDS_HR, the hourly maxima, minima and running averages of
 // the NMMB diagnostics: REFDMAX (1 km AGL simulated reflectivity), REFDMAX263K (-10 C level),
 // PRATEMAX, FPRATEMAX, UPVVELMAX, DNVVELMAX, TLMAX/TLMIN, T02MAX/T02MIN, RH02MAX/RH02MIN,
 // U10MAX, V10MAX, SPD10MAX, and the averages T10, T10AVG, PSFCAVG, AKHSAVG, AKMSAVG, SNOAVG.
@@ -7,7 +7,7 @@
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). The routine
 // MAX_FIELDS_HR in nmm/module_DIAGNOSE.F90 has no author block of its own; the module and its
-// constants are NCEP's. Ported to CUDA for nam-gpu from nmm/module_DIAGNOSE.F90:2190-2518
+// constants are NCEP's. Ported to CUDA for WOOF-NAM from nmm/module_DIAGNOSE.F90:2190-2518
 // (nam.v4.2.11, 83df4e13c1). Constants from nmm/module_CONSTANTS.F90 (see nmmb_common.cuh).
 //
 // Mapping: one thread per (i, j) column (kernels.grid_cols). Each thread runs the Fortran column

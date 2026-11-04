@@ -75,7 +75,7 @@
 // !     03-14-07    yu-tai hou   - add generalized spectral band interp  !
 // !                                for aerosol optical prop. (sw and lw) !
 //
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:456-602 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:456-602 (nam.v4.2.11, 83df4e13c1).
 //
 // radupdate_nmmb has no grid loops: it is the calendar and change-flag logic that decides which
 // time-varying radiation data are refreshed. The Fortran-to-CUDA review (CONTRACT section 6,

@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-cdzdt-extmode: remove the external (barotropic) mode from W.
+// WOOF-NAM unit dyn-cdzdt-extmode: remove the external (barotropic) mode from W.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:3236-3273 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:3236-3273 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran (subroutine cdzdt, section "taking external mode out"; lm = LM, dsg2 = DSG2, pdsg1 = PDSG1,
 // pdo = PDO, w = W, baro = BARO):

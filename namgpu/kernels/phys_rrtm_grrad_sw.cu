@@ -1,4 +1,4 @@
-// phys_rrtm_grrad_sw.cu -- nam-gpu unit phys-rrtm-grrad-sw: the SW branch of GRRAD_NMMB
+// phys_rrtm_grrad_sw.cu -- WOOF-NAM unit phys-rrtm-grrad-sw: the SW branch of GRRAD_NMMB
 // (setalb call, sfalb, the daytime SWRAD call and the SW heating / flux copies).
 //
 // NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). Header
@@ -7,7 +7,7 @@
 //   !   this is the radiation driver module.  it prepares atmospheric      !
 //   !   profiles and invokes main radiation calculations.                  !
 //   program history log: ncep - created program grrad ... (full block in the source file)
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:1818-1962 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:1818-1962 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran lines covered (inside the `if (lsswr)` block that starts at 1814):
 //   1818-1820  call setalb(...)                       -> phys-rrtm-setalb (separate unit, run first)

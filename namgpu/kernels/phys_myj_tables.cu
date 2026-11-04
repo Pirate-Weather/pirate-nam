@@ -1,4 +1,4 @@
-// nam-gpu unit phys-myj-tables: HERFTBL, HERF, TABLEPT, TABLETT and SPLINE, the MYJ PBL look-up
+// WOOF-NAM unit phys-myj-tables: HERFTBL, HERF, TABLEPT, TABLETT and SPLINE, the MYJ PBL look-up
 // tables built once at MYJPBL_INIT (module_BL_MYJPBL.F90:1661-2029, nam.v4.2.11, 83df4e13c1).
 // Consumers: MYJPBL (module_BL_MYJPBL.F90:180-753) reads HERF, PTBL and TTBL on the step path.
 //
@@ -6,7 +6,7 @@
 // The module header is kept here as the notice:
 //   MODULE MODULE_BL_MYJPBL (Mellor-Yamada-Janjic PBL, NMMB, nam.v4.2.11). The look-up table
 //   routines are by Z. Janjic (SPLINE is written for a small scalar machine).
-// Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1661-2029 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_BL_MYJPBL.F90:1661-2029 (nam.v4.2.11, 83df4e13c1).
 //
 // Kernels (all extern "C"):
 //   phys_myj_herftbl  HERFTBL: half erf table herff[KERFM] (single thread: sequential prefix sum,

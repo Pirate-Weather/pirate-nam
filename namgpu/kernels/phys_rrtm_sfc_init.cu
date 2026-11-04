@@ -1,4 +1,4 @@
-// phys_rrtm_sfc_init.cu -- nam-gpu unit phys-rrtm-sfc-init.
+// phys_rrtm_sfc_init.cu -- WOOF-NAM unit phys-rrtm-sfc-init.
 //
 // NOAA notice: phys/radiation_surface_nmmb.f (NCEP/EMC NAM nam.v4.2.11, 83df4e13c1), module
 // module_radiation_surface_nmmb, subroutines sfc_init (lines 117-233) and sfcinit (lines 274-401).
@@ -6,7 +6,7 @@
 // kept as the notice of the source (VTAGSFC NCEP-Radiation_surface v5.1, Nov 2012):
 //   1995 y.t. hou (albaer); 1997-2012 y.t. hou, s. moorthi, h. wei, c. marshall, y. yang (see source).
 //
-// Ported to CUDA for nam-gpu from phys/radiation_surface_nmmb.f:117-401 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_surface_nmmb.f:117-401 (nam.v4.2.11, 83df4e13c1).
 //
 // This is initialisation, not a step-path stage. It runs once per process on the card and does two
 // things the Fortran does at init:

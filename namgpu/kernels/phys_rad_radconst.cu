@@ -19,7 +19,7 @@
 // !-----------------------------------------------------------------------
 // !
 //
-// Ported to CUDA for nam-gpu from nmm/module_RADIATION.F90:1000-1042 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_RADIATION.F90:1000-1042 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran: SUBROUTINE radconst(XTIME, DECLIN, SOLCON, JULIAN)
 // Every statement of lines 1000-1042 and its counterpart here:

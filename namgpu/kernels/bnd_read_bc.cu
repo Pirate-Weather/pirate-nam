@@ -1,11 +1,11 @@
-// nam-gpu unit bnd-read-bc: the array-placement half of NMMB READ_BC (boundary input at the start
+// WOOF-NAM unit bnd-read-bc: the array-placement half of NMMB READ_BC (boundary input at the start
 // of each 3-h interval). The file read and the header decode are host I/O in
 // namgpu/boundary/bnd_read_bc.py; this kernel moves the staged record into the boundary arrays.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_fltbnds  (NMMB boundary I/O, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_FLTBNDS.F90:3579-3925 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_FLTBNDS.F90:3579-3925 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran read_bc, line by line (single process, halo-free, one card: i_lo..i_hi = 1..IM and
 // j_lo..j_hi = 1..JM because ims=ids, ime=ide, jms=jds, jme=jde):

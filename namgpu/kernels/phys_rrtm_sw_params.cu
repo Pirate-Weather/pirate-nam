@@ -1,8 +1,8 @@
-// phys_rrtm_sw_params.cu -- unit phys-rrtm-sw-params: SW control and band parameters, nam-gpu.
+// phys_rrtm_sw_params.cu -- unit phys-rrtm-sw-params: SW control and band parameters, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). Package
 //   header of phys/radsw_param_nmmb.f (nam.v4.2.11, 83df4e13c1), reproduced verbatim (Fortran lines 1-46):
@@ -53,7 +53,7 @@
 // !!!!!                       end descriptions                       !!!!!
 // !!!!!  ==========================================================  !!!!!
 //
-// Ported to CUDA for nam-gpu from phys/radsw_param_nmmb.f:51-189 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radsw_param_nmmb.f:51-189 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran lines covered:
 //   51-92    module_radsw_cntr_para_nmmb: six integer control parameters (iswrate .. iflagice)

@@ -1,11 +1,11 @@
-// phys_rrtm_driver_prep.cu -- nam-gpu unit phys-rrtm-driver-prep.
+// phys_rrtm_driver_prep.cu -- WOOF-NAM unit phys-rrtm-driver-prep.
 //
 // NOAA notice: module MODULE_RA_RRTM (phys/module_RA_RRTM.F90, NCEP/EMC NAM nam.v4.2.11,
 // 83df4e13c1), "THE RADIATION DRIVERS AND PACKAGES". NOAA/NCEP US government work; the NAM clone
 // carries no licence file. Kept as the notice of the source; the module text has no per-author
 // header block beyond that.
 //
-// Ported to CUDA for nam-gpu from phys/module_RA_RRTM.F90:98-878 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_RA_RRTM.F90:98-878 (nam.v4.2.11, 83df4e13c1).
 // Subroutine RRTM, the cloud-input and cloud-layer part that runs before the DO J column loop
 // (the column loop itself, 879-1112, is unit phys-rrtm-driver-call).
 //

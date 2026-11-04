@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The lw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  lw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep modifications of the rrtm-lw radiation code from aer inc.     !
 //
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:5666-5908 (SUBROUTINE taugb13).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:5666-5908 (SUBROUTINE taugb13).
 // Tables: module_radlw_kgb13 (phys/radlw_datatb.f, the module taugb13 USEs), extracted to
 // namgpu/data/rrtm_lw/kgb13.npz by tools/extract-rrtm-lw-kgb13.py and uploaded once by the wrapper.
 // chi_mls (module_radlw_ref) is passed in from the setcoef tables.

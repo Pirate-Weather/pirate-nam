@@ -2,7 +2,7 @@
 //
 // NOTICE: NAM source file nmm/module_DYNAMICS_ROUTINES.F90 (NOAA/NCEP/EMC, US Government work,
 // no licence file). This file has no author/history block of its own; see NOTICE at the repo root.
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:2410-2456 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:2410-2456 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran routine UPDATET(lm, t, tct): the whole body is
 //     t(i,j,l)   = t(i,j,l) + tct(i,j,l)

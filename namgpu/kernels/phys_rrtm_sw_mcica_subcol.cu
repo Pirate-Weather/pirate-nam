@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:1827-1984 (subroutine mcica_subcol,
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:1827-1984 (subroutine mcica_subcol,
 // nam.v4.2.11, 83df4e13c1). Notice (source header of radsw_main_nmmb.f): sw-rrtm3 radiation
 // package, NCEP modifications of the RRTM-SW radiation code from AER Inc. The random-number calls
 // of the source use the Mersenne-twister module phys/mersenne_twister.f (LGPL). That file is NOT

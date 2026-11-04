@@ -5,7 +5,7 @@
 //   SUBPROGRAM:  RIME_FACTOR_UPDATE
 //   PRGRMMR: FERRIER         ORG: W/NP22     DATE: 2013-06-14
 //   ABSTRACT: UPDATES THE RIME FACTOR ARRAY AFTER 3D ADVECTION
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:11688-11771 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:11688-11771 (nam.v4.2.11, 83df4e13c1).
 //
 // Two branches, selected by RIME_FACTOR_INPUT (Fortran logical), both called from SOLVER_RUN:
 //   RIME_FACTOR_INPUT = .TRUE.  (module_SOLVER_GRID_COMP.F90:4448, before species advection)

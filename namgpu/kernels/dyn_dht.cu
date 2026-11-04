@@ -1,9 +1,9 @@
-// nam-gpu unit dyn-dht: horizontal mass divergence and pressure-advection term of the T equation.
+// WOOF-NAM unit dyn-dht: horizontal mass divergence and pressure-advection term of the T equation.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The Fortran file has no PROGRAM HISTORY LOG block; its module header is kept here as the notice:
 //   module module_dynamics_routines  (NMMB dynamics, nam.v4.2.11)
-// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:498-796 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_DYNAMICS_ROUTINES.F90:498-796 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran subroutine dht, regional configuration (global = .false.; the zero-divergence ring is applied).
 // Sections of the Fortran and where they live here:

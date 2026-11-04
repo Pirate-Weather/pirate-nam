@@ -1,7 +1,7 @@
 // io_history_fields.cu -- wrfout-shaped history fields from the NMMB state (unit io-history-fields,
 // mode "new": no Fortran counterpart; the mapping follows the NAM sources named below).
 //
-// Ported to CUDA for nam-gpu from nam.v4.2.11 (83df4e13c1) sorc/nam_nems_nmmb.fd/src/atmos/nmm:
+// Ported to CUDA for WOOF-NAM from nam.v4.2.11 (83df4e13c1) sorc/nam_nems_nmmb.fd/src/atmos/nmm:
 //   module_SOLVER_GRID_COMP.F90:11144-11186  UPDATE_WATER, CASE ('fer','fer_hires'), spec_adv=F branch:
 //                                            QC=(1-F_RAIN)*(1-F_ICE)*CWM, QR=F_RAIN*(1-F_ICE)*CWM,
 //                                            QS=F_ICE*CWM, all zero when CWM <= EPSQ. QI is not set.

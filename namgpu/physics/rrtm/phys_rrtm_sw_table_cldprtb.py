@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-sw-table-cldprtb: NMMB RRTM shortwave cloud-property coefficient tables.
 
 Source: NAM nam.v4.2.11 (83df4e13c1) phys/radsw_datatb_nmmb.f:52-1064, module_radsw_cldprtb_nmmb
@@ -19,7 +19,7 @@ The upload is a single host-to-device copy at the first call (init), never per s
 
 Precision: the Fortran declares kind_phys. NAM's production build defines -DSINGLE_PREC
 (configure.nems.Wcoss_C.intel_ESMF_630r_gsm CPPFLAGS), which makes kind_phys = real*4 (phys/machine.f:20).
-Without that define kind_phys is real*8 (phys/machine.f:10). This unit stores float32 because nam-gpu runs
+Without that define kind_phys is real*8 (phys/machine.f:10). This unit stores float32 because WOOF-NAM runs
 kfpt=single (CONTRACT.md section 3). Recorded declared-precision deviation: a real*8 build would need float64.
 NBLOW/NBHGH come from module_radsw_parameters_nmmb, phys/radsw_param_nmmb.f:147-148.
 """

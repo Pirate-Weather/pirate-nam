@@ -3,7 +3,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the source
 // module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:1550-2278 (SFLX, nam.v4.2.11,
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:1550-2278 (SFLX, nam.v4.2.11,
 // 83df4e13c1). Integration (Opus integrator, 2026-11-04): this is the NAM SFLX body, written from
 // the Fortran, calling the NAM callee ports that the Noah units hold:
 //   NOPAC callee closure (EVAPO, DEVAP, TRANSP, SMFLX, SRT, SSTEP, ROSR12, SHFLX, HRT, HRTICE,

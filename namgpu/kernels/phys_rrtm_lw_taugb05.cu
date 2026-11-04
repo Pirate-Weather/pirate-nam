@@ -1,14 +1,14 @@
-// phys_rrtm_lw_taugb05.cu -- unit phys-rrtm-lw-taugb05: LW band 5 optical depths and Planck fractions, nam-gpu.
+// phys_rrtm_lw_taugb05.cu -- unit phys-rrtm-lw-taugb05: LW band 5 optical depths and Planck fractions, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE; no licence file in the NAM clone). The routine is
 //   the band-5 subroutine of the NMMB RRTM longwave package, phys/radlw_main_nmmb.f (nam.v4.2.11,
 //   83df4e13c1), whose header says "this package includes ncep's modifications of the rrtm-lw radiation".
 //   Keep this notice with the code.
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:4341-4598 (nam.v4.2.11, 83df4e13c1), SUBROUTINE taugb05
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:4341-4598 (nam.v4.2.11, 83df4e13c1), SUBROUTINE taugb05
 //   (an internal subroutine of taumol, module_radlw_main_nmmb). Tables: radlw_datatb.f:15209-21676
 //   (module_radlw_kgb05, the module taugb05 names in its USE), chi_mls from radlw_datatb.f:733-905.
 //
@@ -48,7 +48,7 @@
 //
 // DECLARED DIVERGENCE (precision). The NAM Linux.gnu, Linux.intel and wcoss2 configs do not define
 //   -DSINGLE_PREC (the only SINGLE_PREC hit is a commented line in a gsm config), so machine.f selects
-//   kind_phys=8 and native taugb05 runs in double. This port runs float32 throughout, as the nam-gpu rule
+//   kind_phys=8 and native taugb05 runs in double. This port runs float32 throughout, as the WOOF-NAM rule
 //   for kfpt=single. The claim is single precision, not native-identical precision. Not bitwise to native.
 // DECLARED DIVERGENCE (tables). Native reads the kind_phys=8 tables; they are rounded once to float32 at
 //   load time (wrapper). refrat_planck_a/b and refrat_m_a are computed in float64 and rounded once.

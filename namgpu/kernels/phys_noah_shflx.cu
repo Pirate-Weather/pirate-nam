@@ -2,7 +2,7 @@
 //
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3729-3796 (nam.v4.2.11, 83df4e13c1),
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3729-3796 (nam.v4.2.11, 83df4e13c1),
 // together with the routines SHFLX calls, each ported from its own Fortran lines:
 //   HRT      2785-3035   (land-mass soil heat RHS and tri-diagonal coefficients)
 //   HRTICE   3038-3150   (sea-ice case, ICE == 1)

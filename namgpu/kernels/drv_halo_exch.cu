@@ -1,4 +1,4 @@
-// drv_halo_exch.cu -- nam-gpu unit drv-halo-exch: pack and unpack the JHALO-row halo of a row-slab field, and the
+// drv_halo_exch.cu -- WOOF-NAM unit drv-halo-exch: pack and unpack the JHALO-row halo of a row-slab field, and the
 // per-row owned-row hash used by NAMGPU_UNIT_HASH (MULTICARD-PLAN.md sections 3 and 10).
 //
 // Replaces the NMMB MPI halo exchange (nmm/module_EXCHANGE.F90 HALO_EXCH, called from module_SOLVER_GRID_COMP.F90 at

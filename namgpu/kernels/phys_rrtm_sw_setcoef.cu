@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radsw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The sw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  sw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep's modifications of the rrtm-sw radiation code from aer inc.   !
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:1989-2139 (SUBROUTINE setcoef).
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:1989-2139 (SUBROUTINE setcoef).
 // The reference tables are module_radsw_ref preflog and tref (59 entries each), filled by
 // phys_rrtm_sw_table_ref from radsw_datatb.f. The constants stpfac, f_one and f_zero are
 // radsw_main_nmmb.f lines 294-299, written here as literals.

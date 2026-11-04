@@ -1,9 +1,9 @@
-// nam-gpu unit drv-step-plan: device-side finiteness scan used by the step-plan checker.
+// WOOF-NAM unit drv-step-plan: device-side finiteness scan used by the step-plan checker.
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone).
 // The unit has no Fortran numerics of its own. The plan it describes is SOLVER_RUN call order and
 // cadence (nmm/module_SOLVER_GRID_COMP.F90:2453-7168), held as data in namgpu/driver.py.
-// Ported to CUDA for nam-gpu from nmm/module_SOLVER_GRID_COMP.F90:2453-7168 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_SOLVER_GRID_COMP.F90:2453-7168 (nam.v4.2.11, 83df4e13c1).
 //
 // Kernel drv_step_plan_nonfinite_count: counts NaN and Inf values in a float32 array.
 // Grid-stride loop, one block-level reduction, one atomicAdd per block into a device counter.

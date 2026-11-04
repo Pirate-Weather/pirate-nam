@@ -1,9 +1,9 @@
 // phys_rrtm_lw_taugb09.cu -- unit phys-rrtm-lw-taugb09: LW band 9 optical depths and Planck
-// fractions, nam-gpu.
+// fractions, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The
 //   routine is taugb09 of the NMMB rrtm-lw package (phys/radlw_main_nmmb.f, nam.v4.2.11, 83df4e13c1),
@@ -11,7 +11,7 @@
 //   modifications of the rrtm-lw radiation code from aer inc." Its k-tables are module_radlw_kgb09
 //   (phys/radlw_datatb.f:25328-27963), the module taugb09 uses (radlw_main_nmmb.f:5077); see
 //   namgpu/data/rrtm_lw/kgb09.npz (tools/extract_rrtm_lw_kgb09.py).
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:5069-5313 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:5069-5313 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran coverage (whole subroutine, every statement):
 //   reference ratios refrat_planck_a = chi_mls(1,9)/chi_mls(6,9), refrat_m_a = chi_mls(1,3)/chi_mls(6,3)

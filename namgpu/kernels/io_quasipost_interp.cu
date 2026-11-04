@@ -1,7 +1,7 @@
 // io_quasipost_interp.cu -- unit io-quasipost-interp: calculate_interP, interpolation of the
 // membrane-MSLP inputs (below-ground extrapolation and the sea-level pressure at Z = 0).
 //
-// Ported to CUDA for nam-gpu from nam.v4.2.11 (83df4e13c1)
+// Ported to CUDA for WOOF-NAM from nam.v4.2.11 (83df4e13c1)
 //   sorc/nam_nems_nmmb.fd/src/atmos/nmm/module_QUASIPOST.F90:688-815  (subroutine calculate_interP)
 // Constants: module_QUASIPOST.F90:9-60 (npres = 33, post_stdpres, post_RD, post_G, post_slope).
 // NOAA source is US government work (see NOTICE); no licence file is carried.

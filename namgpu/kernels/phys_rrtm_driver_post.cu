@@ -2,7 +2,7 @@
 // cloud diagnostics (ICWP /= -1) and the old NAM/GFDL cloud-cover diagnostic (ICWP == -1).
 //
 // NOTICE: NAM source file phys/module_RA_RRTM.F90 (NOAA/NCEP/EMC, US Government work, no licence file).
-// Ported to CUDA for nam-gpu from phys/module_RA_RRTM.F90:1113-1418 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_RA_RRTM.F90:1113-1418 (nam.v4.2.11, 83df4e13c1).
 //
 // Where this range sits (UNITS.json split of SUBROUTINE RRTM):
 //   phys-rrtm-driver-prep  module_RA_RRTM.F90:98-878    column inputs, P8W/P_PHY, old-cloud inputs (CSMID, CCMID), CU_cloud

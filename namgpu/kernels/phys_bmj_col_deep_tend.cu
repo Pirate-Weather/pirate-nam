@@ -1,4 +1,4 @@
-// nam-gpu unit phys-bmj-col-deep-tend: deep convection heating, moistening, momentum (mmntdeep
+// WOOF-NAM unit phys-bmj-col-deep-tend: deep convection heating, moistening, momentum (mmntdeep
 // branch, off by default in the NAM configuration) and precipitation of the BMJ scheme, for one
 // column. Fortran range phys/module_CU_BMJ.F90:1180-1316 (the heating/moistening loop inside the
 // cloud-efficiency iteration, the deep-convection block, and the start of the shallow-cloud else
@@ -9,7 +9,7 @@
 //   module module_cu_bmj  (NMMB, nam.v4.2.11)
 //   subroutine bmj  (deep convection; BMJ scheme)
 //   programer: z. janjic, yugoslav fed. hydromet. inst., beograd
-// Ported to CUDA for nam-gpu from phys/module_CU_BMJ.F90:1180-1316 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_CU_BMJ.F90:1180-1316 (nam.v4.2.11, 83df4e13c1).
 //
 // Pass structure (review of phys-bmj-col-deep-tend). In Fortran the cloud-efficiency body
 // (1191-1213) sits inside `cloud_efficiency : do itrefi=1,itrefi_max` (1088-1216), and the deep block

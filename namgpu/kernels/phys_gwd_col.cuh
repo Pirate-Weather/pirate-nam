@@ -2,7 +2,7 @@
 //
 // NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), MODULE_GWD
 // (nmm/module_GWD.F90) header as in phys_gwd_col_blocking.cu.
-// Ported to CUDA for nam-gpu from nmm/module_GWD.F90:368-1132 (nam.v4.2.11, 83df4e13c1): the column
+// Ported to CUDA for WOOF-NAM from nmm/module_GWD.F90:368-1132 (nam.v4.2.11, 83df4e13c1): the column
 // form of SUBROUTINE GWD_col. Integration glue (Opus integrator, 2026-11-04): it runs the two reviewed
 // part bodies, gwd_col_blocking_dev (368-897, unit phys-gwd-col-blocking) and gwd_col_wave_dev
 // (898-1132, unit phys-gwd-col-wave), on thread-local column arrays. The part bodies index their

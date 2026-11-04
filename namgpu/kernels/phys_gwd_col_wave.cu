@@ -5,7 +5,7 @@
 // source module are kept as notices: MODULE MODULE_GWD (module_GWD.F90), "Initially incorporated
 // into the WRF NMM from the GFS by B. Ferrier in April/May 2007; Ratko added in NMM-B (July '08);
 // Mountain blocking made more robust in July 2016 by BSF".
-// Ported to CUDA for nam-gpu from nmm/module_GWD.F90:898-1132 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from nmm/module_GWD.F90:898-1132 (nam.v4.2.11, 83df4e13c1).
 //
 // Indexing. Every per-point array is full-domain and is read at p = ipt[c], the cell index of the
 // c-th active point. This is the Fortran IPT compaction done by index, so no compacted copy is

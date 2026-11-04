@@ -8,7 +8,7 @@
 // !   this is the radiation driver module.  it prepares atmospheric      !
 // !   profiles and invokes main radiation calculations.                  !
 //
-// Ported to CUDA for nam-gpu from phys/grrad_nmmb.f:1540-1576 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/grrad_nmmb.f:1540-1576 (nam.v4.2.11, 83df4e13c1).
 //
 // What the Fortran lines do: one call,
 //   call setaer(plvl, plyr, prslk1, tvly, rhly, slmsk, tracer1, xlon, xlat,

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 # RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 # BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+# Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 """phys-rrtm-lw-table-avplank: RRTM LW Planck-flux table (module_radlw_avplank, radlw_datatb.f).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_datatb.f:58-728 (module_radlw_avplank, the module radlw_main_nmmb.f
@@ -13,7 +13,7 @@ has different values and is not referenced by radlw_main_nmmb.f, so it is not us
 No kernel: totplnk is constant data (the Fortran only sets it with DATA statements, no arithmetic),
 so there is no GPU computation to port. The table is extracted once by
 tools/extract_rrtm_lw_avplank.py into namgpu/data/rrtm_lw_avplank.npz (values parsed as Fortran
-decimal literals, stored float32 as in every other nam-gpu table) and uploaded once here.
+decimal literals, stored float32 as in every other WOOF-NAM table) and uploaded once here.
 
 Out: ctx.tables["rrtm_lw_totplnk"], float32 [NBANDS, NPLNK] = [16, 181], CuPy C order.
      Fortran totplnk(k, ib) (k = 1..181, ib = 1..16) is out[ib-1, k-1].

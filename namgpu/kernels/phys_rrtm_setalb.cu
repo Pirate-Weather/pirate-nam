@@ -1,11 +1,11 @@
-// nam-gpu unit phys-rrtm-setalb: SETALB, surface albedo for the SW radiation call.
+// WOOF-NAM unit phys-rrtm-setalb: SETALB, surface albedo for the SW radiation call.
 //
 // NOTICE: NOAA/NCEP NAM (nam.v4.2.11, 83df4e13c1) NMMB physics, phys/radiation_surface_nmmb.f,
 // module_radiation_surface, subroutine setalb (lines 407-725). NOAA US government work, no licence
 // file in the NAM clone; the NOAA source header is kept as the notice. The module header reads
 // "module_radiation_surface description" (NCEP/EMC NMMB physics; the routine comments cite
 // Briegleb 1992 and Ferrier 2005).
-// Ported to CUDA for nam-gpu from phys/radiation_surface_nmmb.f:407-725 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_surface_nmmb.f:407-725 (nam.v4.2.11, 83df4e13c1).
 //
 // Mapping: one thread per (i, j) column, one launch (kernels.grid_cols). Every Fortran branch of
 // ialbflg is kept: 0 = climatological scheme (Briegleb 1992), 1 = MODIS-based land albedo with

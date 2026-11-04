@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 // !!!!!               lw-rrtm3 radiation package description             !!!!!
 // !!!!!  ==============================================================  !!!!!
 // !                                                                          !
@@ -32,7 +32,7 @@
 // !       'module_radlw_main'        -- main lw radiation transfer           !
 // !                                                                          !
 // !    in the main module 'module_radlw_main' there are only two             !
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:1344-1697 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:1344-1697 (nam.v4.2.11, 83df4e13c1).
 //
 // CLDPROP: LW cloud optical depth per band and layer (taucld), and for the McICA path (isubclw>0)
 // the layer cloud fraction cldf that the sub-column generator (phys-rrtm-lw-mcica-subcol) consumes.

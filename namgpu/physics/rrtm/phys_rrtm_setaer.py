@@ -1,4 +1,4 @@
-"""phys-rrtm-setaer: SETAER, aerosol optical properties per layer (RRTM group, nam-gpu).
+"""phys-rrtm-setaer: SETAER, aerosol optical properties per layer (RRTM group, WOOF-NAM).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1). NOAA US government work; the NOAA header of
 phys/radiation_aerosols_nmmb.f is kept as the notice in the kernel file

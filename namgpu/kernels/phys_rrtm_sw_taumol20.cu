@@ -4,14 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOAA notice: phys/radsw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The sw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  sw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep modifications of the rrtm-sw radiation code from aer inc.     !
 //
-// Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:3852-3943 (SUBROUTINE taumol20). The band-20
+// Ported to CUDA for WOOF-NAM from phys/radsw_main_nmmb.f:3852-3943 (SUBROUTINE taumol20). The band-20
 // solar source is the taumol driver case block: case (16, 20, 23, 25, 26, 29) at radsw_main_nmmb.f:3269,
 // sfluxzen(:, ns+j) = sfluxref01(j, 1, ibd) at 3272-3273, with ns = ngs(20) = NS20 = 34
 // (radsw_param_nmmb.f:140). The id0/id1 index setup is the driver WHERE blocks at 3250-3257.

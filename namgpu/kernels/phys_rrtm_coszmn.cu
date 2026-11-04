@@ -40,7 +40,7 @@
 //  ---  inputs:
 //  ---  outputs:
 //  ---  locals:
-// Ported to CUDA for nam-gpu from phys/radiation_astronomy_nmmb.f:744-848 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_astronomy_nmmb.f:744-848 (nam.v4.2.11, 83df4e13c1).
 //
 // Fortran -> CUDA map (every statement of coszmn_nmmb, lines 744-848):
 //   solang = pid12*(solhr - f12)                           -> solang (float, once per cell)

@@ -4,7 +4,7 @@
 // file). Module and routine header kept as the notice:
 //   module_radiation_surface   VTAGSFC='NCEP-Radiation_surface   v5.1  Nov 2012 '
 //   setemis: set up surface emissivity for lw radiation (sea/land/ice type map and snow cover)
-// Ported to CUDA for nam-gpu from phys/radiation_surface_nmmb.f:730-897 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radiation_surface_nmmb.f:730-897 (nam.v4.2.11, 83df4e13c1).
 //
 // Line-by-line counterpart of the routine:
 //   iemslw = mod(iemsflg,10); iemslw == 0 -> sfcemis = 1.0, return          (iemslw = sfc_flags[2] from phys-rrtm-sfc-init,

@@ -1,11 +1,11 @@
 #pragma once
-// phys_fer_fpvs.cu -- nam-gpu unit phys-fer-fpvs: FPVS, FPVS0, FPVSX, FPVSX0 (device functions).
+// phys_fer_fpvs.cu -- WOOF-NAM unit phys-fer-fpvs: FPVS, FPVS0, FPVSX, FPVSX0 (device functions).
 //
 // NOTICE: NOAA/NCEP NAM source module_MP_FER_HIRES.F90 (US government work, no licence file in the
 // NAM clone). Module header block kept as in phys_fer_growth_rates.cu (NOAA "Modified" fer_hires,
 // 11 July 2016 and later revisions). Function headers below are reproduced from the source.
 //
-// Ported to CUDA for nam-gpu from phys/module_MP_FER_HIRES.F90 (nam.v4.2.11, 83df4e13c1):
+// Ported to CUDA for WOOF-NAM from phys/module_MP_FER_HIRES.F90 (nam.v4.2.11, 83df4e13c1):
 //   FPVS(T)    2840-2891  table interpolation in TBPVS on [XMIN,XMAX]; Magnus-Tetens outside
 //                         (water above XMAX, ice below XMIN).                 -> nam_fpvs
 //   FPVS0(T)   2894-2911  same interpolation on TBPVS0; Magnus water everywhere outside range. -> nam_fpvs0

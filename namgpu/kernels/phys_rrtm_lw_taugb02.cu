@@ -1,8 +1,8 @@
-// phys_rrtm_lw_taugb02.cu -- unit phys-rrtm-lw-taugb02: band 2 of taumol, nam-gpu.
+// phys_rrtm_lw_taugb02.cu -- unit phys-rrtm-lw-taugb02: band 2 of taumol, WOOF-NAM.
 // SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
 // RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
 // BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
-// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
+// Government work (NOAA/NCEP/EMC). The WOOF-NAM port of this file is Apache-2.0.
 //
 // NOTICE: NOAA/NCEP NMMB source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE; no licence file in the NAM clone). The package
 // header block of phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1) is carried verbatim below as the
@@ -239,7 +239,7 @@
 !!!!!                         end descriptions                         !!!!!
 !!!!!  ==============================================================  !!!!!
 */
-// Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:3716-3788 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/radlw_main_nmmb.f:3716-3788 (nam.v4.2.11, 83df4e13c1).
 //
 // SUBROUTINE taugb02 (MODULE_RADLW_MAIN_NMMB), band 2 (350-500 cm-1), one thread per column. Every
 // term of both Fortran loops is here:

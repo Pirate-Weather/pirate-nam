@@ -4,7 +4,7 @@
 // module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90), HISTORY LOG 2008-07-28
 // Vasic. The routine's own comment block (Koren et al. 1999, JGR 104(D16), eqns 17-18) is kept in
 // the Fortran source.
-// Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3960-4047 (nam.v4.2.11, 83df4e13c1).
+// Ported to CUDA for WOOF-NAM from phys/module_LS_NOAHLSM.F90:3960-4047 (nam.v4.2.11, 83df4e13c1).
 // Start point: namgpu/third_party/arwen/core/kernels/noah.cu noah_snksrc (Apache-2.0, ArWen), checked
 // statement by statement against the Fortran. FRH2O is the device function in phys_noah_frh2o.cuh.
 //
