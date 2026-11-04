@@ -61,11 +61,15 @@ def main(argv=None):
     from namgpu.cli import HelpFormatter
     ap = argparse.ArgumentParser(
         description="Run one WOOF-NAM forecast on the NAM 12 km CONUS grid (954 x 835 x 60, all physics) on "
-                    "one NVIDIA card. Writes hourly history (wrfout_d01_<valid time>), maps in <out>/maps/ and "
-                    "<out>/forecast-receipt.json. Memory today: the published code needs a card with more "
-                    "than 76 GB.",
+                    "one NVIDIA card, or on several cards of one machine with --cards N. Writes hourly history "
+                    "(wrfout_d01_<valid time>), maps in <out>/maps/ and <out>/forecast-receipt.json. Memory: one "
+                    "card with 32 GB or more. On a card under 64 GB the run takes the 32 GB fit by itself (every "
+                    "physics scheme stays on; NAMGPU_MEMORY_PATH=full or fit picks one); the log and the receipt "
+                    "name the path that ran.",
         epilog="example (after woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z):\n"
                "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z\n"
+               "On 2 cards (the same history, bit for bit; check with woof-nam compare):\n"
+               "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z-2c --cards 2\n"
                "A GFS start (--source gfs) also needs the static fields once: woof-nam static --help.",
         formatter_class=HelpFormatter)
     ap.add_argument("--case", required=True,
@@ -79,7 +83,7 @@ def main(argv=None):
                     help="comma list of init units to skip (default: the fetch, already done by woof-nam fetch)")
     ap.add_argument("--leave-out", default="", help="comma list of plan units set to mode skip (receipt lists them)")
     ap.add_argument("--no-maps", action="store_true", help="write history only, no maps")
-    ap.add_argument("--maps-only", action="store_true", help="internal: the post-run maps tail (no CUDA)")
+    ap.add_argument("--maps-only", action="store_true", help=argparse.SUPPRESS)   # internal: the post-run maps tail (no CUDA)
     ap.add_argument("--cards", type=int, default=1,
                     help="number of cards (default 1). N > 1 runs one process per card, each owning a band of whole "
                          "rows of the grid, with halo rows exchanged over NCCL; the history files are the same as "
@@ -240,6 +244,8 @@ def main(argv=None):
     sx = {}
     for nm in SANE:
         v = st.fields.get(nm)
+        if v is not None and multi is not None and v.ndim >= 2 and v.shape[-2] == int(g.jm):
+            v = v[..., ctx.slab.own0:ctx.slab.own0 + ctx.slab.nown, :]   # owned rows (halo rows of physics scratch hold NaN)
         if v is not None:
             sx[nm] = [round(float(v.min()), 5), round(float(v.max()), 5), round(float(v.mean()), 6)]
     rec["stats_end"] = sx

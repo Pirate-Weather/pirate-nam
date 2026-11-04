@@ -9,49 +9,50 @@ Distribution name `woof-nam`, import name `namgpu`, version 0.1.0. Private repos
 
 ## What it looks like
 
-The 2025-03-14 12Z case: woof-nam (left), the archived operational NAM 12 km forecast of the same cycle
-(middle) and MRMS observed composite reflectivity (right), at the same valid time.
+The 2025-03-14 12Z case, run from a fresh clone with `woof-nam run --source native --hours 24` (the NAM
+analysis start, the digital filter, every physics scheme on). The sheets come from `woof-nam side-by-side`:
+MRMS observed reflectivity, WOOF-NAM and the archived operational NAM 12 km forecast of the same cycle, on
+the same map frame and colour scales.
 
-![Composite reflectivity at +24 h: ours, NAM, MRMS](docs/evidence/f024_refc_ours_nam_mrms.png)
+![Composite reflectivity at +24 h: MRMS, WOOF-NAM, archived NAM](docs/evidence/f024_refc_mrms_woofnam_nam.png)
 
-*Composite reflectivity, +24 h, valid 12Z 15 Mar 2025. Ours | NAM | MRMS, same colour scale. Both
-models wrap the comma head over the upper Midwest; both our run and the real NAM put the trailing line
-west of the observed one, and neither has MRMS's second band across Mississippi and Alabama.*
+*Composite reflectivity, +24 h, valid 12Z 15 Mar 2025. MRMS | WOOF-NAM | NAM. Like the NAM, WOOF-NAM wraps
+the comma head over the upper Midwest and puts the trailing line west of the observed one; neither model
+has MRMS's second band across Mississippi and Alabama.*
 
-Surface fields, ours (left) | NAM (right), same colour scale (MRMS has no surface fields):
+![Composite reflectivity at +12 h: MRMS, WOOF-NAM, archived NAM](docs/evidence/f012_refc_mrms_woofnam_nam.png)
 
-![2 m dewpoint at +24 h: ours, NAM](docs/evidence/f024_d2m_ours_nam_mrms.png)
+*Composite reflectivity, +12 h, valid 00Z 15 Mar 2025. WOOF-NAM and the NAM put the same curved line with a
+40+ dBZ core over Iowa and Missouri; MRMS has it farther west, over Nebraska and Kansas.*
 
-*2 m dewpoint, +24 h, valid 12Z 15 Mar 2025. Ours | NAM, same colour scale.*
+![Total precipitation at +24 h: WOOF-NAM, archived NAM](docs/evidence/f024_precip_total_woofnam_nam.png)
 
-![2 m temperature at +24 h: ours, NAM](docs/evidence/f024_t2m_ours_nam_mrms.png)
+*Precipitation since the start, +24 h. WOOF-NAM | NAM: the same Pacific coast, upper Midwest and Ohio
+Valley maxima.*
 
-*2 m temperature, +24 h, valid 12Z 15 Mar 2025. Ours | NAM, same colour scale.*
+![2 m temperature at +24 h: WOOF-NAM, archived NAM](docs/evidence/f024_t2_woofnam_nam.png)
 
-![2 m dewpoint at +12 h: ours, NAM](docs/evidence/f012_d2m_ours_nam_mrms.png)
+*2 m temperature, +24 h. WOOF-NAM | NAM.*
 
-*2 m dewpoint, +12 h, valid 00Z 15 Mar 2025. Ours | NAM, same colour scale.*
+![2 m dewpoint at +24 h, WOOF-NAM](docs/evidence/f024_d2m_woofnam.png)
 
-![2 m dewpoint at +6 h: ours, NAM](docs/evidence/f006_d2m_ours_nam_mrms.png)
+*2 m dewpoint, +24 h, one of the maps every `woof-nam run` draws.*
 
-*2 m dewpoint, +6 h, valid 18Z 14 Mar 2025. Ours | NAM, same colour scale.*
-
-Every map, including our MSLP (the archived NAM set has no forecast MSLP map, so that panel reads
-"not available"), is in [docs/evidence/](docs/evidence/).
+The +12 h sheets and the other maps are in [docs/evidence/](docs/evidence/).
 
 ## What you need
 
 - **Linux** (x86_64) with Python 3.12 or newer.
-- **An NVIDIA card with 32 GB (one RTX 5090) or larger; 58-76 GB on a 96 GB card without the fit.** On a
+- **An NVIDIA card with 32 GB (one RTX 5090) or larger; up to 85 GB on a 96 GB card without the fit.** On a
   card with less than 64 GB the run takes the 32 GB fit by itself: arrays that live inside one step are handed
   back after their last user, the radiation working set is dropped between calls and the radiation runs in
   8-row chunks. Every physics scheme stays on. The run log and `forecast-receipt.json` name the memory path
   that ran (`memory path: fit` or `full`); `NAMGPU_MEMORY_PATH=fit` or `full` picks one on any card.
   Fetching data, the static fields, maps and the side-by-side panels need no big card (the static-field
   build uses an NVIDIA card for a few seconds).
-- **Or several cards of one machine** (`woof-nam run --cards N`, see "Running on more than one card"): the
-  memory is split between the cards. Bit-identical to one card on 2 and 4 cards (measured on a band of the
-  12 km grid); the full 12 km grid on several cards is projected, not measured yet.
+- **Or two or more 32 GB cards of one machine** (`woof-nam run --cards N`, see "Running on more than one
+  card"): the 12 km grid ran on 2, 4 and 8 RTX 5090 cards at 19-31 GiB per card, with the same bits on any
+  number of cards.
 - **An NVIDIA driver for CUDA 13.** No system CUDA toolkit is needed: pip installs the CUDA runtime
   and the compiler headers (`cupy-cuda13x[ctk]`). The kernels are compiled on the card at first use
   (NVRTC) and cached.
@@ -89,7 +90,9 @@ woof-nam side-by-side woof-nam --history runs/2025-03-14_12z/wrfout_d01_* --pane
 woof-nam side-by-side sheets   --panels panels --out sheets --hours 2025031512
 ```
 
-The forecast (`woof-nam run`) needs the big card above; every other line runs without it.
+The forecast (`woof-nam run`) needs the card above; every other line runs without it. With two or more cards
+in the machine, add `--cards N` to the run (see "Running on more than one card") and check it against a
+one-card run with `woof-nam compare runs/<one card> runs/<N cards>`.
 
 ## Get the input data
 
@@ -153,7 +156,7 @@ hour; the MRMS and archived NAM panels can be drawn before any forecast has run.
 
 Every `woof-nam` step is also a module (`python -m namgpu.init.init_fetch_case`, `namgpu.init.gfs_start`,
 `namgpu.run_forecast`, `namgpu.run_init_case`, `namgpu.io.maps`, `namgpu.io.io_referee_panels`,
-`namgpu.io.io_referee_sheets`, `namgpu.licence_check`), with the same options.
+`namgpu.io.io_referee_sheets`, `namgpu.io.hist_compare`, `namgpu.licence_check`), with the same options.
 
 ## Scope
 
@@ -174,13 +177,16 @@ Every `woof-nam` step is also a module (`python -m namgpu.init.init_fetch_case`,
 
 ## Speed and memory
 
-One RTX PRO 6000, 96 GB (full memory path):
-- **24 h forecast:** 643 s at 186 ms per step (native start, all physics), which is about 21 min
-  per 48 h at that rate. The one measured 48 h run, on an earlier tree with the card shared,
-  took 2,734 s (395.5 ms per step) and finished with every field finite.
-- **Memory:** the forecast's own pool is about 58 GB; the card peaked at 75 GB in the 24 h run.
+One RTX PRO 6000, 96 GB (full memory path), fresh clone and wheel install, 2025-03-14 12Z native start:
+- **Digital filter (TDFI):** 70.7 s (150 backward and 150 forward steps of 8 s), before the forecast, as the
+  NAM runs it.
+- **24 h forecast:** 3,456 steps in 615 s, 178 ms per step (all physics, hourly history); 731 s for the whole
+  `woof-nam run`, start state and maps included. Every field finite at the end.
+- **Memory:** the forecast's pool ended at 74 GiB; the card peaked at 84.5 GB.
 
-One RTX 5090, 32 GB (the 32 GB fit, chosen by itself):
+The 32 GB fit with the digital filter: 6 h on the fit path with the memory pool capped at 31 GiB (what a 32 GB card has free), on the 96 GB card: filter 56.7 s, 299 ms per step, every field finite, card peak 30,336 MiB.
+
+One RTX 5090, 32 GB (the 32 GB fit, chosen by itself; measured before `woof-nam run` ran the digital filter):
 - **12 h forecast:** native start, all physics, 1,728 steps in 586 s, 339 ms per step (init 50 s).
   Every field finite at the end.
 - **Memory:** this run's peak on the card was 31,248 of 32,607 MiB, while the start was built (the forecast
@@ -192,15 +198,20 @@ One RTX 5090, 32 GB (the 32 GB fit, chosen by itself):
 The same forecast runs on several cards of one machine. Add `--cards N`:
 
 ```bash
-woof-nam run --case 2025-03-14_12z --source gfs --hours 24 --out runs/2025-03-14_12z-2c --cards 2
+woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z-4c --cards 4
 woof-nam run ... --cards 4 --card-list 4,5,6,7      # pick the cards (default 0..N-1; or set NAM_CARDS)
 ```
+
+Each card picks its memory path as on one card: under 64 GB every rank takes the 32 GB fit by itself (radiation
+8 rows at a time). The 12 km runs in the table below used the full path with 8-row radiation
+(`NAMGPU_MEMORY_PATH=full NAMGPU_RRTM_ROWS=8`), which fits 4 or 8 cards of 32 GB with room to spare and 2 only on
+otherwise empty cards; on 2 cards leave the fit on.
 
 What happens:
 
 1. **The initial state is built once**, on the first card, and saved to `<out>/init/` (about 14 GB for the
    12 km grid). The run deletes it at the end; `--keep-init` keeps it, and `--init-from <folder>` reuses a saved
-   one (`python -m namgpu.init.slab_init save --case ... --source ... --hours ... --out <folder>`). Add
+   one (from an earlier `--keep-init` run of the same case, source and hours). Add
    `--managed-init` when the whole-domain init does not fit one card.
 2. **One process per card.** The grid is cut into bands of whole rows (row slabs): with `JM` rows and `N` cards
    each card owns `JM // N` rows, and the first `JM % N` cards one more. Every card keeps the full west-east width
@@ -217,40 +228,37 @@ What happens:
    `<out>/forecast-receipt.json` lists ms/step, memory and the non-finite census per card; `<out>/rank<r>.log` is
    each card's log.
 
-**Proof: 1, 2 and 4 cards give the same bits.** A 954 x 279 band of the 12 km grid (its centre rows), GFS
-start 2025-03-14 12Z, 6 h, every physics scheme on: the hourly history from 2 cards and from 4 cards is
-bit-identical to one card's, 7 hours x 26 variables, 0 values differ in either pair. The same run twice on one
-card is also bit-identical. Check your own pair with `python tools/hist_compare.py <run a> <run b>`.
+**Same bits on any number of cards.** Hourly history, 7 hours (0-6 h) x 26 variables, 0 values differ in every
+pair below:
+- the 12 km CONUS grid, native start 2025-03-14 12Z, every physics scheme on: 2 cards vs 4 cards, and two 4-card
+  runs on different cards;
+- a 954 x 279 band of the same grid (its centre rows; GFS start), which fits one 32 GB card: 1 card vs 2 cards,
+  1 card vs 4 cards, and one card run twice;
+- the same band through the installed `woof-nam run --cards 2` with the 32 GB fit on both cards (GFS start,
+  digital filter + 1 h): 2 cards vs 1 card from the same saved init, 2 hours x 26 variables.
 
-**Speed and memory on that band** (RTX 5090 32 GB cards, no peer-to-peer link, NCCL 2.28 over host shared
-memory; ms/step is the whole-run average from the receipt, start-up included):
+Check your own pair with `woof-nam compare <run a> <run b>` (exit 0 when every value is identical).
 
-| Cards | Rows per card (owned + halo) | ms/step | Wall for 6 h, loading the saved init included | Memory per card |
+**Speed and memory, 12 km CONUS (954 x 835 x 60), 6 h, every physics scheme on.** Several cards: RTX 5090
+32 GB, no peer-to-peer link, NCCL 2.28 over host shared memory. ms/step is the whole-run average per card from the
+receipt; the wall includes loading the saved init.
+
+| Cards | Rows per card (owned + halo) | ms/step | Wall for 6 h (864 steps) | Memory per card |
 |---|---|---|---|---|
-| 1 | 279 | 426 (about 180 once running) | 391 s | 30.7 GiB |
-| 2 | 140 + 3, 139 + 3 | 112, 83 (about 70 once running) | 181 s | 22.7, 22.6 GiB |
-| 4 | 70-69 + 3 to 6 | 37-39 | 117 s | 21.8-22.5 GiB |
+| 1 (RTX PRO 6000 96 GB) | 835 | 186-193 | about 165 s (24 h: 643 s) | 58-76 GB (pool about 58 GB) |
+| 2 | 418 + 3, 417 + 3 | 174, 175 | 469 s (258 s of it loading the init on a busy host) | 26.9, 31.1 GiB |
+| 4 | 209 + 3 to 6 | 89-102 | 123-151 s | 24.1-29.9 GiB |
+| 8 | 105 + 3 to 6 | 53-55 | 92 s | 19.2-20.2 GiB |
 
-**Memory for the full 12 km grid (954 x 835 x 60).** Measured on one card: pool about 58 GB, card peak 67-75 GB
-(RTX PRO 6000 96 GB). On several cards it is not measured yet. The projection below takes about 18 GiB per card
-that does not shrink with the rows (the band's memory hardly dropped from 2 to 4 cards) and spreads the rest of the
-one-card pool over the rows each card holds:
-
-| Cards | Rows per card (owned + halo) | Memory per card |
-|---|---|---|
-| 1 | 835 | 58-76 GB (measured) |
-| 2 | 418 + 3 | about 38 GiB (projected) |
-| 4 | 209 + 3 to 6 | about 28 GiB (projected) |
-| 8 | 105 + 3 to 6 | about 23 GiB (projected) |
-
-On one card the full 12 km grid runs on 32 GB with the fit (the default under 64 GB) and needs 58-76 GB without
-it. The table above is the full memory path; on cards under 64 GB the fit is on in every rank, which is not
-measured on several cards yet.
+So the full 12 km grid runs on one 32 GB card (the fit, 339 ms per step), on one 96 GB card (178 ms per step),
+or faster on several cards.
 
 **Other grids.** `tools/run_nam_domain.sh <domain> <hours> <cards>` runs a domain from its own configfile
-(`parm/nam_configfile_<domain>`: `4km` is 1371 x 1101 x 60 over NAM's CONUS-nest footprint, `5km` is 1097 x 881,
-`band12` is the 954 x 279 proof band) with its own static fields (`python -m namgpu.init.static_build`) and GFS
-boundaries. The 4 km and 5 km grids on several cards are not measured yet.
+(`namgpu/parm/nam_configfile_<domain>`: `4km` is 1371 x 1101 x 60 over NAM's CONUS-nest footprint, `5km` is
+1097 x 881, `band12` is the 954 x 279 band) with its own static fields (`python -m namgpu.init.static_build`)
+and GFS boundaries. The 4 km grid ran 24 h on 8 RTX 5090 cards (42.9 ms per step, 522 s wall, 25-26 GB per
+card); the 5 km grid on several cards is not measured yet. The domain static builder reads the WPS_GEOG land
+sets, and `run_nam_domain.sh` lives in a checkout (`tools/`), not in the wheel.
 
 Needs: one machine with N NVIDIA cards and the NCCL 2 library (`libnccl.so.2`) where CuPy can load it; about
 14 GB of disk for the saved 12 km init; room in `/dev/shm` for one or two hours of history in flight.
@@ -275,10 +283,10 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 
 - **Nests:** the NAM's nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
   ported; this is the 12 km parent only.
-- **Multi-card:** proven bit-identical to one card on 2 and 4 cards on a 954 x 279 band of the 12 km grid.
-  The full 12 km grid on several cards, 8 cards, and the 4 km and 5 km grids on several cards are not measured yet.
-- **Memory fit on several cards:** the 32 GB fit is measured on one card. On several cards under 64 GB it
-  switches on in every rank, which is not measured yet.
+- **Multi-card:** one machine only (no multi-node runs). Other grids (4 km, 5 km) run from a checkout
+  (`tools/run_nam_domain.sh`), not from `woof-nam`; the 5 km grid is not measured yet.
+- **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full
+  12 km grid on several cards is measured on the full memory path only.
 - **Noah vegetation table:** the NAM's own VEGPARM.TBL was never published. A stand-in built from
   WRF's public-domain table is used (namgpu/data/fix/noah/PROVENANCE.txt).
 

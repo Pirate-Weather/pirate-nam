@@ -264,6 +264,10 @@ def render(argv=None) -> dict:
         raise SystemExit(f"woof-nam maps: unknown products {unknown} (known: {list(TABLE)})")
     bridges = _bridges()
     renderer = bridges / "rw_wrfbatch"
+    # gpuwm's renderer environment pins the basemap assets (RUSTWX_BASEMAP_DIR) on a bare pip install; without it
+    # every map showed the field with no coastlines, borders or states (the side-by-side panels already used it).
+    from gpuwm import rustwx  # noqa: PLC0415
+    renderer_env = rustwx.renderer_env()
     a.out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix=".cf-", dir=a.out))
     table = work / "cf-table.json"
@@ -323,7 +327,7 @@ def render(argv=None) -> dict:
                "--width", str(a.width), "--height", str(a.height)]
         if obs is not None:
             cmd += ["--observation", obs]
-        p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True)
+        p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, env=renderer_env)
         pngs = sorted(od.rglob("*.png")) if od.is_dir() else []
         if p.returncode or not pngs:
             return None, f"{prod} {valid:%Y%m%d%H}: exit {p.returncode}: {(p.stderr or p.stdout).strip()[-400:]}"

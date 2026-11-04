@@ -32,6 +32,8 @@ COMMANDS = {
              "draw maps from history files"),
     "side-by-side": ("namgpu.io.io_referee_panels",
                      "draw MRMS | WOOF-NAM | archived NAM panels, then compose comparison sheets"),
+    "compare": ("namgpu.io.hist_compare",
+                "check that two runs wrote the same history, bit for bit (e.g. 1 card against N cards)"),
     "licence-check": ("namgpu.licence_check",
                       "check the per-file licence notices in this install"),
 }
@@ -62,15 +64,44 @@ def _usage() -> str:
     from namgpu import __version__
     w = max(len(n) for n in COMMANDS)
     lines = [f"usage: woof-nam <command> [options]      (woof-nam {__version__})", "",
-             "WOOF-NAM: the NAM 12 km (NMMB) model on one NVIDIA card. Run every command from one working",
-             "folder: cases/, static/ and runs/ are made there (or set NAMGPU_ROOT).", "", "commands:"]
+             "WOOF-NAM: the NAM 12 km (NMMB) model on the GPU: one NVIDIA card with 32 GB or more, or several",
+             "cards of one machine (woof-nam run --cards N). Run every command from one working folder:",
+             "cases/, static/ and runs/ are made there (or set NAMGPU_ROOT).", "", "commands:"]
     lines += [f"  {n:<{w}}  {s}" for n, (_, s) in COMMANDS.items()]
     lines += ["", "Each command has --help. A first run, in order:",
               "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z",
               "  woof-nam static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2",
               "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z",
-              "  woof-nam side-by-side --help"]
+              "  woof-nam side-by-side --help",
+              "On several cards of one machine, the same run with --cards N (same history, bit for bit):",
+              "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z-2c --cards 2",
+              "  woof-nam compare runs/2025-03-14_12z runs/2025-03-14_12z-2c"]
     return "\n".join(lines)
+
+
+class _CommandProg:
+    """Top-level parsers made while a command runs are named after it ("woof-nam run"), however Python started.
+
+    argparse (3.14) takes the default name from __main__.__spec__, so under `python -m namgpu.cli` or pytest the
+    usage line would read "python -m ..."; parsers that pass prog themselves (subparsers) are left alone.
+    """
+
+    def __init__(self, prog: str):
+        self.prog, self.orig = prog, argparse.ArgumentParser.__init__
+
+    def __enter__(self):
+        prog, orig = self.prog, self.orig
+
+        def init(parser, *args, **kw):
+            if not args and kw.get("prog") is None:
+                kw["prog"] = prog
+            orig(parser, *args, **kw)
+        argparse.ArgumentParser.__init__ = init
+        return self
+
+    def __exit__(self, *exc):
+        argparse.ArgumentParser.__init__ = self.orig
+        return False
 
 
 def main(argv=None) -> int:
@@ -94,8 +125,9 @@ def main(argv=None) -> int:
         if rest[0] == "sheets":
             mod_name, rest = "namgpu.io.io_referee_sheets", rest[1:]
             cmd = "side-by-side sheets"
-    sys.argv[0] = f"woof-nam {cmd}"          # argparse names the command in its usage lines
-    rc = importlib.import_module(mod_name).main(rest)
+    sys.argv[0] = f"woof-nam {cmd}"          # the command's name in its usage lines
+    with _CommandProg(f"woof-nam {cmd}"):
+        rc = importlib.import_module(mod_name).main(rest)
     return int(rc or 0)
 
 
