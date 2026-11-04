@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-cldprop (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_sw_cldprop.py
 
 Compiles the kernel (NVRTC) and runs the wrapper once at full size (954 x 835 x 60) for the standard

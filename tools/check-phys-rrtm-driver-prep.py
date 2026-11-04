@@ -5,7 +5,7 @@ Compiles the kernel file and runs the wrapper ONCE at full size (954 x 835 x 60)
 for NaN/Inf. The AXSD table is the RRTM_INIT GAUSIN table (module_RA_RRTM.F90:1480-1517),
 evaluated here in float64 for the test input.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-driver-prep.py
 """
 from __future__ import annotations

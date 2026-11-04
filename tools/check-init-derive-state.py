@@ -1,6 +1,6 @@
 """Done-rule check for init-derive-state, full size (review fixes: cold-start values, restart gating, PINT, Z).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-init-derive-state.py
 
 1. compiles the kernel file (NVRTC through CuPy);

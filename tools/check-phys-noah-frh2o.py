@@ -5,7 +5,7 @@ Full-size 954 x 835 x NSOIL batch on the GPU, no full model state:
    explicit frh2o() call on those arrays, bitwise, and differs from a call on STC where T < T0;
 2. no NaN or Inf in FREE with positive PSISAT (REDPRM convention), in the ctx path and the random path;
 3. the ctx path refuses by name when TAVG is missing (no zero fill).
-Soil-type values are synthetic in the REDPRM range (the NAM fix tables are not on node-2).
+Soil-type values are synthetic in the REDPRM range (the NAM fix tables are not available).
 """
 import sys
 import types

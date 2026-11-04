@@ -1,7 +1,7 @@
 """One full-size run of phys-fer-col-setup on a random plausible column state: compile, launch, check no NaN/Inf.
 
 Allocates only the fields this unit touches at full size (954 x 835 x 60), not the whole 10.6 GiB state,
-because the shared 5090 holds another tenant. Run under a pool lease from ~/nam-gpu.
+because the shared 5090 holds another tenant. Run from the repository root.
 
 Also checks the three gaps of the review: TK/TC reach the outputs, the LSFC guard counter stays 0, and
 the rain and snow branches give the Fortran values on injected carry (branch probe, 4 cases).

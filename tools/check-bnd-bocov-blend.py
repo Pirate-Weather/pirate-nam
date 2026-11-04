@@ -1,6 +1,6 @@
 """Done-rule check for bnd-bocov-blend and bnd-bocov-update, wired the way the driver wires them.
 
-    source ~/nam-gpu/env.sh && python tools/check-bnd-bocov-blend.py
+    source env.sh && python tools/check-bnd-bocov-blend.py
 
 Runs the real chain on full-size fields (954 x 835 x 60, LNSV = 5), no hand-built binding:
   bnd-boundary-init (producer, fills ctx.bc["<SIDE>_<VAR>"] from ctx.st PD, T, Q, CW, U, V)

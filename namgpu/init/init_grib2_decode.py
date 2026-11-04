@@ -80,7 +80,8 @@ _DUMP_REQUIRED = ("index", "nx", "ny", "scan_mode", "count", "finite", "filename
 
 
 def _bridge(name: str) -> Path:
-    root = Path(os.environ.get("GPUWM_BRIDGES", Path.home() / ".gpuwm" / "bridges"))
+    from namgpu.bridges import bridges_dir  # noqa: PLC0415
+    root = bridges_dir()
     exe = root / name
     if not exe.is_file():
         raise FileNotFoundError(f"{exe}: set GPUWM_BRIDGES to the gpuwm bridge directory")
@@ -209,6 +210,8 @@ def run(ctx, grib_path=None, selectors=None, missing_value=None, tmpdir=None, ex
     fill = np.float32(np.nan) if missing_value is None else np.float32(missing_value)
     indices = sorted({r["index"] for r in chosen.values()})
     out, checks = {}, []
+    if tmpdir is not None:
+        Path(tmpdir).mkdir(parents=True, exist_ok=True)   # scratch/ is not in a fresh clone (.gitignore)
     with tempfile.TemporaryDirectory(prefix="namgpu-grib2-", dir=tmpdir) as td:
         dumped, dump_dir = _dump(grib_path, indices, td)
         with scope:

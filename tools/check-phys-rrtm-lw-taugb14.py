@@ -5,7 +5,7 @@ that the Fortran can produce (lower layers jp 1..12, upper layers jp 13..58 so t
 stay in 1..235; jt/jt1 1..4; inds 1..9; indf 1..3; laytrop 0..nlay), and checks that both band-14
 outputs are finite.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-lw-taugb14.py
+    source env.sh && python tools/check-phys-rrtm-lw-taugb14.py
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Done-rule check for phys-bmj-col-cloudtop after the review fixes.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-col-cloudtop.py
 
 Full size (954 x 835 x 60). Only the chain's inputs are built (the full NAM state is about 14 GiB on

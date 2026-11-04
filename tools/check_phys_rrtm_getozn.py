@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-getozn (review fix, binding and refusals).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_getozn.py
 
 Full size 954 x 835 x 60 (LMK 61). Runs under a pool lease. Checks, each by the input that showed the defect:

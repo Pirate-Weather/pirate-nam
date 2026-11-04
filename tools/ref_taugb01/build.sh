@@ -4,7 +4,7 @@
 # driver can call it per column. Host inputs become dummy arguments; the Fortran statements are unchanged.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
-NAM=${NAM:-$HOME/agent-scratch/nam-port/gate0/nmmb/src/atmos/phys}
+NAM=${NAM:-$NMMB_SRC/phys}
 OUT=${OUT:-$HERE/build}
 mkdir -p "$OUT"
 SRC=$NAM/radlw_main_nmmb.f

@@ -1,6 +1,6 @@
 """Run the WHOLE NAM 12 km parent forecast for N hours, all physics on, wet.
 
-    source /work/nam-gpu/env-box.sh       # box (card 3), or ~/nam-gpu/env.sh + pool lease on node-2
+    source env.sh                         # from the repository root (env-box.sh: a dedicated GPU box)
     python tests/smoke_full.py --case 2025-03-14_12z --hours 24 --out runs/2025-03-14_12z
 
 Steps: read config -> build grid -> init state from the case (native B-grid analysis or GFS, plus GFS

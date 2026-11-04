@@ -4,7 +4,7 @@ Builds a full-size 954 x 835 x 60 random State (only the fields the physics init
 reads), runs the real wrapper once under one pool-v3 lease, then checks that every float array the
 wrapper wrote is finite and that the selection result matches the Fortran special cases.
 
-    source ~/nam-gpu/env.sh && python tools/check-drv-physics-initialize.py
+    source env.sh && python tools/check-drv-physics-initialize.py
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ NAMES = ["GLAT", "GLON", "HANGL", "USTAR", "Z0", "SM", "SICE", "IVGTYP", "EXCH_H
 def main():
     import os
     if os.environ.get("CHECK_SKIP_NOAH") == "1":
-        # PARTIAL: NAM_NOAH_FIX_DIR (NCEP fix VEGPARM/SOILPARM/GENPARM) is not on node-2; the NOAH sub-units are skipped here only.
+        # PARTIAL: NAM_NOAH_FIX_DIR (NCEP fix VEGPARM/SOILPARM/GENPARM) is not available; the NOAH sub-units are skipped here only.
         from namgpu.physics.noah import phys_noah_init, phys_noah_parm_tables
         phys_noah_parm_tables.run = lambda ctx, **kw: {}
         phys_noah_init.run = lambda ctx, **kw: None

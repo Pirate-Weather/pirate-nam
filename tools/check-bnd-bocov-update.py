@@ -1,6 +1,6 @@
 """Done-rule check for bnd-bocov-update (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check-bnd-bocov-update.py
+    source env.sh && python tools/check-bnd-bocov-update.py
 
 Compiles namgpu/kernels/bnd_bocov_update.cu and runs the wrapper once on full-size boundary arrays
 (954 x 835 x 60, LNSV = 5, two 2-D and two 3-D V-point variables on all four strips) filled with

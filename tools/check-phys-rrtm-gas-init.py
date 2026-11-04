@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-gas-init (CONTRACT.md section 6).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-gas-init.py
 
 1. compiles namgpu/kernels/phys_rrtm_gas_init.cu;

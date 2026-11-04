@@ -28,7 +28,7 @@ the topo mean and derivative means would be NaN); origin mismatch (wrong SW corn
 maps to the wrong model cell).
 
 Self-test (full-size DEM and model grid, geometry generated from the configured origin, NaN/Inf check):
-    source ~/nam-gpu/env.sh && python -m namgpu.init.init_gwd_orog
+    source env.sh && python -m namgpu.init.init_gwd_orog
 """
 from __future__ import annotations
 

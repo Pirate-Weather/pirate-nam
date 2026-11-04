@@ -1,6 +1,6 @@
 """Done-rule check for drv-dfi-filt-vars (review fix): full-size, the exact defects of the review.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-dfi-filt-vars.py
 
 One full-size random State (954 x 835 x 60). Runs drv-dfi-filt-vars on the real table with the

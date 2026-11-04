@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-myj-mixlen (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_myj_mixlen.py
 
 1. compiles namgpu/kernels/phys_myj_mixlen.cu through NVRTC;

@@ -1,6 +1,6 @@
 """Done-rule check for drv-rdtemp after the review fixes (the review's three gaps).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-rdtemp.py
 
 Full-size 954 x 835 x 60 random State, the GPU taken through the pool lease.

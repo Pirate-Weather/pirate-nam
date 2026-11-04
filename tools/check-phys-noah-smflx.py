@@ -1,7 +1,7 @@
 """Check phys-noah-smflx: (1) full-size standalone batch, one and two pass branches, NaN/Inf check;
 (2) ctx path with REDPRM parameters and nonzero PRCP1 (two-pass branch), finite output;
 (3) ctx path refuses without its SFLX inputs (KeyError naming SFLX).
-    source ~/nam-gpu/env.sh && python tools/check-phys-noah-smflx.py
+    source env.sh && python tools/check-phys-noah-smflx.py
 """
 import sys
 from pathlib import Path

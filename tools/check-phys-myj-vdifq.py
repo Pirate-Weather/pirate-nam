@@ -1,6 +1,6 @@
 """Done-rule check for phys-myj-vdifq (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-myj-vdifq.py
 
 Compiles namgpu/kernels/phys_myj_vdifq.cu (NVRTC) and runs the wrapper once on a FULL-SIZE random

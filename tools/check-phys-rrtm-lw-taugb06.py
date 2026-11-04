@@ -4,7 +4,7 @@ Compiles the kernel, runs the wrapper once on a full-size 954 x 835 x 60 random 
 that the Fortran can produce (jp 1..12, jt/jt1 1..4, inds 1..9, indf 1..3, indm 1..18, laytrop 0..nlay),
 and checks that both band-6 outputs are finite.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-lw-taugb06.py
+    source env.sh && python tools/check-phys-rrtm-lw-taugb06.py
 """
 from __future__ import annotations
 

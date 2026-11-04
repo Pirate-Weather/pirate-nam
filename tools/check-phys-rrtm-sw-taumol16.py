@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-taumol16 (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-sw-taumol16.py
+    source env.sh && python tools/check-phys-rrtm-sw-taumol16.py
 
 Compiles the kernel and runs both entry points at full NAM 12 km size (954 x 835 x 60) on random but
 plausible inputs:

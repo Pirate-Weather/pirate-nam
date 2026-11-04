@@ -2,7 +2,7 @@
 
 1. compiles the kernel file (NVRTC via CuPy);
 2. builds the soil tables the way the driver does (phys-noah-parm-tables uploads them under
-   ctx.tables["noah_parm"]), from the real STATSGO SOILPARM.TBL on node-2 (WRF's copy, STAS layout),
+   ctx.tables["noah_parm"]), from the real STATSGO SOILPARM.TBL (WRF's copy, STAS layout),
    and checks the table index: BB(ISLTYP) must equal the SOILPARM row whose IINDEX is ISLTYP;
 3. runs the wrapper ONCE on a full-size 954 x 835 x 60 State with real table values, with three injected
    ISLTYP cases: one range failure (-1, IVEGSRC 1), one out-of-table value (0), and normal values.

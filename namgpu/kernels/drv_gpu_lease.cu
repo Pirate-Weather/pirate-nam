@@ -1,4 +1,4 @@
-// drv_gpu_lease.cu -- device probe for the node-2 pool lease (unit drv-gpu-lease).
+// drv_gpu_lease.cu -- device probe for the shared-card pool lease (unit drv-gpu-lease).
 //
 // No Fortran counterpart (UNITS.json mode "new", fortran "-"). The lease itself is host
 // work (namgpu/steps/drv_gpu_lease.py takes and releases the pool-v3 card lease around a run).

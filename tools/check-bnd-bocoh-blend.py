@@ -1,7 +1,7 @@
 """Done-rule check for bnd-bocoh-blend (CONTRACT.md section 6, parts 1 and 2), plus a value check
 against the Fortran it ports (module_FLTBNDS.F90:5355-5962).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-bnd-bocoh-blend.py
 
 Builds the same full-size random State (954 x 835 x 60), adds random ctx.bc value arrays in the

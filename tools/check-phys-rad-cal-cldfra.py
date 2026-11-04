@@ -1,6 +1,6 @@
 """Review-fix check for phys-rad-cal-cldfra: full size (954 x 835 x 60), one card.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rad-cal-cldfra.py
 
 Checks: the gate closes on cadence and on LW=SW=0; gfs runs with both flags (QC and QI thresholded);

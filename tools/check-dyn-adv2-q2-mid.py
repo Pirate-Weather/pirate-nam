@@ -1,6 +1,6 @@
 """Done-rule check for dyn-adv2-q2-mid (full size, no NaN/Inf).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-adv2-q2-mid.py
 
 EPSQ2 is set by the real init unit (init_epsq2, the Fortran init rule), not by a stand-in. The

@@ -1,6 +1,6 @@
 """Done-rule check for phys-myj-myjpbl (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-myj-myjpbl.py
 
 1. compiles namgpu/kernels/phys_myj_myjpbl.cu through the NVRTC loader;

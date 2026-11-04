@@ -1,6 +1,6 @@
 {
-  "repo": "node-2:~/nam-gpu",
-  "fortran_root": "~/agent-scratch/nam-port/nam-gh/sorc/nam_nems_nmmb.fd/src/atmos (MatthewPyle-NOAA/NAM @ 83df4e13c115d197db67b972cb3befec8511291a, nam.v4.2.11)",
+  "repo": "woof-nam",
+  "fortran_root": "$NAM_SRC/sorc/nam_nems_nmmb.fd/src/atmos (MatthewPyle-NOAA/NAM @ 83df4e13c115d197db67b972cb3befec8511291a, nam.v4.2.11)",
   "contract": "CONTRACT.md",
   "case": "cases/2025-03-14_12z",
   "done_rule": "kernel compiles; wrapper runs once on a full-size random State without NaN/Inf; Fortran-to-CUDA diff review finds no missing term (CONTRACT.md section 6)",
@@ -1223,7 +1223,7 @@
       "id": "drv-gpu-lease",
       "group": "driver",
       "fortran": "-",
-      "purpose": "Take and release the node-2 pool lease (OWNER line) around a run.",
+      "purpose": "Take and release the shared-card pool lease (OWNER line) around a run.",
       "mode": "new",
       "deps": [],
       "wrapper": "namgpu.steps.drv_gpu_lease",

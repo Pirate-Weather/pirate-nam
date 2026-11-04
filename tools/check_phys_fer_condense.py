@@ -1,6 +1,6 @@
 """Done-rule check for phys-fer-condense (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check_phys_fer_condense.py
+    source env.sh && python tools/check_phys_fer_condense.py
 
 Compiles namgpu/kernels/phys_fer_condense.cu through NVRTC and runs the wrapper once on a full-size
 [60, 835, 954] random column state (T, Q, CW, PD). Only the fields the unit reads are allocated (the full

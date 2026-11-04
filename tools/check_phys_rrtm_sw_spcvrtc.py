@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-spcvrtc (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_sw_spcvrtc.py
 
 1. compiles the unit's kernel (NVRTC through CuPy);

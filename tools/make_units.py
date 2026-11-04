@@ -1,6 +1,6 @@
 """Generate UNITS.json: the whole NAM 12 km parent split into swarm units.
 
-Line ranges were read from the clone on node-2 (nam.v4.2.11, 83df4e13c1), 2026-11-04.
+Line ranges were read from the NAM clone (nam.v4.2.11, 83df4e13c1), 2026-11-04.
 fortran paths are relative to $NMMB_SRC = sorc/nam_nems_nmmb.fd/src/atmos.
 Run:  python tools/make_units.py  (writes UNITS.json at the repo root)
 """
@@ -287,7 +287,7 @@ u("drv-physics-initialize", R, f"{SV}:9936-11062",
         "phys-fer-init", "phys-gwd-init"])
 u("drv-timing-receipt", R, "-", "Per-stage wall-clock stamps (no added syncs) into the run receipt.",
   mode="new")
-u("drv-gpu-lease", R, "-", "Take and release the node-2 pool lease (OWNER line) around a run.", mode="new")
+u("drv-gpu-lease", R, "-", "Take and release the shared-card pool lease (OWNER line) around a run.", mode="new")
 u("drv-moving-domain", R, f"{SV}:3053-3125", "Moving-domain tracker hooks and SET_DOMAIN_SPECS.",
   mode="skip", reason="skip: my_domain_moves false, ntrack 0.")
 u("drv-timeseries", R, "nmm/module_TIMESERIES.F90:1-612", "Point time series output.",
@@ -730,8 +730,8 @@ def finish():
         for d in x["deps"]:
             assert d in ids, (x["id"], d)
     doc = {
-        "repo": "node-2:~/nam-gpu",
-        "fortran_root": "~/agent-scratch/nam-port/nam-gh/sorc/nam_nems_nmmb.fd/src/atmos "
+        "repo": "woof-nam",
+        "fortran_root": "$NAM_SRC/sorc/nam_nems_nmmb.fd/src/atmos "
                         "(MatthewPyle-NOAA/NAM @ 83df4e13c115d197db67b972cb3befec8511291a, nam.v4.2.11)",
         "contract": "CONTRACT.md",
         "case": "cases/2025-03-14_12z",

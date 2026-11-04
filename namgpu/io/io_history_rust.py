@@ -7,7 +7,7 @@ binds the same entry points itself so nam-gpu does not import the gpuwm package.
 
 Library: env NAMGPU_NCWRITE_LIB if set, else $GPUWM_BRIDGES/libnetcdf_writer.so (the gpuwm bridges copy)
 (built from tools/rustwx/crates/netcdf-writer with cargo build --release --locked --offline
--p netcdf-writer --target-dir ~/nam-gpu/build/ncwrite). A library reporting another ABI is refused.
+-p netcdf-writer --target-dir build/ncwrite). A library reporting another ABI is refused.
 
 Driver contract (same as io-history): run(ctx) reads ctx.history_fields (name -> (device array,
 wrf dims tuple)), ctx.start_time, ctx.out_dir, ctx.ntimestep, ctx.cfg, ctx.grid, ctx.stream;
@@ -37,11 +37,12 @@ from pathlib import Path
 import numpy as np
 
 from namgpu import kernels
+from namgpu.bridges import bridges_dir
 
 UNIT = "io_history_rust"
 KERNEL = "io_history_flip_levels"
 NCWRITE_ABI = 1
-DEFAULT_LIB = Path(os.environ.get("GPUWM_BRIDGES", Path.home() / ".gpuwm" / "bridges")) / "libnetcdf_writer.so"
+DEFAULT_LIB = bridges_dir() / "libnetcdf_writer.so"
 FORMAT_CDF2 = 2
 
 NC_CHAR, NC_INT, NC_FLOAT, NC_DOUBLE = 2, 4, 5, 6

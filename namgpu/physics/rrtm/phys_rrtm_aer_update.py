@@ -19,7 +19,7 @@ In:   ctx.clock.idate (idate[0] = year, idate[1] = month) unless iyear/imon are 
       lalwflg, laswflg, lavoflg from ctx.cfg (physparam.f:112-116 defaults, all .true.).
       aeros_path: the tropospheric climatology file. The Fortran opens 'aerosol.dat' in the run directory
       (physparam.f:120); this wrapper defaults to parm/nam_climaeropac_global.txt (sha256 pinned; identity to the
-      AERODIR file the NCO script stages is NOT verified, AERODIR is not on node-2). volc_dir: directory for the volcanic decade files
+      AERODIR file the NCO script stages is NOT verified, AERODIR is not available). volc_dir: directory for the volcanic decade files
       (default: the working directory, as the Fortran opens them). cfg.aeros_file, when set, names the staged
       aerosol.dat and is used instead of the shipped copy; the sha256 of every file read is recorded in
       ctx.tables["aer_trop_provenance"] for the receipt.
@@ -64,7 +64,7 @@ REC_WIDTH_PAIR = 13                    # i2 + e11.4 per component pair (5 pairs 
 
 TROP_FILE = ROOT / "parm" / "nam_climaeropac_global.txt"
 # sha256 of the shipped copy above. The NCO run script stages AERODIR/global_climaeropac_global.txt as aerosol.dat
-# (exglobal_fcst_nems.sh:946-954); that AERODIR file is not on node-2, so identity to it is NOT verified. The pin
+# (exglobal_fcst_nems.sh:946-954); that AERODIR file is not available, so identity to it is NOT verified. The pin
 # guarantees the wrapper reads the same bytes every run and makes any drift a loud error.
 TROP_FILE_SHA256 = "ac5e965cc70a25cbb2845848e30c62569d7ea33e719a3f463ba5f56e86755727"
 PROVENANCE_KEY = "aer_trop_provenance"

@@ -19,7 +19,7 @@ reversed; 0x40 unset means rows run north to south (flipped to south to north). 
 Usage:
     python -m namgpu.io.io_referee_panels mrms --raw <case>/raw/mrms --panels <dir> --hours 2025031412
     python -m namgpu.io.io_referee_panels archive --raw <case>/raw/nam --cycle 2025031412 --panels <dir> --hours ...
-    python -m namgpu.io.io_referee_panels nam-gpu --history <wrfout ...> --panels <dir> --hours ...
+    python -m namgpu.io.io_referee_panels woof-nam --history <wrfout ...> --panels <dir> --hours ...
 
 Refusals (each names the breakage it prevents):
   - a GRIB2 record whose reference time or forecast hour differs from the requested cycle/hour:
@@ -46,6 +46,7 @@ import numpy as np
 
 from namgpu.init.init_grib2_decode import _dump, inventory
 from namgpu.io.io_map_regrid import NAM218, lambert_forward, lambert_inverse
+from namgpu.io.maps import BOUNDS
 
 UNIT = "io_referee_panels"
 REFUSED_SCAN_BITS = 0x20
@@ -54,12 +55,17 @@ MRMS_FILL = -90.0  # MRMS marks no echo with -99; anything below -90 dBZ is miss
 # Referee product -> renderer slug (nam-gpu wrfout path), CF variable, units, title.
 # Slugs verified with rw_wrfbatch --list-products: composite_reflectivity, 2m_temperature and
 # qpf_total (windowed: needs the whole-hour frames of a multi-hour history).
+# recipe / display_units / unit_factors: the renderer's colour table per product, the same rows
+# namgpu/io/maps.py uses (without a recipe the CF renderer put every panel on a 0-1 scale).
 PRODUCT_SPECS = {
     "composite_reflectivity": dict(slug="composite_reflectivity", cf_var="REFC", units="dBZ",
-                                   title="Composite reflectivity"),
-    "t2": dict(slug="2m_temperature", cf_var="T2", units="degC", title="2 m temperature"),
-    "precip_total": dict(slug="qpf_total", cf_var="APCP", units="mm",
-                         title="Precipitation, total since start"),
+                                   title="Composite reflectivity", recipe="composite_reflectivity",
+                                   display_units="dBZ", unit_factors={"dBZ": 1.0}),
+    "t2": dict(slug="2m_temperature", cf_var="T2", units="degF", title="2 m temperature",
+               recipe="2m_temperature", display_units="degF", unit_factors={"degF": 1.0}),
+    "precip_total": dict(slug="qpf_total", cf_var="APCP", units="kg m-2",
+                         title="Precipitation, total since start", recipe="total_qpf",
+                         display_units="in", unit_factors={"kg m-2": 0.0393700787}),
 }
 # Archived NAM selectors: GRIB2 discipline, category, parameter, level type (+ level value / pdt).
 ARCHIVE_SELECT = {
@@ -170,18 +176,20 @@ def _renderer():
 def _cf_table(path: Path, product: str, spec: dict) -> Path:
     """One-row CF product table, the shape gpuwm's own CF callers write."""
     row = dict(names=[spec["cf_var"]], standard_names=[], product=product, title=spec["title"],
-               recipe=None, default_units=spec["units"], display_units=spec["units"],
-               unit_factors={spec["units"]: 1.0}, contour_level=None, observation_product=None)
+               recipe=spec["recipe"], default_units=spec["units"], display_units=spec["display_units"],
+               unit_factors=spec["unit_factors"], contour_level=None, observation_product=None)
     path.write_text(json.dumps([row], indent=2) + "\n", encoding="utf-8")
     return path
 
 
 def _write_cf(path: Path, valid: datetime, var: str, values: np.ndarray, units: str,
-              lat: np.ndarray, lon: np.ndarray) -> Path:
+              lat: np.ndarray, lon: np.ndarray, source: str | None = None) -> Path:
     import netCDF4  # noqa: PLC0415
 
     ny, nx = values.shape
     with netCDF4.Dataset(path, "w") as d:
+        if source:
+            d.source = source        # the panel title (else the renderer writes "CF diagnostic <file>")
         d.createDimension("time", 1)
         d.createDimension("y", ny)
         d.createDimension("x", nx)
@@ -194,7 +202,7 @@ def _write_cf(path: Path, valid: datetime, var: str, values: np.ndarray, units: 
         la[:, :] = lat
         lo = d.createVariable("longitude", "f8", ("y", "x"))
         lo.units, lo.standard_name = "degrees_east", "longitude"
-        lo[:, :] = lon
+        lo[:, :] = (np.asarray(lon, dtype=np.float64) + 180.0) % 360.0 - 180.0   # NAM 218 / MRMS carry 0-360
         v = d.createVariable(var, "f4", ("time", "y", "x"), fill_value=np.float32(np.nan))
         v.units = units
         v.coordinates = "latitude longitude"
@@ -208,7 +216,8 @@ def _cf_render(rustwx, renderer, nc: Path, spec: dict, product: str, valid: date
     scratch = Path(tempfile.mkdtemp(prefix="referee-cf-", dir=out_png.parent))
     try:
         rc = rustwx.run_cf_renderer(renderer, nc, variable=spec["cf_var"], out_dir=scratch,
-                                    valid=f"{valid:%Y-%m-%d %H:%M}", table=table)
+                                    valid=f"{valid:%Y-%m-%d %H:%M}", table=table,
+                                    bounds=BOUNDS)   # the same CONUS frame as namgpu/io/maps.py
         pngs = sorted(scratch.rglob("*.png"))
         if rc or len(pngs) != 1:
             raise RuntimeError(f"CF renderer exit {rc}, {len(pngs)} PNG for {product} {valid:%Y%m%d%H}")
@@ -254,7 +263,7 @@ def mrms_panels(raw: Path, panels: Path, hours: list[datetime]) -> list[Path]:
             lon = lon0 + dx * np.arange(row["nx"])
             LON, LAT = np.meshgrid(lon, lat)
             nc = _write_cf(Path(td) / f"mrms_{valid:%Y%m%d%H}.nc", valid, spec["cf_var"], vals,
-                           spec["units"], LAT, LON)
+                           spec["units"], LAT, LON, source="MRMS observed")
             out = panels / MRMS_PRODUCT / "mrms" / f"{valid:%Y%m%d%H}.png"
             made.append(_cf_render(rustwx, renderer, nc, spec, MRMS_PRODUCT, valid, table, out))
     return made
@@ -306,9 +315,13 @@ def archive_panels(raw: Path, cycle: datetime, panels: Path, hours: list[datetim
                         ok = ok and _ints(r, "level_value") == sel["lv"]
                     if "pdt" in sel:
                         ok = ok and _ints(r, "pdt") == sel["pdt"]
+                    if sel.get("pdt") == 8:
+                        # an accumulation's forecast_time is the start of its window: "total since start"
+                        # is the 0-f record (the f-hour file also holds the (f-3)-f bucket)
+                        ok = ok and _ints(r, "forecast_time") == 0
                     return ok
                 row = _pick(inv, match, f"{product} in {grib.name}")
-                if _ints(row, "forecast_time") != f:
+                if sel.get("pdt") != 8 and _ints(row, "forecast_time") != f:
                     raise ValueError(f"{grib.name}: {product} forecast_time {row['forecast_time']} != {f}")
                 if row["gdt"] != 30 or (row["nx"], row["ny"]) != (f_.nx, f_.ny):
                     raise ValueError(f"{grib.name}: grid gdt {row['gdt']} {row['nx']}x{row['ny']} "
@@ -317,9 +330,10 @@ def archive_panels(raw: Path, cycle: datetime, panels: Path, hours: list[datetim
                     raise ValueError(f"{grib.name}: lat1 {row['lat1']} differs from the NAM 218 frame")
                 vals = _place(_grib_values(grib, row, Path(td) / f"w{valid:%Y%m%d%H}{product}"), row)
                 if product == "t2":
-                    vals = vals - np.float32(273.15)
+                    vals = (vals - np.float32(273.15)) * np.float32(1.8) + np.float32(32.0)   # K -> degF
                 nc = _write_cf(Path(td) / f"arch_{product}_{valid:%Y%m%d%H}.nc", valid, spec["cf_var"],
-                               vals, spec["units"], LAT, LON)
+                               vals, spec["units"], LAT, LON,
+                               source=f"Archived NAM 12 km (grid 218), init {cycle:%Y-%m-%d %HZ} +{f} h")
                 table = _cf_table(Path(td) / f"cf_{product}.json", product, spec)
                 out = panels / product / "nam_archive" / f"{valid:%Y%m%d%H}.png"
                 made.append(_cf_render(rustwx, renderer, nc, spec, product, valid, table, out))
@@ -341,7 +355,7 @@ def nam_gpu_panels(history: list[Path], panels: Path, hours: list[datetime],
         slugs = ",".join(PRODUCT_SPECS[p]["slug"] for p in products)
         _written, failures, skipped = rustwx.run_renderer_series(
             renderer, [str(Path(h).resolve()) for h in history], store_root=store, out_dir=out,
-            products=slugs, frames="all", source_label="nam-gpu NMMB 12 km")
+            products=slugs, frames="all", source_label="WOOF-NAM 12 km")
         if failures:
             raise RuntimeError(f"renderer FAILED: {failures}")
         by_key = {}
@@ -359,7 +373,7 @@ def nam_gpu_panels(history: list[Path], panels: Path, hours: list[datetime],
                 src = by_key.get((product, valid))
                 if src is None:
                     why = [s for s in skipped if PRODUCT_SPECS[product]["slug"] in str(s)]
-                    raise FileNotFoundError(f"no nam-gpu {product} frame for {valid:%Y%m%d%H}"
+                    raise FileNotFoundError(f"no WOOF-NAM {product} frame for {valid:%Y%m%d%H}"
                                             + (f": {why}" if why else ""))
                 dst = panels / product / "nam_gpu" / f"{valid:%Y%m%d%H}.png"
                 dst.parent.mkdir(parents=True, exist_ok=True)
@@ -384,7 +398,7 @@ def main(argv=None):
     a.add_argument("--cycle", required=True)
     a.add_argument("--panels", type=Path, required=True)
     a.add_argument("--hours", nargs="+", required=True)
-    g = sub.add_parser("nam-gpu")
+    g = sub.add_parser("woof-nam", aliases=["nam-gpu"])
     g.add_argument("--history", type=Path, nargs="+", required=True)
     g.add_argument("--panels", type=Path, required=True)
     g.add_argument("--hours", nargs="+", required=True)

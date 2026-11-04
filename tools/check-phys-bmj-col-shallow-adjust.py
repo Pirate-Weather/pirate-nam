@@ -1,6 +1,6 @@
 """Done-rule check for phys-bmj-col-shallow-adjust and its zeroing producer phys-bmj-col-prep.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-col-shallow-adjust.py
 
 Compiles phys_bmj_col_prep and phys_bmj_col_shallow_adjust (NVRTC) and runs them on a FULL-SIZE state

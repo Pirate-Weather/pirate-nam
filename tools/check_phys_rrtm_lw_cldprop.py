@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-lw-cldprop (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_lw_cldprop.py
 
 Compiles the kernel (NVRTC), fills RAD_CLOUDS (the state array phys-rrtm-grrad-clouds writes) with a

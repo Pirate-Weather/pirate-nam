@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-myj-vdifh (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-myj-vdifh.py
 
 1. compiles namgpu/kernels/phys_myj_vdifh.cu through NVRTC (prep, VDIFH and tendency kernels);

@@ -1,6 +1,6 @@
 """Done-rule check for drv-dfi-dyn-average (the production handoff, not random scratch).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-dfi-dyn-average.py
 
 Full-size random State (954 x 835 x 60). Runs the production chain once: drv-dfi-dyn-init (writes the

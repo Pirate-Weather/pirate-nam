@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-gwd-init (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-gwd-init.py
 
 1. compiles namgpu/kernels/phys_gwd_init.cu through NVRTC;

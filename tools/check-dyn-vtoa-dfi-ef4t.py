@@ -1,6 +1,6 @@
 """Host-only check: EF4T seen by dyn-vtoa at each TDFI step matches SOLVER_RUN's lifecycle.
 
-    source ~/nam-gpu/env.sh && python tools/check-dyn-vtoa-dfi-ef4t.py
+    source env.sh && python tools/check-dyn-vtoa-dfi-ef4t.py
 Expected (Fortran): backward steps see -(filt_dt/fund_dt)*ef4t0, forward steps see
 +(filt_dt/fund_dt)*ef4t0 (changedir flip), and after the filter EF4T = ef4t0 again (EF4T_SV).
 """

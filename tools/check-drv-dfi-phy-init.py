@@ -1,6 +1,6 @@
 """Done-rule check for drv-dfi-phy-init (review fix): restart run, full size, per-array presence.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-dfi-phy-init.py
 
 One full-size random State (954 x 835 x 60), cfg.restart = True. The 2-D save array is pre-created with a

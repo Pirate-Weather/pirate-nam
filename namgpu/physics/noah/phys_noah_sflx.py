@@ -11,7 +11,7 @@ host sync, no per-step allocation beyond first-call scratch, everything on the c
 
 Tables: the constant kernel inputs (vegetation table (lucats, 15), soil table (slcats, 10), general
 table (16,), soil-layer thicknesses (4,)) are passed in. run() without ctx builds plausible synthetic
-tables (the NAM NCEP fix tables are not on node-2 yet, see STATUS.md).
+tables (the NAM NCEP fix tables are not available yet, see STATUS.md).
 
 run(ctx): binds the NMMB state-table fields by their CONTRACT names where the state table has them
 (SMC, STC, SH2O, CMC, TSKIN, SNO, SNOWC, ALBEDO, ALBASE, EPSR, MXSNAL); every other kernel field is

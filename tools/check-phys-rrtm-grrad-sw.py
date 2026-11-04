@@ -6,7 +6,7 @@ Runs the glue wrapper once on the full-size random State, with the real phys-rrt
 their CONTRACT outputs with random values (FDNCMP always, as the Fortran scmpsw argument is
 unconditional). The glue arithmetic is then checked on the device result against numpy.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-grrad-sw.py
+    source env.sh && python tools/check-phys-rrtm-grrad-sw.py
 """
 from __future__ import annotations
 

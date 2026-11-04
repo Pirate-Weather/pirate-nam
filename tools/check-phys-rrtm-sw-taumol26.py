@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-taumol26 (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-sw-taumol26.py
+    source env.sh && python tools/check-phys-rrtm-sw-taumol26.py
 
 Compiles the kernel, then runs the wrapper ONCE on a full-size random but plausible colmol
 (NLAY = 60, JM = 835, IM = 954) and asserts: no NaN/Inf in taug26 and taur26; taug26 is exactly zero (the

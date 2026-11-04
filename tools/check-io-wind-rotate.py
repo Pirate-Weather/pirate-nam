@@ -1,6 +1,6 @@
 """Check for io-wind-rotate (review gaps: angle, operation order, sign, notice).
 
-    source ~/nam-gpu/env.sh && python tools/check-io-wind-rotate.py
+    source env.sh && python tools/check-io-wind-rotate.py
 
 Run under the GPU pool lease (README.md "GPU use"). Full-size NAM 12 km grid from parm/nam_configfile.
 

@@ -6,7 +6,7 @@ recording stubs: the check covers the driver's own terms (radupdate call, zeroin
 cloud-input branch, RRTM argument list, radiation-step test). Not a physics test.
 Everything, including the State allocation, runs inside one pool lease (the card is shared).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rad-driver.py
 """
 from __future__ import annotations

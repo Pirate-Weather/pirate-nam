@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-bmj-col-deep-tend (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-col-deep-tend.py
 
 Compiles namgpu/kernels/phys_bmj_col_deep_tend.cu and runs the wrapper through the full itrefi loop

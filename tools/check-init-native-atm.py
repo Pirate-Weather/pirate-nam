@@ -1,6 +1,6 @@
 """Done-rule check for init-native-atm (CONTRACT.md section 6, parts 1 and 2), full size.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-init-native-atm.py
 
 1. compiles the kernel file (NVRTC through CuPy);

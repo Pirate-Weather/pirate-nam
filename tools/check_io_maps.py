@@ -5,7 +5,7 @@ then io-maps, so the field set is the one the driver writes, not a hand-made sub
 so the second call proves that only the new frame is drawn.  Every history field must be finite
 (no NaN) before it is written.
 
-    cd ~/nam-gpu && /opt/gpu-mutex/run.sh NAME --cards 1 --vram-mib 12000 --est 900 -- \
+    /opt/gpu-mutex/run.sh NAME --cards 1 --vram-mib 12000 --est 900 -- \
         bash -c "source env.sh && python tools/check_io_maps.py"
 """
 from __future__ import annotations

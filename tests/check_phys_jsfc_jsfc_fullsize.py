@@ -2,7 +2,7 @@
   - every B1-tile column of every output is finite and was written (not the -999 sentinel),
   - the outer ring (columns outside ITS_B1..ITE_B1 / JTS_B1..JTE_B1) is untouched: outputs keep the
     sentinel and INOUT state equals its pre-run value.
-Run on node-2 inside ~/nam-gpu with a GPU lease: python tests/check_phys_jsfc_jsfc_fullsize.py
+Run from the repository root (source env.sh first): python tests/check_phys_jsfc_jsfc_fullsize.py
 """
 import os
 import sys

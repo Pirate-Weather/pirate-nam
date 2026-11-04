@@ -1,6 +1,6 @@
 """Done-rule check for dyn-adv2-vert (full size, no NaN/Inf), both ADV2 calls.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-adv2-vert.py
 
 Runs the two ADV2 calls the way the driver step plan does, each producer then consumer:

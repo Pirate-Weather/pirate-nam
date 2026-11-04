@@ -1,8 +1,8 @@
 """io-referee-sheets: referee sheets, one per product per output hour.
 
-Panels, left to right, per product: MRMS (truth, reflectivity only) | nam-gpu (this port) | archived NAM
+Panels, left to right, per product: MRMS (truth, reflectivity only) | WOOF-NAM (this port) | archived NAM
 (same cycle, grid 218). Products without a truth panel in the case fetch (2 m temperature, precipitation)
-are two-panel: nam-gpu | archived NAM. Truth for those needs a fetch (ASOS for T2, MRMS QPE for precip).
+are two-panel: WOOF-NAM | archived NAM. Truth for those needs a fetch (ASOS for T2, MRMS QPE for precip).
 
 Not a driver unit: it runs after the forecast, from files, and never inside the step loop. It is not in
 driver.py's lists, so it has no run(ctx) hook.
@@ -33,7 +33,7 @@ PRODUCT_SOURCES = {
     "t2": ("nam_gpu", "nam_archive"),
     "precip_total": ("nam_gpu", "nam_archive"),
 }
-PANEL_NAMES = {"mrms": "MRMS", "nam_gpu": "nam-gpu", "nam_archive": "archived NAM"}
+PANEL_NAMES = {"mrms": "MRMS", "nam_gpu": "WOOF-NAM", "nam_archive": "archived NAM"}
 TITLES = {
     "composite_reflectivity": "Composite reflectivity",
     "t2": "2 m temperature",

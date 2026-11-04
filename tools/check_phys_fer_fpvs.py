@@ -1,6 +1,6 @@
 """Done-rule check for phys-fer-fpvs (CONTRACT section 6, parts 1 and 2). Full-size T, one wrapper run.
 
-    source ~/nam-gpu/env.sh && python tools/check_phys_fer_fpvs.py
+    source env.sh && python tools/check_phys_fer_fpvs.py
 
 Compiles namgpu/kernels/phys_fer_fpvs.cu through NVRTC, runs the wrapper once on a full-size
 float32 [60, 835, 954] temperature array and asserts all four outputs are finite. The GPVS tables

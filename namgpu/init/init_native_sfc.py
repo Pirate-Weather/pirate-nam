@@ -18,7 +18,7 @@ Outputs (ctx.st, NMMB names, CONTRACT layout):
     Z0BASE, CMC [JM, IM] float32; IVGTYP, ISLTYP [JM, IM] int32.
 Conversions and the frozen-fraction formula are documented in the kernel header.
 Run the self-test (random plausible inputs, full size, NaN/Inf check):
-    source ~/nam-gpu/env.sh && python -m namgpu.init.init_native_sfc
+    source env.sh && python -m namgpu.init.init_native_sfc
 """
 from __future__ import annotations
 

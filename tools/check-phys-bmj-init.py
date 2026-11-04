@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-bmj-init (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-init.py
 
 1. compiles namgpu/kernels/phys_bmj_init.cu through NVRTC;

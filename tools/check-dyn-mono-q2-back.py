@@ -1,6 +1,6 @@
 """Done-rule check for dyn-mono-q2-back (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-mono-q2-back.py
 
 Full-size state (954 x 835 x 60), bound the way the run binds it: TRACERS and TRACERS_TEND are the

@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-bmj-ttblex (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-ttblex.py
 
 Compiles namgpu/kernels/phys_bmj_ttblex.cu and runs the wrapper once on a FULL-SIZE random State

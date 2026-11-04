@@ -1,6 +1,6 @@
 """Per-column value check for phys-rrtm-lw-taugb08 against a scalar re-implementation.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_taugb08_values.py
 
 Runs the GPU wrapper on the random full-size inputs of tools/check_phys_rrtm_lw_taugb08.py (the same

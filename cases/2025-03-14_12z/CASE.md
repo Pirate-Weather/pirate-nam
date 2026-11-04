@@ -31,7 +31,7 @@ rule: delete `raw/` once the run's sheets and evidence are kept.
 
 ## Referees and how the run is judged
 
-- Maps, hour by hour, side by side: MRMS | nam-gpu | archived NAM (composite reflectivity),
+- Maps, hour by hour, side by side: MRMS | WOOF-NAM | archived NAM (composite reflectivity),
   plus 2 m temperature and dewpoint, 10 m wind, MSLP and accumulated precipitation beside the
   NAM 218 forecast. Look at every sheet and the time sequence: storm placement, timing, mode
   (discrete cells vs lines), the dryline and cold front, the low-level jet, the Plains wind and

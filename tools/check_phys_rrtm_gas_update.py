@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-gas-update (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_gas_update.py
 
 Compiles the kernel and runs the wrapper once per branch that writes the CO2 field (monthly,

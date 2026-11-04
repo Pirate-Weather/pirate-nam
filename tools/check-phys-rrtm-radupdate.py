@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-radupdate (CONTRACT.md section 6, parts 1 and 2), review fixes.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-radupdate.py
 
 1. compiles the kernel (part 1);

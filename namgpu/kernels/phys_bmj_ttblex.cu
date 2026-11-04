@@ -6,7 +6,7 @@
 // The Fortran module has no licence block; its module header is kept here as the notice:
 //   MODULE MODULE_CU_BMJ (Betts-Miller-Janjic convection, NMMB, nam.v4.2.11).
 // Ported to CUDA for nam-gpu from sorc/nam_nems_nmmb.fd/src/atmos/phys/module_CU_BMJ.F90:2071-2154 (nam.v4.2.11, 83df4e13c1,
-// NAM_SRC=~/agent-scratch/nam-port/nam-gh). The cmp copy has no TTBLEX; do not diff against it.
+// NAM_SRC=<a NAM clone>). The cmp copy has no TTBLEX; do not diff against it.
 //
 // Two entry points:
 //   bmj_ttblex            __device__ function, the exact Fortran TTBLEX body. Called by the

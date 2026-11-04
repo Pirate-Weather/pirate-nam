@@ -1,6 +1,6 @@
 """Done-rule check for dyn-dht (review fix): the wrapper binds FCP/FDIV from init-grid-consts output.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-dht.py
 
 Runs init-grid-consts for real (publishes ctx.tables['grid']), then dyn-dht once on a full-size random

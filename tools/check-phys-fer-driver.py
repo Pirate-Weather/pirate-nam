@@ -1,6 +1,6 @@
 """Done-rule check for phys-fer-driver (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-fer-driver.py
 
 1. compiles namgpu/kernels/phys_fer_driver.cu;

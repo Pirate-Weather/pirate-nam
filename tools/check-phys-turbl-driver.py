@@ -1,6 +1,6 @@
 """Done-rule check for phys-turbl-driver (review fix, commit "fix phys-turbl-driver: review").
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-turbl-driver.py
+    source env.sh && python tools/check-phys-turbl-driver.py
 
 Runs the real TURBL wrapper (phys_turbl_driver.run) ONCE per NTSD arm (1 and 0) on a full-size
 954 x 835 x 60 state, and asserts no NaN or Inf in any state array. The dependency units

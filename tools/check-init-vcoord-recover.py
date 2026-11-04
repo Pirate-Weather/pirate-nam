@@ -1,6 +1,6 @@
 """Done-rule check for init-vcoord-recover (CONTRACT.md section 6, parts 1 and 2), full size.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-init-vcoord-recover.py
 
 1. compiles the kernel file;

@@ -37,7 +37,7 @@ v4.6.1 files with a different VEG layout; the VEG parse refuses them.
 Declared residue (stated, not hidden):
   * MPI_BCAST sends NROTBL as MPI_REAL while it is INTEGER (module_LS_NOAHLSM.F90:153, :1410). Both
     are 4 bytes, so the bits arrive unchanged; the port keeps the INTEGER type.
-  * The NAM fix VEGPARM.TBL is not on node-2. The VEG section follows the Fortran read rules, but its
+  * The NAM fix VEGPARM.TBL is not available. The VEG section follows the Fortran read rules, but its
     values have not been checked against the NAM file. That check is open (see UNITS.json note).
 """
 from __future__ import annotations

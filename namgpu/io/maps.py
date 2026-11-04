@@ -1,6 +1,6 @@
-"""Weather maps from nam-gpu history files with the Rust renderer rw_wrfbatch (render law: no
+"""Weather maps from WOOF-NAM history files with the Rust renderer rw_wrfbatch (render law: no
 matplotlib for weather fields), drawn exactly like the case referee maps (same CF table, same CONUS
-bounds, same colour scales), so a nam-gpu panel sits beside the archived NAM and MRMS panels.
+bounds, same colour scales), so a WOOF-NAM panel sits beside the archived NAM and MRMS panels.
 
 Usage:  python -m namgpu.io.maps <wrfout ...> --out <dir> [--products composite_reflectivity,t2m,...]
 
@@ -93,7 +93,7 @@ def _parse(argv):
     ap.add_argument("--width", type=int, default=1200)
     ap.add_argument("--height", type=int, default=900)
     ap.add_argument("--mrms", type=Path, default=None, help="folder of mrms_refc_YYYYmmddHH.grib2 (overlay)")
-    ap.add_argument("--label", default="nam-gpu NMMB 12 km")
+    ap.add_argument("--label", default="WOOF-NAM 12 km")
     return ap.parse_args(argv)
 
 
@@ -229,7 +229,7 @@ def _prep_frame(job):
         return None, valid, start, [], sk
     lat, lon = f.get("XLAT"), f.get("XLONG")
     if lat is None or lon is None:
-        raise RuntimeError(f"nam-gpu maps: {path.name} has no XLAT/XLONG")
+        raise RuntimeError(f"woof-nam maps: {path.name} has no XLAT/XLONG")
     lon = (lon + 180.0) % 360.0 - 180.0
     cf = Path(work) / f"namgpu_{valid:%Y%m%d%H%M}.nc"
     _write_cf(cf, lat, lon, valid, flds,
@@ -244,7 +244,7 @@ def render(argv=None) -> dict:
     products = [p.strip() for p in a.products.split(",") if p.strip()]
     unknown = [p for p in products if p not in TABLE]
     if unknown:
-        raise SystemExit(f"nam-gpu maps: unknown products {unknown} (known: {list(TABLE)})")
+        raise SystemExit(f"woof-nam maps: unknown products {unknown} (known: {list(TABLE)})")
     bridges = _bridges()
     renderer = bridges / "rw_wrfbatch"
     a.out.mkdir(parents=True, exist_ok=True)

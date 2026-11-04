@@ -1,6 +1,6 @@
 """Done-rule check for dyn-ddamp-damp (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-ddamp-damp.py
 
 Compiles both kernels and runs the wrapper on a full-size random state (954 x 835 x 60), checks

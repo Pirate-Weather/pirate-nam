@@ -1,6 +1,6 @@
 """Run the RRTM radiation subsystem (phys-rad-driver -> rrtm-call chain) on the REAL case state.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/run_rrtm_real.py --case 2025-03-14_12z --out runs/rrtm-real
 
 Builds the real 954 x 835 x 60 state from the native NAM analysis (init-case-driver stages up to

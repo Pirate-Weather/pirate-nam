@@ -25,7 +25,7 @@ check run or a fresh case before boundary preparation), tboco comes from parm/na
 interval_seconds, which is the value NPS writes as tboco (gridinfo_module.F90:223). That is a
 deliberate deviation from the Fortran, it is printed on every run, and tboco_source names it.
 The 24-byte layout was checked against module_CONTROL.F90:95-104 and :283. No boco.0000 file exists
-on node-2 yet, so the layout has not been checked against a real file.
+available yet, so the layout has not been checked against a real file.
 """
 from __future__ import annotations
 

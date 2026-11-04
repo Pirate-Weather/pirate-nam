@@ -1,6 +1,6 @@
 """Done-rule check for dyn-updates (CONTRACT.md section 6), with the review's gaps.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-updates.py
 
 Checks, on a full-size random State (954 x 835 x 60, configured microphysics):

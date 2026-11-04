@@ -1,6 +1,6 @@
 """Done-rule check for drv-dfi-dyn-sum (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-dfi-dyn-sum.py
 
 Runs the real chain on a full-size random State (954 x 835 x 60): drv-dfi-dyn-init builds ctx.filt

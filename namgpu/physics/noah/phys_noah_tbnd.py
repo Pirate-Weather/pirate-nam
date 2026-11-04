@@ -35,7 +35,7 @@ BLOCK = (32, 8, 1)
 NSOIL = 4
 # NAM layer bottoms (m), cumulative SLDPTH 0.1/0.3/0.6/1.0 (module_LS_NOAHLSM.F90:1835-1837).
 ZSOIL_NAM = (-0.1, -0.4, -1.0, -2.0)
-# GENPARM.TBL ZBOT_DATA in the WRF-4.7.1 run directory copy on node-2. Used only by the no-ctx smoke.
+# GENPARM.TBL ZBOT_DATA in the WRF-4.7.1 run directory copy. Used only by the no-ctx smoke.
 ZBOT_SMOKE = -8.0
 
 _scratch: dict = {}

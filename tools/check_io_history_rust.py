@@ -1,6 +1,6 @@
 """Done-rule check for unit io-history-rust (CONTRACT.md section 6, parts 1 and 2).
 
-Run on node-2 under the pool lease:  source ~/nam-gpu/env.sh; python tools/check_io_history_rust.py
+Run:  source env.sh; python tools/check_io_history_rust.py
 1. the kernel compiles (kernels.module(...).compile());
 2. the wrapper runs once on a FULL-SIZE random history set (954 x 835 x 60, the CONTRACT sizes),
    writes one file through the Rust writer, and the file reads back with no NaN/Inf.
@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
-ROOT = Path(os.path.expanduser("~/nam-gpu"))
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 OUT = ROOT / "runs" / "check-io-history-rust"

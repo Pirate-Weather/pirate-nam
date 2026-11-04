@@ -1,6 +1,6 @@
 """Done-rule check for one unit (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_unit.py dyn-pgforce-geopot [more ids ...]
 
 1. compiles the unit's kernel file;

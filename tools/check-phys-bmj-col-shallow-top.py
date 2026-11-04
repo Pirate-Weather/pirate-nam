@@ -1,6 +1,6 @@
 """Done-rule check for phys-bmj-col-shallow-top (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-col-shallow-top.py
 
 Compiles namgpu/kernels/phys_bmj_col_shallow_top.cu (NVRTC) and runs the wrapper once on a FULL-SIZE

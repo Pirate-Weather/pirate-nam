@@ -1,6 +1,6 @@
 """Done-rule check for unit phys-rrtm-grrad-setup (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-grrad-setup.py
 
 1. compiles namgpu/kernels/phys_rrtm_grrad_setup.cu through NVRTC;

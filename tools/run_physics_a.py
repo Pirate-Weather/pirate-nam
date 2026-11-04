@@ -1,6 +1,6 @@
 """Physics A on the REAL case state: one full physics call (Fortran SOLVER_RUN physics block order).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     ~/gpuwm-work/pool-v3/run.sh --cards 1 --vram-mib 20000 --est 900 nam-physics-a -- \
         python tools/run_physics_a.py --case 2025-03-14_12z [--step 0] [--with-rad]
 

@@ -1,6 +1,6 @@
 """Value check for unit io-uphlcy (review: the kernel had only a NaN/Inf check).
 
-    source ~/nam-gpu/env.sh && python tools/check-io-uphlcy.py
+    source env.sh && python tools/check-io-uphlcy.py
 
 Run under the GPU pool lease. Full-size NAM 12 km grid (954 x 835 x 60), random state where W_TOT
 (the Fortran W dummy) and the bare W differ, so the W<0 kill test and the term are both exercised.

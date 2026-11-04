@@ -1,6 +1,6 @@
 """Done-rule check for dyn-hdiff-coef (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-hdiff-coef.py
 
 Builds the configured grid, runs the real producers of the wrapper's inputs (init-grid-consts for the

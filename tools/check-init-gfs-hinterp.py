@@ -1,6 +1,6 @@
 """Done-rule check for init-gfs-hinterp (strip version, review fixes).
 
-    source ~/nam-gpu/env.sh && python tools/check-init-gfs-hinterp.py
+    source env.sh && python tools/check-init-gfs-hinterp.py
 
 Takes the GPU pool lease first (README.md "GPU use"). One run at full size: the real NAM 12 km grid
 (954 x 835 x 60 from parm/nam_configfile), a full-size GFS 0.25 degree source [2, 41, 721, 1440] with

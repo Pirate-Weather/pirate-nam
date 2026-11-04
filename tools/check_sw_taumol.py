@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-taumol (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check_sw_taumol.py
+    source env.sh && python tools/check_sw_taumol.py
 
 Compiles the kernel, then runs the wrapper ONCE on full-size random but plausible inputs
 (NLAY = 60, JM = 835, IM = 954) and checks the output for NaN/Inf and that every g-point of every

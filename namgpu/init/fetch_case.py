@@ -85,10 +85,23 @@ def _subset(url: str, dest: Path, pattern: re.Pattern) -> str:
         # on every run, so it is an error, not a file.
         raise ValueError(f"{dest.name}: no idx records of {url} match the pattern ({len(idx)} records)")
     tmp = dest.with_suffix(".part")
-    with open(tmp, "wb") as f:
-        for k in want:
-            end = offs[k + 1] - 1 if k + 1 < len(offs) else ""
-            f.write(_get(url, f"{offs[k]}-{end}"))
+    # Sub-messages (idx "329.1", "329.2") share one GRIB2 message and one byte offset: fetch each message
+    # once, ending before the next larger offset. (Ending at offs[k + 1] - 1 made an inverted range for the
+    # first sub-message, which S3 ignores and answers with the whole file.)
+    starts = sorted({offs[k] for k in want})
+    ranges = []                                    # [start, end] byte ranges; end None = to end of file
+    for s in starts:
+        nxt = next((o for o in offs if o > s), None)
+        end = nxt - 1 if nxt is not None else None
+        if ranges and ranges[-1][1] is not None and ranges[-1][1] + 1 == s:
+            ranges[-1][1] = end                    # adjacent records: one request (same bytes, ~10x fewer GETs)
+        else:
+            ranges.append([s, end])
+    # each range is a new connection; one at a time they ran at ~2 MB/s (118 GETs, 129 s for a GFS file),
+    # so the ranges of one file are fetched in parallel and written in order (same bytes)
+    with ThreadPoolExecutor(min(8, len(ranges))) as ex, open(tmp, "wb") as f:
+        for chunk in ex.map(lambda r: _get(url, f"{r[0]}-{r[1] if r[1] is not None else ''}"), ranges):
+            f.write(chunk)
     tmp.rename(dest)
     return f"got {dest.name} {len(want)} recs {dest.stat().st_size / 1e6:.0f} MB"
 
@@ -133,8 +146,11 @@ def _mrms_hour(valid: datetime, dest_dir: Path) -> str:
     return f"got {dest.name} ({best.rsplit('_', 1)[-1]})"
 
 
-def plan(cycle: datetime, hours: int, raw: Path):
+def plan(cycle: datetime, hours: int, raw: Path, nam: bool = True):
+    """nam=False: GFS only (a GFS start; cycles after the NAM's 2026-11-03 retirement have no NAM files)."""
     d, hh = cycle.strftime("%Y%m%d"), cycle.strftime("%H")
+    if not nam:
+        return _gfs_jobs(cycle, hours, raw)
     jobs = []
     nam = f"{NAM}/nam.{d}/nam.t{hh}z"
     jobs.append((_download, f"{nam}.bgrd3d00.tm00.grib2", raw / "nam" / "bgrd3d00.grib2"))
@@ -147,6 +163,11 @@ def plan(cycle: datetime, hours: int, raw: Path):
         if f % 3:
             jobs.append((_subset, f"{nam}.awphys{f:02d}.tm00.grib2",
                          raw / "nam" / f"awphys{f:02d}.sub.grib2", NAM_HOURLY))
+    return jobs + _gfs_jobs(cycle, hours, raw)
+
+
+def _gfs_jobs(cycle: datetime, hours: int, raw: Path):
+    jobs = []
     gcyc = cycle - timedelta(hours=6)
     gd, gh = gcyc.strftime("%Y%m%d"), gcyc.strftime("%H")
     for f in range(6, hours + 7, 3):

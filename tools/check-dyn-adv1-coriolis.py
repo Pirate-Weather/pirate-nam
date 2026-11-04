@@ -1,6 +1,6 @@
 """Done-rule check for dyn-adv1-coriolis (review fix, 2026-11-04).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-adv1-coriolis.py
 
 1. Full-size 954 x 835 x 60 state. CURV and F_V are the REAL tables from init-grid-consts (no stand-in,

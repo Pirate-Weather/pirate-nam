@@ -1,4 +1,4 @@
-# nam-gpu CONTRACT
+# woof-nam CONTRACT
 
 Every unit (UNITS.json) is written to this contract. Source of truth for numerics is the NAM
 clone at `$NMMB_SRC` (`<NAM clone>/sorc/nam_nems_nmmb.fd/src/atmos`)
@@ -225,7 +225,7 @@ gas_update reopens the CO2 file during the forecast. Paths a unit writes must be
 
 ## 4. Where each Fortran module's outputs go
 
-| Fortran module / routine | writes | in nam-gpu |
+| Fortran module / routine | writes | in woof-nam |
 |---|---|---|
 | module_DYNAMICS_ROUTINES (pgforce, dht, ddamp, pdtsdt, adv1, adv2, mono, vtoa, updates/t/uv, hdiff, cdzdt, cdwdt, vsound) | T, U, V, Q, CW, Q2, TRACERS, PD, PINT, W, DWDT, OMGALF, DIV, PSDT, PSGDT, TCT/TCU/TCV, RTOP, Z | `ctx.st` same names |
 | module_FLTBNDS (read_bc, write_bc, bocoh, bocov) | boundary strips PDB, TB, QB, CWB, UB, VB and tendencies | `ctx.bc` (boundary group) and `ctx.st` edge rows |
@@ -256,7 +256,7 @@ gas_update reopens the CO2 file during the forecast. Paths a unit writes must be
 
 ## 6. Done rule
 
-A unit is DONE when, on node-2:
+A unit is DONE when:
 1. its kernel compiles (`namgpu.kernels.module(<unit>).compile()` without error);
 2. its wrapper runs once on a FULL-SIZE random state (`State(grid).randomize()`, 954 x 835 x 60)
    without producing a NaN or Inf in any array it writes;
@@ -344,7 +344,7 @@ Open, owned elsewhere (found by this run):
 - History: HISTORY_UNITS = io-wind-rotate, io-quasipost-driver, io-history-fields, io-history. History
   carries T2 (temperature), MSLP (Pa, membrane MSLP) and, after the first microphysics call, COMPOSITE.
 - Maps: rw_wrfbatch --cf on XLAT/XLONG (io/maps.py). The wrfout route misplaces MAP_PROJ 203; do not use
-  it for nam-gpu output. Products: composite_reflectivity, t2m, d2m, wind10, wind850, mslp, qpf_1h.
+  it for woof-nam output. Products: composite_reflectivity, t2m, d2m, wind10, wind850, mslp, qpf_1h.
 - GWD terrain: NAMGPU_GWD_DEM (NPS raw file) or NAMGPU_GEOG/topo_gmted2010_30s (default /work/geog).
 
 ## 10. Physics B (RRTM) on the real state (physics B integrator, 2026-11-04 ~10:10Z)

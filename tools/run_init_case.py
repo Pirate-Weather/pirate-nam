@@ -1,6 +1,6 @@
 """Build the real initial state for a case (init group integration run).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/run_init_case.py --case 2025-03-14_12z --source native --out runs/init_native
     python tools/run_init_case.py --case 2025-03-14_12z --source gfs    --out runs/init_gfs
 

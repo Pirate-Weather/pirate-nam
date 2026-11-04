@@ -3,7 +3,7 @@
 Full size: 954 x 835 x 60 (CONTRACT section 5). Inputs are random but in the index ranges the
 setcoef and table layouts allow, so every table read is in bounds. colamt has the Fortran maxgas = 7
 planes (plane 7 is CO). Also checks that only rows NS13+1..NS13+4 (zero-based 130..133) are written.
-Usage (node-2, on a short pool lease): python3 tools/check_phys_rrtm_lw_taugb13.py
+Usage (on a GPU): python3 tools/check_phys_rrtm_lw_taugb13.py
 """
 import time
 from types import SimpleNamespace

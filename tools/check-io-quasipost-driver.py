@@ -1,6 +1,6 @@
 """Done-rule check for io-quasipost-driver (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-io-quasipost-driver.py
 
 1. compiles namgpu/kernels/io_quasipost_driver.cu;

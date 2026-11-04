@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-setemis (review fix: SICE mask, emissivity table wiring, no stand-ins).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-setemis.py
 
 Runs the kernel once on the full 954 x 835 grid. Inputs are synthetic and deterministic (labelled):

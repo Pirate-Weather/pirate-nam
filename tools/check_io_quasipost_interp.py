@@ -1,6 +1,6 @@
 """Done-rule check for io-quasipost-interp (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_io_quasipost_interp.py
 
 Compiles the kernel and runs its wrapper ONCE on a full-size random State (954 x 835 x 60), with the

@@ -1,6 +1,6 @@
 """Done-rule check for bnd-bocoh-smooth (full size, explicit nsmud=1, no NaN/Inf).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-bnd-bocoh-smooth.py
 
 The strip buffers come from the real producer (bnd-boundary-init) on a full-size random State,

@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-lw-taugb10 (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python -I tools/check-phys-rrtm-lw-taugb10.py [--vram-chunk-rows 42]
 
 1. compiles the kernel with NVRTC;

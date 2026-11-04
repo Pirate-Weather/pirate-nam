@@ -136,8 +136,8 @@ def read_fortran(out: Path, n_groups: int):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--nam-phys", default=os.path.expanduser("~/agent-scratch/nam-port/gate0/nmmb/src/atmos/phys"))
-    ap.add_argument("--work", default=os.path.expanduser("~/agent-scratch/taumol22-fortran"))
+    ap.add_argument("--nam-phys", default=os.path.expandvars("$NMMB_SRC/phys"))
+    ap.add_argument("--work", default="scratch/taumol22-fortran")
     ap.add_argument("--groups", type=int, default=512)
     ap.add_argument("--seed", type=int, default=7)
     a = ap.parse_args()

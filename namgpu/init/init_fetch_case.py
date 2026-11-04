@@ -24,22 +24,42 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from namgpu.init.fetch_case import _mrms_hour, plan
+from namgpu.init.fetch_case import NAM, _mrms_hour, plan
 
 UNIT = "init-fetch-case"
 DEFAULT_HOURS = 48
 DEFAULT_WORKERS = 16
 
 
-def fetch(cycle: datetime, case_dir: Path, hours: int = DEFAULT_HOURS, workers: int = DEFAULT_WORKERS) -> int:
+def _nam_cycle_exists(cycle: datetime) -> bool:
+    """True if NODD holds this cycle's NAM native analysis (or the check itself could not be made)."""
+    import urllib.error  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+    url = f"{NAM}/nam.{cycle:%Y%m%d}/nam.t{cycle:%H}z.bgrd3d00.tm00.grib2"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=30):
+            return True
+    except urllib.error.HTTPError as e:
+        return e.code not in (403, 404)
+    except OSError:
+        return True
+
+
+def fetch(cycle: datetime, case_dir: Path, hours: int = DEFAULT_HOURS, workers: int = DEFAULT_WORKERS,
+          gfs_only: bool = False) -> int:
     """Fetch every input of one case. Returns the number of failed requests (0 = complete)."""
+    if not gfs_only and not _nam_cycle_exists(cycle):
+        # NCEP retired the NAM on 2026-11-03 12Z: later cycles (and gaps in the archive) have no NAM files
+        print(f"{UNIT}: no NAM files for cycle {cycle:%Y%m%d%H} on NODD; fetching GFS and MRMS only "
+              "(a GFS start: --source gfs)", flush=True)
+        gfs_only = True
     raw = Path(case_dir) / "raw"
     for sub in ("nam", "gfs", "mrms"):
         (raw / sub).mkdir(parents=True, exist_ok=True)
-    if hours > 36:
+    if hours > 36 and not gfs_only:
         print(f"{UNIT}: note, hourly picture-referee subsets stop at 36 h (NAM hourly limit); "
               f"f{36 + 1:03d}..f{hours:03d} keep 3-hourly awphys only", flush=True)
-    jobs = plan(cycle, hours, raw)
+    jobs = plan(cycle, hours, raw, nam=not gfs_only)
     bad = 0
     with ThreadPoolExecutor(workers) as ex:
         futs = [ex.submit(fn, *args) for fn, *args in jobs]
@@ -68,8 +88,11 @@ def main(argv=None) -> int:
     ap.add_argument("--hours", type=int, default=DEFAULT_HOURS)
     ap.add_argument("--case-dir", required=True)
     ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    ap.add_argument("--gfs-only", action="store_true",
+                    help="GFS boundaries/start and MRMS only, no NAM files (for --source gfs; any cycle, "
+                         "including after the NAM's 2026-11-03 retirement)")
     a = ap.parse_args(argv)
-    bad = fetch(datetime.strptime(a.cycle, "%Y%m%d%H"), Path(a.case_dir), a.hours, a.workers)
+    bad = fetch(datetime.strptime(a.cycle, "%Y%m%d%H"), Path(a.case_dir), a.hours, a.workers, a.gfs_only)
     return 1 if bad else 0
 
 

@@ -1,6 +1,6 @@
 """Done-rule check for phys-bmj-col-deep-ref after the review fixes.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-bmj-col-deep-ref.py
 
 Full size (954 x 835 x 60). The inputs are written here, explicitly, for the upstream fields the

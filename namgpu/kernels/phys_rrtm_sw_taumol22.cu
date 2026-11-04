@@ -39,7 +39,7 @@
 //     at k == laytrop (layer split k <= laytrop -> absa, k > laytrop -> absb). One layer per column,
 //     about 95 hPa. NEEDS OWNER SIGN-OFF: the chunk-dependent Fortran result is not reproduced.
 //   - speccomb == 0. The Fortran ratio colamt(1)/speccomb is 0/0 and MIN(oneminus, NaN) returns oneminus
-//     in gfortran (witnessed on node-2: gfortran MIN(0.999999, NaN) = 0.999999). The Fortran therefore
+//     in gfortran (witnessed with gfortran MIN(0.999999, NaN) = 0.999999). The Fortran therefore
 //     takes specmult = 8*oneminus and js = 8, multiplied by speccomb = 0. This port takes the ratio as 0,
 //     specmult = 0. Both give taug = 0 (+ o2cont = 0) because speccomb = 0 forces colamt(1) = colamt(6) = 0.
 //

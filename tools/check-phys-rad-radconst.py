@@ -1,7 +1,7 @@
 """Check for phys-rad-radconst (review fixes): the NAM JULIAN rule, no timestep drift, leap rule,
 and the kernel output against the same Fortran formula in numpy float32.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rad-radconst.py
 """
 from __future__ import annotations

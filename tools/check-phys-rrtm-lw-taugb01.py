@@ -6,7 +6,7 @@ output: fracs equals fracrefa for layers at or below laytrop and fracrefb above 
 
 The value check against the NAM Fortran TAUGB01 is tools/check-phys-rrtm-lw-taugb01-ref.py.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-lw-taugb01.py
+    source env.sh && python tools/check-phys-rrtm-lw-taugb01.py
 """
 from __future__ import annotations
 

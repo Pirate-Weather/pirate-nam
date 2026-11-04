@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-setalb (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-setalb.py
 
 Compiles the kernel and runs the wrapper once per ialbflg (0, 1, 2) on the full 954 x 835 grid with

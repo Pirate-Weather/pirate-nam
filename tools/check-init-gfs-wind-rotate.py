@@ -1,6 +1,6 @@
 """Done-rule check for init-gfs-wind-rotate (strip version).
 
-    source ~/nam-gpu/env.sh && python tools/check-init-gfs-wind-rotate.py
+    source env.sh && python tools/check-init-gfs-wind-rotate.py
 
 Takes the GPU pool lease first (README.md "GPU use"). One run at full size: the real NAM 12 km grid
 from parm/nam_configfile (954 x 835 x 60), a full-size GFS 0.25 degree wind pair staged as ctx.gfs.u/.v

@@ -98,7 +98,7 @@ def main(argv=None):
     rec["init_s"] = round(time.perf_counter() - t0, 2)
     print(f"init done {rec['init_s']} s, state {st.nbytes() / 2**30:.2f} GiB", flush=True)
     # Init temporaries (GWD terrain, table builds) stay cached in the CuPy pool and showed up as 40-55 GB on
-    # card 3 for a forecast whose step loop needs ~17 GB (jedinam.members frees here too). Return them.
+    # card 3 for a forecast whose step loop needs ~17 GB. Return them.
     import gc
     gc.collect()
     cp.get_default_memory_pool().free_all_blocks()

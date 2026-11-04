@@ -1,6 +1,6 @@
 """Done-rule check for phys-noah-driver (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-noah-driver.py
 
 1. compiles namgpu/kernels/phys_noah_driver.cu through the NVRTC loader;
@@ -10,7 +10,7 @@
 
 phys-noah-sflx is a separate unit. Until its header ``namgpu/kernels/phys_noah_sflx.cuh`` lands,
 this check compiles against a stub noah_sflx() that writes plausible fixed values from
-NOAH_SFLX_STUB (default ~/agent-scratch/noah-unit-test/stub). The check then proves the driver's
+NOAH_SFLX_STUB (default scratch/noah-unit-test/stub). The check then proves the driver's
 own code only, and says so in its output. Part 3 (Fortran-to-CUDA diff review) is recorded in
 the kernel header.
 
@@ -42,7 +42,7 @@ OUT_NAMES = ["TSFC", "TWBS", "QWBS", "ELFLX", "GRNFLX", "SMSTAV", "SMSTOT", "SSR
 
 def _stub_dir() -> Path:
     return Path(os.environ.get("NOAH_SFLX_STUB",
-                               os.path.expanduser("~/agent-scratch/noah-unit-test/stub")))
+                               "scratch/noah-unit-test/stub"))
 
 
 def main() -> int:

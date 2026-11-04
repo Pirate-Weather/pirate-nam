@@ -1,6 +1,6 @@
 """Done-rule check for init-gfs-decode (CONTRACT.md section 6).
 
-    source ~/nam-gpu/env.sh && python tools/check-init-gfs-decode.py
+    source env.sh && python tools/check-init-gfs-decode.py
 
 1. NVRTC-compiles namgpu/kernels/init_gfs_decode.cu (via the kernel loader).
 2. Reads the isobaric level set from the real GFS 0.25 deg f006 inventory (levels_from_inventory).

@@ -1,6 +1,6 @@
 """Done-rule check for dyn-cdwdt-diffusion after the review fix (CONTRACT.md section 6).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-cdwdt-diffusion.py
 
 Runs dyn-hdiff-coef first (it writes DEF3D, the only deformation array), then the wrapper, on a

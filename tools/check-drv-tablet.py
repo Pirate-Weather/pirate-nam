@@ -1,7 +1,7 @@
 """Check drv-tablet: NVRTC compile, wrapper run once, finite outputs, endpoint and monotone sanity,
 and the scalars the Fortran TABLET sets (rdp = 1/dp, rdthe = 1/dthe, pl = max(pt, 1000)).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-tablet.py
 """
 import types

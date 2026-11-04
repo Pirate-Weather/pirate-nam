@@ -1,6 +1,6 @@
 """Done-rule check for drv-dfi-phy-save (review fix): restart run, full size.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-drv-dfi-phy-save.py
 
 One full-size random State (954 x 835 x 60). cfg.restart = True, so the save list is the restore

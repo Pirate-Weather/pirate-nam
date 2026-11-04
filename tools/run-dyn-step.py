@@ -1,6 +1,6 @@
 """Dynamics + boundary + driver integration run on the REAL case state (dyn integrator, 2026-11-04).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/run-dyn-step.py --case 2025-03-14_12z [--steps 2] [--physics] [--vram 20000]
 
 Builds the real state with init-case-driver (native B-grid analysis + GFS boundaries) and

@@ -1,6 +1,6 @@
 """Done-rule check for dyn-ddamp-extmode and dyn-ddamp-damp (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-dyn-ddamp-extmode.py
 
 Runs the real init-grid-consts unit first (its ddmpu row and ddmpv scalar feed both ddamp units; no

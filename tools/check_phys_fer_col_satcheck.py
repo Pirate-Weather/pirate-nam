@@ -2,7 +2,7 @@
 levels above LSFC are not written as CLEAR or RHO. CLEAR comes from the real phys-fer-col-setup kernel
 (CLEAR_col), not from random data. The column prep that builds FER_LSFC and the condensate fields is not
 built yet, so LSFC and the condensate/thickness fields are random plausible values here. Full size
-954 x 835 x 60. Run under a pool lease from ~/nam-gpu:  source env.sh && python tools/check_phys_fer_col_satcheck.py
+954 x 835 x 60. Run from the repository root:  source env.sh && python tools/check_phys_fer_col_satcheck.py
 """
 import sys
 import time

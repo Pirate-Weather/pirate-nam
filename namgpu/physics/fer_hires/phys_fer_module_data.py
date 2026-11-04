@@ -55,7 +55,7 @@ INT_NAMES = (
     "NX", "INDEXRSTRMAX", "MY_T1", "MY_T2", "NRIME", "MAX_ITERATIONS",
 )
 
-# INTEGER PARAMETERs of the module (Fortran truncation of the REAL parents, checked on node-2 with gfortran 15.2).
+# INTEGER PARAMETERs of the module (Fortran truncation of the REAL parents, checked with gfortran 15.2).
 INTEGER_PARAMETERS = {
     "MDI_MIN": 50, "MDI_MAX": 1000, "MDR_MIN": 50, "MDR_MAX": 1000,
     "MDR1": 100, "MDR2": 200, "MDR3": 320, "MDR4": 450, "MDR5": 670,

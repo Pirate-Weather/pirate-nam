@@ -1,9 +1,9 @@
 """phys-bmj-ttblex: TTBLEX table look-up for the BMJ convection scheme.
 
-Ported from sorc/nam_nems_nmmb.fd/src/atmos/phys/module_CU_BMJ.F90:2071-2154 under NAM_SRC=~/agent-scratch/nam-port/nam-gh
+Ported from sorc/nam_nems_nmmb.fd/src/atmos/phys/module_CU_BMJ.F90:2071-2154 under NAM_SRC=<a NAM clone>
 (nam.v4.2.11, git 83df4e13c1). Callers in the same file: ttblex calls at lines 813, 816, 843, 846,
 1004, 1007, 1844, 1847 (low set itb/jtb/pl/rdp/rdthe; moisture set itbq/jtbq/plq/rdpq/rdtheq).
-The ~/agent-scratch/nam-port/cmp/module_CU_BMJ.F90.n copy has no TTBLEX and must not be used as the reference. The Fortran routine
+A cmp/module_CU_BMJ.F90.n working copy has no TTBLEX and must not be used as the reference. The Fortran routine
 is a device-side helper: the BMJ column units call it once per parcel. The CUDA body lives in
 namgpu/kernels/phys_bmj_ttblex.cu as the __device__ function ``bmj_ttblex`` (the callers in
 phys_bmj_bmjdrv inline it per column) and as the extern "C" kernel ``phys_bmj_ttblex_columns``

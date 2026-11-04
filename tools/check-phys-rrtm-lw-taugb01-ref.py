@@ -5,7 +5,7 @@ Builds the same FULL-SIZE state as tools/check-phys-rrtm-lw-taugb01.py, runs the
 tools/ref_taugb01/build.sh from the NAM clone) on a seeded random sample of columns and compares taug and fracs.
 The kernel is one thread per column with no cross-column terms, so a column sample checks the same code path.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-lw-taugb01-ref.py [--ncol 4096]
+    source env.sh && python tools/check-phys-rrtm-lw-taugb01-ref.py [--ncol 4096]
 """
 from __future__ import annotations
 

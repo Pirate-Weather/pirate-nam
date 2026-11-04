@@ -1,7 +1,7 @@
-# ArWen files copied into nam-gpu
+# ArWen files copied into woof-nam
 
 Copied 2026-11-04 from the ArWen source tree (Python package "gpuwm", 2.9.11 line),
-Apache-2.0 (LICENSE here). Copyright 2026 ArWen contributors. Unmodified copies; the nam-gpu
+Apache-2.0 (LICENSE here). Copyright 2026 ArWen contributors. Unmodified copies; the woof-nam
 units of mode "copy-arwen" adapt them in namgpu/physics/{myj,jsfc,noah}/ and keep this notice.
 
 | file | ArWen path |

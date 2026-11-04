@@ -7,7 +7,7 @@ bind_inputs), phys-fer-col-ice-props (its outputs are inputs of this unit), then
 column fields (T, PMID, FER_Q, FER_QW, FER_SC_RHO, ...) are random but physically shaped, standing in for
 the column prep and satcheck outputs. Runs inside one pool lease (the card is shared).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-fer-col-processes.py
 """
 from __future__ import annotations

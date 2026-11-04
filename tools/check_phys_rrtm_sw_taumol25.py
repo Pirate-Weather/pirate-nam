@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-taumol25 (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check_phys_rrtm_sw_taumol25.py
+    source env.sh && python tools/check_phys_rrtm_sw_taumol25.py
 
 Compiles the kernel, then runs the wrapper once over the full 954 x 835 x 60 domain (one launch, all columns
 live). The outputs are this unit's six planes of taug and taur (Fortran planes 74..79). Checks that every

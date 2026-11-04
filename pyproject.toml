@@ -12,7 +12,7 @@ license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.12"
 authors = [{ name = "Recast Systems" }]
 dependencies = [
-    "cupy-cuda13x",
+    "cupy-cuda13x[ctk]",   # [ctk]: the CUDA headers NVRTC needs to compile the kernels
     "numpy",
     "scipy",
     "netCDF4",

@@ -1,6 +1,6 @@
 """Done-rule check for unit io-history (with io-wind-rotate and io-history-fields in front of it).
 
-    source ~/nam-gpu/env.sh && python tools/check_io_history.py
+    source env.sh && python tools/check_io_history.py
 
 Full-size random State (954 x 835 x 60), the three unit wrappers run in driver order, the history
 file is read back: every written variable is finite, the attributes and dimensions are the ones

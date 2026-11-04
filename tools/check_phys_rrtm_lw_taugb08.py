@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-lw-taugb08 (CONTRACT section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_phys_rrtm_lw_taugb08.py
 
 Compiles the kernel (NVRTC) and runs the wrapper once over the FULL 954 x 835 x 60 column set on

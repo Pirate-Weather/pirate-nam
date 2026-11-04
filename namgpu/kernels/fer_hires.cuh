@@ -114,7 +114,7 @@
 #define FER_PWARN_INIT  75.0e2f
 #define FER_QTWARN_INIT 1.0e-3f
 
-// INTEGER PARAMETERs (Fortran truncation of the REAL parents; checked in float32 on node-2):
+// INTEGER PARAMETERs (Fortran truncation of the REAL parents; checked in float32):
 #define FER_MDI_MIN     50        // INT(XMImin) = 50
 #define FER_MDI_MAX     1000      // INT(XMImax), XMImax = 1000.0000610
 #define FER_MDR_MIN     50        // INT(XMRmin)

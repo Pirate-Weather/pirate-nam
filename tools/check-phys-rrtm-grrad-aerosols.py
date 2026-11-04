@@ -1,6 +1,6 @@
 """Review check for unit phys-rrtm-grrad-aerosols (the fixes for the 2026-11-04 review).
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-grrad-aerosols.py
+    source env.sh && python tools/check-phys-rrtm-grrad-aerosols.py
 
 1. grrad-setup on the full-size random State (954 x 835 x 60), ivflip 0 (NAM iflip = 0): the new
    RAD_QLYR and RAD_TVLY are compared against a numpy reference of the Fortran top-to-surface recurrence

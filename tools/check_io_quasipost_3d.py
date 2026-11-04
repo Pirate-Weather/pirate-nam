@@ -1,6 +1,6 @@
 """Done-rule check for io-quasipost-3d (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_io_quasipost_3d.py
 
 Compiles the unit's kernels (NVRTC) and runs its wrapper ONCE on a full-size random State

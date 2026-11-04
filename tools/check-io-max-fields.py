@@ -1,6 +1,6 @@
 """Done-rule check for unit io-max-fields (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-io-max-fields.py
 
 1. compiles kernels/io_max_fields.cu (and io-uphlcy through its wrapper);

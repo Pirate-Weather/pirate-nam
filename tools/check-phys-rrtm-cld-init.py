@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-cld-init (after the review fix).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-cld-init.py
 
 1. no SGM header: the wrapper refuses, naming the breakage (no stand-in).

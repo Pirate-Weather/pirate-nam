@@ -1,7 +1,7 @@
 """Done-rule check for init-boco-tendencies (CONTRACT.md section 6, parts 1 and 2), plus the two
 review gaps it must cover: the nest-only path and the Fortran RECIP / carried-slot semantics.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-init-boco-tendencies.py
 
 Full 954 x 835 x 60 boundary strips for every parent boundary variable (PD, T, Q, CW, U, V), random

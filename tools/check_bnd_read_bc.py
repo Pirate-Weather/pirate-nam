@@ -1,6 +1,6 @@
 """Done-rule check for bnd-read-bc (CONTRACT.md section 6, parts 1 and 2), plus the host I/O path.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check_bnd_read_bc.py
 
 Three parts:

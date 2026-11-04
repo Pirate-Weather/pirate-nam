@@ -6,7 +6,7 @@ Full-size 954 x 835 x 60 grid, finite synthetic cloud profiles. Runs both vertic
 B is A mirrored in the level axis, so clds must match A and the layer indices must mirror.
 Inputs are asserted finite before the run. llyr comes from llyr_from_si on the same sigma profile.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-gethml.py
+    source env.sh && python tools/check-phys-rrtm-gethml.py
 """
 from __future__ import annotations
 

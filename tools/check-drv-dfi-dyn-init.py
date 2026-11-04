@@ -1,6 +1,6 @@
 """Review check for drv-dfi-dyn-init: filter clock dt/taus, F+B cold-start bundle, full-size no-NaN run.
 
-    source ~/nam-gpu/env.sh && python -I tools/check-drv-dfi-dyn-init-review.py
+    source env.sh && python -I tools/check-drv-dfi-dyn-init-review.py
 """
 from __future__ import annotations
 

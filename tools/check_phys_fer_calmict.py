@@ -1,6 +1,6 @@
 """Done-rule check for phys-fer-calmict (CONTRACT section 6, parts 1 and 2). Full-size state, one run.
 
-    source ~/nam-gpu/env.sh && python tools/check_phys_fer_calmict.py
+    source env.sh && python tools/check_phys_fer_calmict.py
 
 Compiles namgpu/kernels/phys_fer_calmict.cu through NVRTC, then runs the wrapper once on a full-size
 float32 [60, 835, 954] random but plausible state and asserts the output is finite. The MASSI, TBPVS and

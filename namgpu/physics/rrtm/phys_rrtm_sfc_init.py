@@ -32,7 +32,7 @@ Host work (init only, not on the step path): the physparam read (26 ints) and th
 here, because inquire/open/read are host I/O. The file is sfc_emissivity_idx.txt (physparam
 semis_file). Line 1 is a text tag. The next records are 80-character lines read with format 80i1
 into idxems(360,180) in column-major order. The NAM run links the operational table into this name
-(exngac_fcst.sh: EMMISSIVITY_FILE); that table is not on node-2 and is not needed for the default
+(exngac_fcst.sh: EMMISSIVITY_FILE); that table is not available and is not needed for the default
 path (IEMS=0, fixed emissivity 1.0).
 
 Launch: two kernel launches on ctx.stream, no host sync inside the kernels. The host branches

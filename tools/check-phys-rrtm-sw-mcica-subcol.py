@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-sw-mcica-subcol (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-sw-mcica-subcol.py
+    source env.sh && python tools/check-phys-rrtm-sw-mcica-subcol.py
 
 Full NAM 12 km size (NLAY = 60, JM = 835, IM = 954), one pass over each reviewed path:
   1. random cloud mix, iovrsw = 1 (NAM): the launch completes, output finite and uint32, bits populated.

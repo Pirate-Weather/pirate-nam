@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-lw-taugb03 (CONTRACT.md section 6, parts 1 and 2).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-lw-taugb03.py
 
 1. compiles the kernel (NVRTC through CuPy);

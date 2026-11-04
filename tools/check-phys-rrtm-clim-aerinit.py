@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-clim-aerinit (CONTRACT.md section 6, parts 1 and 2, plus the review gaps).
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-clim-aerinit.py
 
 1. compiles the kernel file (NVRTC via CuPy);

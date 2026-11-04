@@ -25,7 +25,7 @@
 //   - EMBCK and ISLOPE are not filled here: NAM has no EMBCK (its emissivity is EMISS=1.0 at
 //     module_SOLVER_GRID_COMP.F90:10280) and the port has no ISLOPE consumer, so both were removed;
 //   - the Noah VEGPARM/SOILPARM tables are WRF v4.6.1 tables (namgpu/data/noah_tables); the NAM
-//     tree in ~/agent-scratch/nam-port carries no Noah table, so the category columns are unverified
+//     NAM source tree carries no Noah table, so the category columns are unverified
 //     against NAM.
 //
 // Not a bitwise match to any model: a documented fill for fields the analysis lacks.

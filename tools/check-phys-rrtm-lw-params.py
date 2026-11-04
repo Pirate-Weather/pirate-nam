@@ -3,7 +3,7 @@
 Compiles the kernel, runs the wrapper once on the full-size 954 x 835 x 60 state, then checks the
 written tables against the Fortran values (radlw_param_nmmb.f:57-175) and that nothing is NaN/Inf.
 
-    source ~/nam-gpu/env.sh && python tools/check-phys-rrtm-lw-params.py
+    source env.sh && python tools/check-phys-rrtm-lw-params.py
 """
 from __future__ import annotations
 

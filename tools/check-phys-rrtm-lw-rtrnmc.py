@@ -1,6 +1,6 @@
 """Done-rule check for phys-rrtm-lw-rtrnmc (CONTRACT section 6), review fix.
 
-    source ~/nam-gpu/env.sh
+    source env.sh
     python tools/check-phys-rrtm-lw-rtrnmc.py
 
 1. compiles the kernel with NVRTC;
