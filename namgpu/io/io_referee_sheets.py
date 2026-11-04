@@ -65,7 +65,7 @@ def compose_hour(renderer: Path, panels: Path, out: Path, product: str, valid: d
     title = f"{TITLES[product]}: {names}"
     return rustwx.compose_ensemble_sheet(
         renderer, [row], sheet_path(out, product, valid),
-        title=title, valid_time=f"{valid:%Y-%m-%d %H:%M} UTC")
+        title=title, valid_time=f"{valid:%Y-%m-%d %H:%M}")  # the renderer appends UTC
 
 
 def run_sheets(panels: Path, out: Path, hours: list[datetime], products=PRODUCTS) -> list[Path]:
