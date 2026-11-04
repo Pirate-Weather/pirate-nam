@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-taugb15: RRTM LW band 15 optical depths and Planck fractions (taumol group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_main_nmmb.f:5980-6184, subroutine taugb15
-(internal to taumol). NOAA US government work; the header is kept in the kernel file
+(internal to taumol). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the header is kept in the kernel file
 (namgpu/kernels/phys_rrtm_lw_taugb15.cu). Kernel: phys_rrtm_lw_taugb15, one thread per column.
 
 Band 15 (2380-2600 cm-1): lower layers use the N2 and CO2 binary-species interpolation (the rfrate

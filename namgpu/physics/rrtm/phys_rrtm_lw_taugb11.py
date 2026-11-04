@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-taugb11: LW band 11 optical depths and Planck fractions (RRTM group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_main_nmmb.f:5391-5478 (SUBROUTINE taugb11).
-NOAA US government work; the lw-rrtm3 package header is kept as the notice in the kernel file
+NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the lw-rrtm3 package header is kept as the notice in the kernel file
 (namgpu/kernels/phys_rrtm_lw_taugb11.cu). Kernel: phys_rrtm_lw_taugb11, one thread per column.
 
 What it computes, per column and layer k (1-based Fortran):

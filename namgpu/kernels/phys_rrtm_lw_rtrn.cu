@@ -1,4 +1,8 @@
 // phys_rrtm_lw_rtrn.cu -- rtrn (RRTM longwave clear/cloudy transfer), NAM NMMB port.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
 // NOAA notice, phys/radlw_main_nmmb.f header (nam.v4.2.11, 83df4e13c1):
 // !!!!!  ==============================================================  !!!!!
@@ -33,7 +37,7 @@
 // !    in the main module 'module_radlw_main' there are only two             !
 //
 // Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:2127-2484 (subroutine rtrn), nam.v4.2.11,
-// 83df4e13c1. Notice: NOAA/NCEP NAM, US government work (see NOTICE). Header block of the Fortran
+// 83df4e13c1. Notice: NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE (see NOTICE). Header block of the Fortran
 // file kept above as the notice.
 //
 // What it computes: clear and cloudy longwave fluxes and heating rates for one column, one g-point

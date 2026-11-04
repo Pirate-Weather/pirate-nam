@@ -14,7 +14,7 @@ Origins
 | NOAA/NCEP NAM source, ported   | namgpu/kernels/, namgpu/{dynamics,boundary,physics, | US Government work            |
 |                                | init,steps}/ (files citing a NAM source path)       | (public domain in the US)     |
 | NOAA NAM parm files            | parm/ (unmodified)                                  | US Government work            |
-| AER RRTMG (NCEP's NMMB copy)   | namgpu/kernels/phys_rrtm_lw_*, phys_rrtm_sw_*,      | AER notice below; NCEP        |
+| AER RRTMG (NCEP's NMMB copy)   | namgpu/kernels/phys_rrtm_lw_*, phys_rrtm_sw_*,      | BSD-3-Clause (AER); NCEP      |
 |                                | rrtm_sw_bands.cuh, namgpu/physics/rrtm/,            | modifications US Government   |
 |                                | namgpu/data/rrtm_*                                  | work                          |
 | ArWen (gpuwm) kernels, reused  | third_party/arwen/, namgpu/physics/{myj,jsfc,noah}/ | Apache-2.0                    |
@@ -46,10 +46,24 @@ permissible to state or imply endorsement by or affiliation with NOAA.
 RRTMG radiation (Atmospheric and Environmental Research, Inc.)
 ==========================================================================
 
-The longwave and shortwave radiation kernels and their k-distribution tables are derived from
-NCEP's NMMB copy of AER's RRTMG (Mlawer, Iacono, Clough; shortwave data adapted from J. Delamere,
-AER, and J.-J. Morcrette, ECMWF). This code is carried the way WRF carries AER radiation code.
-AER has released RRTMG_LW and RRTMG_SW under the BSD 3-Clause licence:
+The longwave and shortwave radiation code and its k-distribution tables are derived from NCEP's
+NMMB copy of AER's RRTMG (Mlawer, Iacono, Clough; shortwave data adapted from J. Delamere, AER, and
+J.-J. Morcrette, ECMWF). They ship under AER's BSD 3-Clause licence, the licence AER applies to
+RRTMG_LW and RRTMG_SW today:
+
+  Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+
+Files covered (each carries AER's copyright line and "BSD-3-Clause; see NOTICE" in its header;
+tools/licence_check.py holds the exact list):
+  - kernels: namgpu/kernels/phys_rrtm_lw_*.cu (26), namgpu/kernels/phys_rrtm_sw_*.cu (25),
+    namgpu/kernels/rrtm_sw_bands.cuh;
+  - Python wrappers: namgpu/physics/rrtm/phys_rrtm_lw_*.py, namgpu/physics/rrtm/phys_rrtm_sw_*.py,
+    namgpu/physics/rrtm/lw_core.py, sw_seam.py, rrtm_lw_ref.py;
+  - k-distribution and property tables (data, no header): namgpu/data/rrtm_lw/*.npz,
+    namgpu/data/rrtm_sw/*.npz and namgpu/data/rrtm_*.npz, extracted from NAM's radlw_datatb.f,
+    radlw_datatb_nmmb.f, radsw_datatb.f and radsw_datatb_nmmb.f.
+
+AER's licence text (github.com/AER-RC/RRTMG_LW and RRTMG_SW, LICENSE.md):
 
   Copyright (c) 2020, Atmospheric and Environmental Research
   All rights reserved.
@@ -74,10 +88,9 @@ AER has released RRTMG_LW and RRTMG_SW under the BSD 3-Clause licence:
   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
   WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-NCEP's NMMB copy (radlw_main_nmmb.f, radsw_main_nmmb.f) carries AER's earlier notice,
-"Copyright 2002-2007, Atmospheric & Environmental Research, Inc. (AER)". The AER notice in this
-section applies to every AER-derived file listed in the origins table, including those whose own
-header names only the NOAA/NCEP source. NCEP's modifications are US Government work.
+NCEP's NMMB copy (radlw_main_nmmb.f, radsw_main_nmmb.f) carries AER's earlier 2002-2007 notice;
+in this package it is replaced by the BSD 3-Clause terms above. NCEP's modifications are US
+Government work. The nam-gpu port of these files is Apache-2.0.
 
 ==========================================================================
 ArWen (Python package "gpuwm")

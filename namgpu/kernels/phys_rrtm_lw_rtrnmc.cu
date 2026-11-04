@@ -1,7 +1,11 @@
 // phys_rrtm_lw_rtrnmc.cu -- nam-gpu unit phys-rrtm-lw-rtrnmc: subroutine rtrnmc, the McICA
 // longwave radiative transfer (upward/downward fluxes, heating rates, clear and total sky).
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). Header of
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). Header of
 // phys/radlw_main_nmmb.f (lw-rrtm3 package, NCEP modifications of RRTM-LW from AER; nam.v4.2.11,
 // 83df4e13c1), kept as the notice:
 //   lw-rrtm3 radiation package description. this package includes ncep's modifications of the

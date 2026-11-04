@@ -1,7 +1,11 @@
 // phys_rrtm_lw_taugb11.cu -- unit phys-rrtm-lw-taugb11: LW band 11 optical depths and Planck
 // fractions of the NMMB RRTM longwave, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone; see NOTICE).
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone; see NOTICE).
 //   The lw-rrtm3 package header of phys/radlw_main_nmmb.f is kept as the notice:
 //   "lw-rrtm3 radiation package description ... this package includes ncep modifications of the
 //    rrtm-lw radiation code from aer inc."

@@ -1,5 +1,9 @@
 // phys_rrtm_sw_spcvrtc.cu -- delta-Eddington / PIFM / discrete-ordinates two-stream layer solution
 // and column flux accumulation for the NMMB RRTM shortwave (spcvrtc + swflux), one g-point per launch.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
 // Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:2144-2964 (subroutine spcvrtc) and
 // phys/radsw_main_nmmb.f:2977-3102 (subroutine swflux), nam.v4.2.11, 83df4e13c1.

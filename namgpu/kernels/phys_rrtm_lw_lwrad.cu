@@ -1,13 +1,16 @@
 // phys_rrtm_lw_lwrad.cu -- LW driver per column (lwrad) of the NMMB RRTM LW package.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOAA notice: phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, US government work
+// NOAA notice: phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1), NOAA/NCEP NAM, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE
 // (no licence file; see NOTICE). The package header of radlw_main_nmmb.f is kept as the notice:
 //   "lw-rrtm3 radiation package description ... this package includes ncep modifications of the
 //    rrtm-lw radiation code from aer inc."
-// The AER copyright notice (Copyright 2002-2007, Atmospheric & Environmental Research, Inc.) is in the
-// source file radlw_main_nmmb.f itself, not in NOTICE. Its terms allow use and redistribution only as
-// long as the code is not sold. That is a licence limit: this code stays in the private tree and is
-// held out of any public export until the project lead rules on it (CLAUDE.md, licences and defaults).
+// RRTMG is AER's code (NAM's copy carries AER's 2002-2007 notice; AER now distributes RRTMG under
+// the BSD-3-Clause licence). This file ships under those BSD-3-Clause terms with AER's notice (the
+// header above and NOTICE).
 //
 // Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:352-1139 (subroutine lwrad, module
 // module_radlw_main_nmmb), statements of lwrad itself. The routines lwrad calls are separate units and

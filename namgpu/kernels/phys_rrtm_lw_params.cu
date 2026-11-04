@@ -1,6 +1,10 @@
 // phys_rrtm_lw_params.cu -- unit phys-rrtm-lw-params: LW control and band parameters, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). Module
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). Module
 //   header of phys/radlw_param_nmmb.f (nam.v4.2.11, 83df4e13c1), kept in the NAM clone; the file
 //   describes the rrtm1 LW package: module_radlw_cntr_para_nmmb and module_radlw_parameters_nmmb.
 // Ported to CUDA for nam-gpu from phys/radlw_param.f (module_radlw_parameters, used by radlw_main_nmmb.f)

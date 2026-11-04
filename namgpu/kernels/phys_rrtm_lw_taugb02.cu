@@ -1,6 +1,10 @@
 // phys_rrtm_lw_taugb02.cu -- unit phys-rrtm-lw-taugb02: band 2 of taumol, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA/NCEP NMMB source (US government work; no licence file in the NAM clone). The package
+// NOTICE: NOAA/NCEP NMMB source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE; no licence file in the NAM clone). The package
 // header block of phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1) is carried verbatim below as the
 // author notice (CONTRACT.md section 3).
 /*
@@ -98,11 +102,10 @@
 !                                                                          !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                          |
-!  Copyright 2002-2007, Atmospheric & Environmental Research, Inc. (AER).  |
-!  This software may be used, copied, or redistributed as long as it is    |
-!  not sold and this copyright notice is reproduced on each copy made.     |
-!  This model is provided as is without any express or implied warranties. |
-!                       (http://www.rtweb.aer.com/)                        |
+!  Copyright (c) 2002-2020, Atmospheric and Environmental                  |
+!  Research, Inc. (AER). RRTMG is distributed by AER under the             |
+!  BSD-3-Clause licence; the full text is in NOTICE. (This                 |
+!  replaces the 2002-2007 terms in NAM's copy.)                            |
 !                                                                          |
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                          !

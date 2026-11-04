@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol23: band 23 (8050-12850 cm-1) gas and Rayleigh optical depths, NMMB RRTM shortwave.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:4206-4272 (SUBROUTINE taumol23, internal
-to taumol). NOAA US government work; the sw-rrtm3 package notice is kept in the kernel file
+to taumol). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the sw-rrtm3 package notice is kept in the kernel file
 (namgpu/kernels/phys_rrtm_sw_taumol23.cu). Kernel: rrtm_sw_taumol23, one thread per column, one launch per
 column chunk. The k-table is module_radsw_kgb23_nmmb (phys/radsw_datatb_nmmb.f:15195-15436), extracted by
 tools/extract_rrtm_sw_kgb23.py to namgpu/data/rrtm_sw/kgb23.npz and uploaded once by load_tables().

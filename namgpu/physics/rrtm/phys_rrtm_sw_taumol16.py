@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol16: TAUMOL16, SW band 16 (2600-3250 cm-1) optical depths and Rayleigh scattering.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:3384-3490 (internal subroutine
-taumol16 of taumol). NOAA US government work; the sw-rrtm3 header of that file is kept as the notice in
+taumol16 of taumol). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the sw-rrtm3 header of that file is kept as the notice in
 the kernel file.
 Kernel: namgpu/kernels/phys_rrtm_sw_taumol16.cu (rrtm_sw_taumol16, one thread per column, one launch).
 

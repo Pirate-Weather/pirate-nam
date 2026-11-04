@@ -1,6 +1,10 @@
 // phys_rrtm_sw_taumol17.cu -- unit phys-rrtm-sw-taumol17: NMMB RRTM shortwave band 17 optical depths, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). The sw-rrtm3
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The sw-rrtm3
 //   header of phys/radsw_main_nmmb.f and the module headers of phys/radsw_datatb.f and
 //   phys/radsw_datatb_nmmb.f (module_radsw_kgb17, module_radsw_kgb17_nmmb) are kept in the NAM clone and
 //   apply to this port. Band-17 k-tables: namgpu/data/rrtm_sw/kgb17.npz (extracted by

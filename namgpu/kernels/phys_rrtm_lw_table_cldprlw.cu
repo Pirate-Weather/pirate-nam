@@ -1,6 +1,10 @@
 // phys_rrtm_lw_table_cldprlw.cu -- unit phys-rrtm-lw-table-cldprlw, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone), module
+// NOTICE: NOAA/NCEP NMMB source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone), module
 //   MODULE_RADLW_CLDPRLW_NMMB (radlw_datatb_nmmb.f, nam.v4.2.11). Author header retained in the NAM clone.
 // Ported to CUDA for nam-gpu from phys/radlw_datatb_nmmb.f:733-1144 (nam.v4.2.11, 83df4e13c1).
 //

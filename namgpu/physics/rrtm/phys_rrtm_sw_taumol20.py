@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol20: TAUMOL20, SW band 20 (5150-6150 cm-1) optical depths, Rayleigh optical depths
 and the band-20 top-of-atmosphere solar source.
 
@@ -5,7 +9,7 @@ NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:3852-3943 (SUB
 The band-20 index setup is the driver WHERE blocks at radsw_main_nmmb.f:3250-3257; the band-20 solar
 source is the taumol driver case block at radsw_main_nmmb.f:3267-3273 (case (16, 20, 23, 25, 26, 29),
 sfluxzen(:, ns+j) = sfluxref01(j, 1, ibd), ns = NS20 = 34).
-NOAA US government work; the sw-rrtm3 header of that file is kept as the notice in the kernel file.
+NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the sw-rrtm3 header of that file is kept as the notice in the kernel file.
 Kernel: namgpu/kernels/phys_rrtm_sw_taumol20.cu (rrtm_sw_taumol20, one thread per (i, j) column,
 one launch for the full domain, one launch per chunk on the driver path).
 

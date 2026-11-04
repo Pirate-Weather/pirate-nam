@@ -1,9 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-taugb02: NMMB RRTM longwave band 2 optical depths and Planck fractions.
 
 Ported from phys/radlw_main_nmmb.f:3716-3788 (NAM nam.v4.2.11, 83df4e13c1), SUBROUTINE taugb02.
 Kernel: namgpu/kernels/phys_rrtm_lw_taugb02.cu (rrtm_lw_taugb02, one thread per column, one launch).
 
-NOTICE: NOAA/NCEP NMMB source (US government work; no licence file in the NAM clone). The package
+NOTICE: NOAA/NCEP NMMB source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE; no licence file in the NAM clone). The package
 header block of phys/radlw_main_nmmb.f (nam.v4.2.11, 83df4e13c1) is carried verbatim below.
 
 Which k-table: taugb02 does `use module_radlw_kgb02` (radlw_main_nmmb.f:3723), which is the module in
@@ -134,11 +138,10 @@ from namgpu import kernels
 # !                                                                          !
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !                                                                          |
-# !  Copyright 2002-2007, Atmospheric & Environmental Research, Inc. (AER).  |
-# !  This software may be used, copied, or redistributed as long as it is    |
-# !  not sold and this copyright notice is reproduced on each copy made.     |
-# !  This model is provided as is without any express or implied warranties. |
-# !                       (http://www.rtweb.aer.com/)                        |
+# !  Copyright (c) 2002-2020, Atmospheric and Environmental                  |
+# !  Research, Inc. (AER). RRTMG is distributed by AER under the             |
+# !  BSD-3-Clause licence; the full text is in NOTICE. (This                 |
+# !  replaces the 2002-2007 terms in NAM's copy.)                            |
 # !                                                                          |
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !                                                                          !

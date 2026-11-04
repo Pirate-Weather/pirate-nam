@@ -1,7 +1,11 @@
 // phys_rrtm_sw_rswinit.cu -- unit phys-rrtm-sw-rswinit: RSWINIT, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
 // NOTICE: NOAA/NCEP NAM source file sorc/nam_nems_nmmb.fd/src/atmos/phys/radsw_main_nmmb.f (nam.v4.2.11,
-//   83df4e13c1), US government work, no licence file in the NAM clone. Its package header (Fortran
+//   83df4e13c1), NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone. Its package header (Fortran
 //   lines 1-258, including the AER copyright notice) is reproduced verbatim below. Subroutine rswinit
 //   is at lines 1244-1395.
 // !!!!!  ==============================================================  !!!!!
@@ -109,11 +113,10 @@
 // !                                                                          !
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !                                                                          !
-// !  Copyright 2002-2007, Atmospheric & Environmental Research, Inc. (AER).  !
-// !  This software may be used, copied, or redistributed as long as it is    !
-// !  not sold and this copyright notice is reproduced on each copy made.     !
-// !  This model is provided as is without any express or implied warranties. !
-// !                       (http://www.rtweb.aer.com/)                        !
+// !  Copyright (c) 2002-2020, Atmospheric and Environmental                  !
+// !  Research, Inc. (AER). RRTMG is distributed by AER under the             !
+// !  BSD-3-Clause licence; the full text is in NOTICE. (This                 !
+// !  replaces the 2002-2007 terms in NAM's copy.)                            !
 // !                                                                          !
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !                                                                          !

@@ -1,6 +1,10 @@
 // phys_rrtm_lw_taugb06.cu -- unit phys-rrtm-lw-taugb06: RRTM LW band 6 optical depths, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). The
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The
 //   lw-rrtm3 header of phys/radlw_main_nmmb.f and the module header of phys/radlw_datatb.f
 //   (module_radlw_kgb06) are kept in the NAM clone and apply to this port.
 // Ported to CUDA for nam-gpu from phys/radlw_main_nmmb.f:4602-4683 (subroutine taugb06, internal to

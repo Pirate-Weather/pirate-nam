@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-taumol17: NMMB RRTM shortwave band 17 optical depths (taumol group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:3495-3627, subroutine taumol17 (internal
-to taumol). NOAA US government work; the header is kept in the kernel file
+to taumol). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the header is kept in the kernel file
 (namgpu/kernels/phys_rrtm_sw_taumol17.cu). Kernel: phys_rrtm_sw_taumol17, one thread per column, one launch.
 
 Band 17 (3250-4000 cm-1): H2O and CO2 binary-species interpolation below the tropopause (laytrop) and above

@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-table-cldprlw: NMMB RRTM longwave cloud-property coefficient tables.
 
 Source: NAM nam.v4.2.11 (83df4e13c1) phys/radlw_datatb_nmmb.f:733-1144, module_radlw_cldprlw_nmmb
-(NOAA/NCEP, US government work). The module is DATA statements only, so this unit has no kernel
+(NOAA/NCEP, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE). The module is DATA statements only, so this unit has no kernel
 and no per-step work. The tables live in namgpu/data/rrtm_lw/cldprlw.npz, extracted by
 tools/extract_rrtm_lw_cldprlw_nmmb.py, and are uploaded once to ctx.tables at init.
 

@@ -1,4 +1,8 @@
 // phys_rrtm_sw_taumol18.cu -- NMMB RRTM shortwave band 18 optical depths and Rayleigh depth (taumol18).
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
 // Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:3632-3738 (subroutine taumol18, nam.v4.2.11,
 // 83df4e13c1). Notice (source header of radsw_main_nmmb.f): sw-rrtm3 radiation package, NCEP modifications

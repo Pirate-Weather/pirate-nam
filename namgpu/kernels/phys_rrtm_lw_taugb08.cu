@@ -1,7 +1,11 @@
 // phys_rrtm_lw_taugb08.cu -- unit phys-rrtm-lw-taugb08: LW band 8 optical depths and Planck
 // fractions, nam-gpu.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NOAA / NCEP NAM source (US government work, no licence file in the NAM clone). The
+// NOTICE: NOAA / NCEP NAM source (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file in the NAM clone). The
 //   routine is taugb08 of the NMMB rrtm-lw package (phys/radlw_main_nmmb.f, nam.v4.2.11, 83df4e13c1).
 //   Its k-tables are module_radlw_kgb08 (phys/radlw_datatb.f:24545-25324), the module the routine
 //   actually uses (radlw_main_nmmb.f:4954); see namgpu/data/rrtm_lw/kgb08.npz.

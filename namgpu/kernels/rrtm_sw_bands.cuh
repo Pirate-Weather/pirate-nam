@@ -1,4 +1,8 @@
 // rrtm_sw_bands.cuh -- NMMB RRTM shortwave band tables shared by the taumol units (nam-gpu).
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
 // Ported to CUDA for nam-gpu from phys/radsw_main_nmmb.f:306-309 (nspa, nspb, data statements),
 // phys/radsw_datatb_nmmb.f:1101-1121 (strrat, specwt, layreffr, ix1, ix2, ibx, scalekur) and

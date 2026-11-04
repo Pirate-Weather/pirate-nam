@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-rtrn: rtrn, the clear and cloudy RRTM longwave transfer (RRTM group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_main_nmmb.f:2127-2484 (subroutine rtrn).
-NOAA US government work; the NOAA header of radlw_main_nmmb.f is kept as the notice in the kernel file.
+NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the NOAA header of radlw_main_nmmb.f is kept as the notice in the kernel file.
 
 Kernel: namgpu/kernels/phys_rrtm_lw_rtrn.cu, kernel phys_rrtm_lw_rtrn. One launch, one thread per
 (i, j) column (kernels.grid_cols). Band order, layer mapping and array layouts are documented in the

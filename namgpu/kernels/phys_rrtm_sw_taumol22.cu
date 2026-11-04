@@ -1,8 +1,12 @@
 // phys_rrtm_sw_taumol22.cu -- taumol22: SW band 22 (7700-8050 cm-1) optical depths and the Rayleigh
 // optical depth, NMMB RRTM shortwave (physics-rrtm group). Chunk path only (driver seam run_chunk).
 // One thread per day column of the chunk; the layer loop k = 1..NLAY runs inside the thread.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NAM source file phys/radsw_main_nmmb.f (NCEP/EMC, US Government work, no licence file; see
+// NOTICE: NAM source file phys/radsw_main_nmmb.f (NCEP/EMC, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file; see
 // NOTICE). The sw-rrtm3 package header of that file is kept as the notice:
 // !!!!!  sw-rrtm3 radiation package description                                              !!!!!
 // !   this package includes ncep's modifications of the rrtm-sw radiation code from aer inc.   !

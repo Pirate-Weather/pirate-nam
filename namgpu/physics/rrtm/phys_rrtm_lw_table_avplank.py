@@ -1,8 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-table-avplank: RRTM LW Planck-flux table (module_radlw_avplank, radlw_datatb.f).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radlw_datatb.f:58-728 (module_radlw_avplank, the module radlw_main_nmmb.f
 links): the DATA statements that
-set totplnk(NPLNK=181, NBANDS=16). NOAA US government work; the NOAA header of radlw_datatb.f
+set totplnk(NPLNK=181, NBANDS=16). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the NOAA header of radlw_datatb.f
 is kept as the notice. module_radlw_avplank_nmmb (radlw_datatb_nmmb.f:57-727)
 has different values and is not referenced by radlw_main_nmmb.f, so it is not used.
 

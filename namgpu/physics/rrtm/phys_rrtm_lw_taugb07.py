@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-lw-taugb07: LW band 7 optical depths and Planck fractions of the NMMB RRTM longwave.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1) phys/radlw_main_nmmb.f:4687-4942, subroutine taugb07.
-The header block of that file is the notice in namgpu/kernels/phys_rrtm_lw_taugb07.cu (US government work).
+The header block of that file is the notice in namgpu/kernels/phys_rrtm_lw_taugb07.cu (NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE).
 
 Kernel: namgpu/kernels/phys_rrtm_lw_taugb07.cu, phys_rrtm_lw_taugb07. One thread per column,
 the layer loops inside the thread. One launch per column chunk on ctx.stream, no host sync, no print.

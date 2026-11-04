@@ -1,8 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-params: SW control and band parameters of the NMMB RRTM shortwave (RRTM group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_param_nmmb.f:51-189: module_radsw_cntr_para_nmmb
 (six control flags) and module_radsw_parameters_nmmb (band and g-point counts, begin indices, band
-wavenumber limits for bands 16..29). NOAA US government work; the header is kept in the kernel file
+wavenumber limits for bands 16..29). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the header is kept in the kernel file
 (namgpu/kernels/phys_rrtm_sw_params.cu). Kernel: phys_rrtm_sw_params, one thread, one launch.
 
 Consumers: phys-rrtm-sw-rswinit, phys-rrtm-sw-cldprop, phys-rrtm-sw-mcica-subcol, phys-rrtm-sw-setcoef,

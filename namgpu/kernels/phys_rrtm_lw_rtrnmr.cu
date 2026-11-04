@@ -1,6 +1,10 @@
 // phys_rrtm_lw_rtrnmr.cu -- rtrnmr: maximum-random overlap longwave flux and heating-rate transfer.
+// SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+// RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+// BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+// Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 //
-// NOTICE: NAM source file phys/radlw_main_nmmb.f (NCEP/EMC, US Government work, no licence file).
+// NOTICE: NAM source file phys/radlw_main_nmmb.f (NCEP/EMC, NCEP's modifications US Government work; RRTMG code AER, BSD-3-Clause, see NOTICE, no licence file).
 // The routine header (module_radlw_main_nmmb, rtrnmr) is kept as the notice:
 //
 //   subroutine rtrnmr ( semiss,delp,cldfrc,taucld,tautot,pklay,pklev,

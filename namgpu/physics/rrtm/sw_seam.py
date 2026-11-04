@@ -1,8 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """sw-seam: the scheme calls inside swrad (cldprop, setcoef, taumol, taumol16..29, spcvrtc) on one chunk of
 day columns, glued.
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:1003-1110 (the swrad call sequence),
-3107-3383 (taumol: sfluxzen and the band dispatch) and 3384-4767 (taumol16..29). NOAA US government work;
+3107-3383 (taumol: sfluxzen and the band dispatch) and 3384-4767 (taumol16..29). NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE);
 each unit's kernel keeps the NOAA/AER header as its notice. This module has no kernel of its own: it moves
 arrays between the swrad chunk scratch and the layouts the band units were written in.
 

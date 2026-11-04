@@ -1,7 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0 AND BSD-3-Clause
+# RRTMG radiation: Copyright (c) 2002-2020, Atmospheric and Environmental Research, Inc. (AER).
+# BSD-3-Clause; see NOTICE. NCEP's modifications (NMMB RRTM package, NAM nam.v4.2.11) are US
+# Government work (NOAA/NCEP/EMC). The nam-gpu port of this file is Apache-2.0.
 """phys-rrtm-sw-swflux: swflux, upward and downward SW fluxes at layer interfaces (RRTM group).
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/radsw_main_nmmb.f:2977-3102, subroutine swflux.
-NOAA US government work; the routine header is kept as the notice in the kernel file
+NCEP's modifications are US Government work, RRTMG code AER BSD-3-Clause (see NOTICE); the routine header is kept as the notice in the kernel file
 namgpu/kernels/phys_rrtm_sw_swflux.cu. Kernel: phys_rrtm_sw_swflux, one thread per column, one launch
 over the whole (IM, JM) grid. No host sync, no per-step allocation.
 
