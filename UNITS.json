@@ -1,0 +1,4244 @@
+{
+  "repo": "node-2:~/nam-gpu",
+  "fortran_root": "~/agent-scratch/nam-port/nam-gh/sorc/nam_nems_nmmb.fd/src/atmos (MatthewPyle-NOAA/NAM @ 83df4e13c115d197db67b972cb3befec8511291a, nam.v4.2.11)",
+  "contract": "CONTRACT.md",
+  "case": "cases/2025-03-14_12z",
+  "done_rule": "kernel compiles; wrapper runs once on a full-size random State without NaN/Inf; Fortran-to-CUDA diff review finds no missing term (CONTRACT.md section 6)",
+  "counts": {
+    "port": 212,
+    "skip": 42,
+    "new": 27,
+    "copy-arwen": 37,
+    "total": 318
+  },
+  "units": [
+    {
+      "id": "dyn-pgforce-geopot",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:51-248",
+      "purpose": "PGFORCE setup and vertical grand loops: geopotential FIM by upward recursion from FIS, APEL, DFI per level (one thread per column). In: T, Q, CW, PD, PINT, FIS -> fim_3d, apel_3d, dfi_3d.",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts",
+        "init-derive-state"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_pgforce_geopot",
+      "kernel": "namgpu/kernels/dyn_pgforce_geopot.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-pgforce-pgf",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:249-289",
+      "purpose": "Pressure-gradient force components behind H points (pcx, pcy, pcne, pcnw) with the nonhydrostatic correction. In: fim_3d, apel_3d, PINT, DWDT -> pgf scratch arrays.",
+      "mode": "port",
+      "deps": [
+        "dyn-pgforce-geopot"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_pgforce_pgf",
+      "kernel": "namgpu/kernels/dyn_pgforce_pgf.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-pgforce-divcor",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:290-451",
+      "purpose": "Divergence correction (Janjic 1974/1979) of the PGF with wpdar. In: pgf scratch (PGX/PGY/PGNE/PGNW_3D), wpdar (init-grid-consts), tile limits (drv-loop-limits) -> DIV.",
+      "mode": "port",
+      "deps": [
+        "dyn-pgforce-pgf",
+        "init-grid-consts",
+        "drv-loop-limits"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_pgforce_divcor",
+      "kernel": "namgpu/kernels/dyn_pgforce_divcor.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-pgforce-uvupdate",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:452-493",
+      "purpose": "PGF u/v tendency update: TCU, TCV += pressure-gradient terms from PGX/PGY/PGNE/PGNW (or TCU, TCV zeroed on a fresh first step). In: PGX_3D, PGY_3D, PGNE_3D, PGNW_3D, PD, DSG2, PDSG1, RDXV, RDYV -> TCU, TCV. Does not use cfc/bfc; U, V advance in dyn-updateuv.",
+      "mode": "port",
+      "deps": [
+        "dyn-pgforce-pgf",
+        "dyn-pgforce-divcor"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_pgforce_uvupdate",
+      "kernel": "namgpu/kernels/dyn_pgforce_uvupdate.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-dht",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:498-796",
+      "purpose": "Horizontal divergence and pressure advection term in the T equation: mass and pressure fluxes on H points, zero divergence on the regional boundary. In: U, V, PD, PINT -> DIV, RTOP, TDIV.",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts",
+        "init-derive-state"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_dht",
+      "kernel": "namgpu/kernels/dyn_dht.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-ddamp-extmode",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:801-999",
+      "purpose": "DDAMP setup and external-mode divergence (vertically integrated). In: DIV, PD, DSG2, PDSG1 -> external-mode divergence scratch.",
+      "mode": "port",
+      "deps": [
+        "dyn-dht"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_ddamp_extmode",
+      "kernel": "namgpu/kernels/dyn_ddamp_extmode.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-ddamp-damp",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1000-1040",
+      "purpose": "SKIP (ELSE branch of extmod, unreachable: extmod is .true. PARAMETER). Not in the step plan; kernel kept. Divergence damping of U, V is done by dyn-ddamp-extmode.",
+      "mode": "skip",
+      "deps": [
+        "dyn-ddamp-extmode"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_ddamp_damp",
+      "kernel": "namgpu/kernels/dyn_ddamp_damp.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-pdtsdt",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1045-1228",
+      "purpose": "Surface-pressure tendency PSDT and vertical mass flux PSGDT on interfaces, PD update, regional boundary conditions. In: DIV, PD, DSG2, PDSG1 -> PD, PDO, PSDT, PSGDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-dht"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_pdtsdt",
+      "kernel": "namgpu/kernels/dyn_pdtsdt.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-vert-t",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1233-1538",
+      "purpose": "ADV1 setup and Crank-Nicolson (uncentred w1/w2) vertical advection of T: forward sweep on rcmt/crt, back substitution, one thread per column. In: T, PSGDT, PD -> vertical T tendency.",
+      "mode": "port",
+      "deps": [
+        "dyn-pdtsdt"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_vert_t",
+      "kernel": "namgpu/kernels/dyn_adv1_vert_t.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-horiz-t",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1539-1570",
+      "purpose": "Temperature fluxes on H points and Adams-Bashforth horizontal advection of T (secadv, 2nd order). In: T, U, V, PD, TP -> T tendency, TP.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv1-vert-t"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_horiz_t",
+      "kernel": "namgpu/kernels/dyn_adv1_horiz_t.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-bndry-t",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1571-1705",
+      "purpose": "Regional branch: upstream advection of T along the southern, northern, western and eastern rows. In: T, U, V -> T tendency on boundary rows.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv1-horiz-t"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_bndry_t",
+      "kernel": "namgpu/kernels/dyn_adv1_bndry_t.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-vert-uv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1706-1837",
+      "purpose": "Crank-Nicolson vertical advection of U and V on V points (cmw), column sweeps. In: U, V, PSGDT -> vertical U/V tendencies.",
+      "mode": "port",
+      "deps": [
+        "dyn-pdtsdt"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_vert_uv",
+      "kernel": "namgpu/kernels/dyn_adv1_vert_uv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-coriolis",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1829-1866",
+      "purpose": "Grand vertical loop start: Adams-Bashforth extrapolation of U, V to U1D, V1D and UP, VP (Fortran 1829-1833, ported here because no unit did it), Coriolis and curvature tendency (f, curv), diagonally averaged fluxes on V points. In: U, V, UP, VP, PFX..PFNW -> U1D, V1D, UP, VP, TCU, TCV, flux scratch.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv1-vert-uv"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_coriolis",
+      "kernel": "namgpu/kernels/dyn_adv1_coriolis.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-horiz-uv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:1867-2021",
+      "purpose": "Momentum advection (2nd order since secadv=true; 4th-order branch kept) and advection of u1d/v1d with Adams-Bashforth. In: U, V, flux scratch, UP, VP -> U, V, UP, VP.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv1-coriolis"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_horiz_uv",
+      "kernel": "namgpu/kernels/dyn_adv1_horiz_uv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv1-bndry-uv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2022-2186",
+      "purpose": "Regional branch: upstream advection of momentum along the four lateral boundaries, final U, V, T update of ADV1. In: U, V, tendencies -> U, V, T.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv1-horiz-uv",
+        "dyn-adv1-bndry-t"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv1_bndry_uv",
+      "kernel": "namgpu/kernels/dyn_adv1_bndry_uv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-vtoa",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2191-2347",
+      "purpose": "Omega-alpha term (vertical advection/conversion) of the thermodynamic equation: OMGALF and TCT (+= toa) and the interface pressure PINT from PSDT, TDIV, DWDT, RTOP, SG2 and EF4T (int_state%EF4T, rescaled only on DFI steps). In: PSDT, TDIV, DWDT, RTOP, SG2, PINT -> OMGALF, TCT, PINT (T tendency applied by dyn-updatet).",
+      "mode": "port",
+      "deps": [
+        "dyn-dht",
+        "dyn-pdtsdt",
+        "dyn-pgforce-geopot"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_vtoa",
+      "kernel": "namgpu/kernels/dyn_vtoa.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-updates",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2353-2405",
+      "purpose": "Apply the tracer tendency to every tracer in kss..kse (q_tracer and tracers calls). In: TRACERS, TRACERS_TEND -> TRACERS, zeroed TRACERS_TEND.",
+      "mode": "port",
+      "deps": [
+        "dyn-mono-fix"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_updates",
+      "kernel": "namgpu/kernels/dyn_updates.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-updatet",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2410-2456",
+      "purpose": "Apply the T tendency (advection + omega-alpha). In: T, TCT -> T.",
+      "mode": "port",
+      "deps": [
+        "dyn-vtoa"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_updatet",
+      "kernel": "namgpu/kernels/dyn_updatet.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-updateuv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2461-2526",
+      "purpose": "Apply the U, V tendencies TCU, TCV. In: U, V, TCU, TCV -> U, V.",
+      "mode": "port",
+      "deps": [
+        "dyn-pgforce-uvupdate"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_updateuv",
+      "kernel": "namgpu/kernels/dyn_updateuv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-hdiff-coef",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2531-2833",
+      "purpose": "HDIFF setup and grand vertical loop: deformation and nonlinear Smagorinsky coefficients (smag2 0.4, 4x for Q and CW), boundary zeroing. In: U, V, T, Q, CW, Q2 -> diffusion coefficients.",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts",
+        "init-derive-state"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_hdiff_coef",
+      "kernel": "namgpu/kernels/dyn_hdiff_coef.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-hdiff-apply",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2834-2915",
+      "purpose": "Apply second-order horizontal diffusion contributions behind mass points to T, Q, CW, Q2, U, V. In: coefficients, fields -> T, Q, CW, Q2, U, V.",
+      "mode": "port",
+      "deps": [
+        "dyn-hdiff-coef"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_hdiff_apply",
+      "kernel": "namgpu/kernels/dyn_hdiff_apply.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdzdt-nonhydro",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:2920-3139",
+      "purpose": "CDZDT setup and nonhydrostatic equation: height Z of interfaces and local dz/dt from the mass field. In: T, Q, PINT, PD, FIS -> Z, W (local part).",
+      "mode": "port",
+      "deps": [
+        "dyn-pdtsdt"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdzdt_nonhydro",
+      "kernel": "namgpu/kernels/dyn_cdzdt_nonhydro.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdzdt-advect-z",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3140-3235",
+      "purpose": "Grand horizontal loop: mass fluxes on H points, horizontal advection of height, w=0 on the boundaries. In: Z, U, V, PD -> W.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdzdt-nonhydro"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdzdt_advect_z",
+      "kernel": "namgpu/kernels/dyn_cdzdt_advect_z.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdzdt-extmode",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3236-3273",
+      "purpose": "Take the external (barotropic) mode out of W. In: W, PD, DSG2 -> W.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdzdt-advect-z"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdzdt_extmode",
+      "kernel": "namgpu/kernels/dyn_cdzdt_extmode.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-boundary-smooth",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3278-3532",
+      "purpose": "CDWDT setup; no w diffusion in the backward DFI step; smoothing of w on H points along the boundaries. In: W, DWDT -> W.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdzdt-extmode"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_boundary_smooth",
+      "kernel": "namgpu/kernels/dyn_cdwdt_boundary_smooth.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-local-deriv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3533-3552",
+      "purpose": "Local time derivative of w on H points. In: W, W old -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-boundary-smooth"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_local_deriv",
+      "kernel": "namgpu/kernels/dyn_cdwdt_local_deriv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-diffusion",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3553-3592",
+      "purpose": "Lateral diffusion of w. In: W, coefficients -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-local-deriv",
+        "dyn-hdiff-coef"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_diffusion",
+      "kernel": "namgpu/kernels/dyn_cdwdt_diffusion.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-vert-adv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3593-3652",
+      "purpose": "Vertical advection of w (column). In: W, PSGDT -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-diffusion"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_vert_adv",
+      "kernel": "namgpu/kernels/dyn_cdwdt_vert_adv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-horiz-adv",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3653-3727",
+      "purpose": "Horizontal advection of w. In: W, U, V -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-vert-adv"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_horiz_adv",
+      "kernel": "namgpu/kernels/dyn_cdwdt_horiz_adv.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-extmode",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3728-3772",
+      "purpose": "Take the external mode out of dw/dt, cos^2 attenuation in the top 15 hPa. In: DWDT -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-horiz-adv"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_extmode",
+      "kernel": "namgpu/kernels/dyn_cdwdt_extmode.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-cdwdt-filter",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3773-3899",
+      "purpose": "Spatial filtering of DWDT, DWDT set to 1 on boundary H points. In: DWDT -> DWDT.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-extmode"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_cdwdt_filter",
+      "kernel": "namgpu/kernels/dyn_cdwdt_filter.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-vsound",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:3904-4234",
+      "purpose": "Implicit vertically propagating sound waves: one tridiagonal per column (b1, b2, b3, c0, chi), updates PINT, W, T; DWDT=1 on boundaries. In: PINT, W, DWDT, T, PD -> PINT, W, T.",
+      "mode": "port",
+      "deps": [
+        "dyn-cdwdt-filter"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_vsound",
+      "kernel": "namgpu/kernels/dyn_vsound.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv2-q2-mid",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:4238-4462",
+      "purpose": "ADV2 setup for a tracer group, interpolation of Q2 (2*TKE) from interfaces to midlayers, sqrt transform for positive definiteness. In: TRACERS, Q2 -> advected-variable scratch.",
+      "mode": "port",
+      "deps": [
+        "dyn-pdtsdt"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv2_q2_mid",
+      "kernel": "namgpu/kernels/dyn_adv2_q2_mid.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv2-vert",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:4463-4569",
+      "purpose": "Crank-Nicolson vertical advection of the tracer group (column sweeps). In: scratch, PSGDT -> tendencies.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv2-q2-mid"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv2_vert",
+      "kernel": "namgpu/kernels/dyn_adv2_vert.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv2-horiz",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:4570-4608",
+      "purpose": "Tracer fluxes on H points and horizontal advection of species. In: scratch, U, V, PD -> tendencies.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv2-vert"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv2_horiz",
+      "kernel": "namgpu/kernels/dyn_adv2_horiz.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-adv2-bndry",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:4609-4763",
+      "purpose": "Regional branch: upstream advection of species along the four boundaries. In: scratch, U, V -> tendencies.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv2-horiz"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_adv2_bndry",
+      "kernel": "namgpu/kernels/dyn_adv2_bndry.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-mono-fix",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:4768-5075",
+      "purpose": "MONO setup and per-species monotonisation (local min/max limiter, sum of positive and negative changes). In: tracer, tendency -> limited tendency, local sums.",
+      "mode": "port",
+      "deps": [
+        "dyn-adv2-bndry"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_mono_fix",
+      "kernel": "namgpu/kernels/dyn_mono_fix.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-mono-global-sum",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:5076-5203",
+      "purpose": "Global mass sums per species and the conservation rescale factor, as a device reduction (replaces MPI_Allreduce). In: local sums -> scale factors (device).",
+      "mode": "port",
+      "deps": [
+        "dyn-mono-fix"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_mono_global_sum",
+      "kernel": "namgpu/kernels/dyn_mono_global_sum.cu",
+      "status": "done"
+    },
+    {
+      "id": "dyn-mono-q2-back",
+      "group": "dynamics",
+      "fortran": "nmm/module_DYNAMICS_ROUTINES.F90:5204-5235",
+      "purpose": "Interpolate Q2 tendencies and Q2 from midlayers back to interfaces. In: scratch -> Q2.",
+      "mode": "port",
+      "deps": [
+        "dyn-mono-global-sum"
+      ],
+      "wrapper": "namgpu.dynamics.dyn_mono_q2_back",
+      "kernel": "namgpu/kernels/dyn_mono_q2_back.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-boundary-init",
+      "group": "boundary",
+      "fortran": "nmm/module_CONTROL.F90:1145-1774",
+      "purpose": "Boundary-zone strip copies of the parent edges (PD, T, Q, CW, U, V; S, N, W, E) into ctx.bc as keys SIDE_NAME with a [2, ...] slot axis (slot 0 = value). The lnsh/lnsv blending weights are applied in bnd-bocoh-blend and bnd-bocov-blend, not here. In: grid, state -> ctx.bc arrays.",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts"
+      ],
+      "wrapper": "namgpu.boundary.bnd_boundary_init",
+      "kernel": "namgpu/kernels/bnd_boundary_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-read-bc",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3579-3925",
+      "purpose": "When a new 3-h boundary interval starts: load the next GFS-derived boundary values and form the per-step tendencies (PDB, TB, QB, CWB, Q2B, UB, VB). In: ctx.bc intervals -> ctx.bc tendencies.",
+      "mode": "port",
+      "deps": [
+        "init-boco-tendencies",
+        "bnd-boundary-init"
+      ],
+      "wrapper": "namgpu.boundary.bnd_read_bc",
+      "kernel": "namgpu/kernels/bnd_read_bc.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-write-bc",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3928-5059",
+      "purpose": "Save boundary values from the model state at NTIMESTEP 0 (used so DFI starts from the analysis edges) and on demand. In: state -> ctx.bc.",
+      "mode": "port",
+      "deps": [
+        "bnd-boundary-init"
+      ],
+      "wrapper": "namgpu.boundary.bnd_write_bc",
+      "kernel": "namgpu/kernels/bnd_write_bc.cu",
+      "status": "todo"
+    },
+    {
+      "id": "bnd-bocoh-update",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:5064-5354",
+      "purpose": "BOCOH setup: advance the boundary working objects at H points on the S/N and W/E strips by their tendencies. In: ctx.bc -> ctx.bc values.",
+      "mode": "port",
+      "deps": [
+        "bnd-read-bc"
+      ],
+      "wrapper": "namgpu.boundary.bnd_bocoh_update",
+      "kernel": "namgpu/kernels/bnd_bocoh_update.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-bocoh-blend",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:5355-5962",
+      "purpose": "Write H-point boundary values into PD, T, Q, CW and PINT on each side and the corners, blended over the lnsh rows. In: ctx.bc, state -> PD, T, Q, CW, PINT.",
+      "mode": "port",
+      "deps": [
+        "bnd-bocoh-update"
+      ],
+      "wrapper": "namgpu.boundary.bnd_bocoh_blend",
+      "kernel": "namgpu/kernels/bnd_bocoh_blend.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-bocoh-smooth",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:5963-6387",
+      "purpose": "Optional spatial smoothing of the H boundary rows (S, N, W, E). In: state -> state.",
+      "mode": "port",
+      "deps": [
+        "bnd-bocoh-blend"
+      ],
+      "wrapper": "namgpu.boundary.bnd_bocoh_smooth",
+      "kernel": "namgpu/kernels/bnd_bocoh_smooth.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-bocov-update",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:6392-6589",
+      "purpose": "BOCOV setup: advance the V-point boundary working objects (S/N, W/E). In: ctx.bc -> ctx.bc.",
+      "mode": "port",
+      "deps": [
+        "bnd-read-bc"
+      ],
+      "wrapper": "namgpu.boundary.bnd_bocov_update",
+      "kernel": "namgpu/kernels/bnd_bocov_update.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-bocov-blend",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:6590-7010",
+      "purpose": "Write V-point boundary values into U, V blended over lnsv rows, corners. In: ctx.bc -> U, V.",
+      "mode": "port",
+      "deps": [
+        "bnd-bocov-update"
+      ],
+      "wrapper": "namgpu.boundary.bnd_bocov_blend",
+      "kernel": "namgpu/kernels/bnd_bocov_blend.cu",
+      "status": "done"
+    },
+    {
+      "id": "bnd-update-bc-tends",
+      "group": "boundary",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:8155-9298",
+      "purpose": "Nest boundary tendencies from the parent (I_AM_A_NEST branch).",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nest-only; the 12 km parent reads its boundaries (bnd-read-bc).",
+      "wrapper": "namgpu.boundary.bnd_update_bc_tends",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-save-bc-data",
+      "group": "boundary",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:9304-9930",
+      "purpose": "Boundary data saved into restart files.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: restart writing only; this port writes history, not NMMB restarts.",
+      "wrapper": "namgpu.boundary.bnd_save_bc_data",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-build-bc-bundle",
+      "group": "boundary",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:7270-8149",
+      "purpose": "ESMF bundle of boundary arrays.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: ESMF framework plumbing, replaced by ctx.bc.",
+      "wrapper": "namgpu.boundary.bnd_build_bc_bundle",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-boundary-data-to-domain",
+      "group": "boundary",
+      "fortran": "nmm/module_NMM_GRID_COMP.F90:5565-6062",
+      "purpose": "Coupler hand-off of nest boundary data.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: ESMF parent-child coupler, nests out of the parent run.",
+      "wrapper": "namgpu.boundary.bnd_boundary_data_to_domain",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-prefft",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:72-1034",
+      "purpose": "Global polar operator PREFFT.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_prefft",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-fftfhn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:1040-1336",
+      "purpose": "Global polar operator FFTFHN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_fftfhn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-fftfwn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:1342-1515",
+      "purpose": "Global polar operator FFTFWN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_fftfwn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-fftfuvn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:1521-1834",
+      "purpose": "Global polar operator FFTFUVN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_fftfuvn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-fftpack",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:1858-2862",
+      "purpose": "Global polar operator FFTPACK.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_fftpack",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-presmud",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:2868-2907",
+      "purpose": "Global polar operator PRESMUD.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_presmud",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-poavhn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:2913-3174",
+      "purpose": "Global polar operator POAVHN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_poavhn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-swaphn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3182-3290",
+      "purpose": "Global polar operator SWAPHN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_swaphn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-polehn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3298-3372",
+      "purpose": "Global polar operator POLEHN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_polehn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-swapwn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3380-3484",
+      "purpose": "Global polar operator SWAPWN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_swapwn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-polewn",
+      "group": "boundary",
+      "fortran": "nmm/module_FLTBNDS.F90:3492-3571",
+      "purpose": "Global polar operator POLEWN.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: global-only polar code, nam_configfile global: false (regional parent).",
+      "wrapper": "namgpu.boundary.bnd_polewn",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-halo-exchange",
+      "group": "boundary",
+      "fortran": "nmm/module_EXCHANGE.F90:1-4572",
+      "purpose": "MPI halo exchanges (12 signatures).",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: halo-free single-card layout (CONTRACT.md section 1).",
+      "wrapper": "namgpu.boundary.bnd_halo_exchange",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-nesting",
+      "group": "boundary",
+      "fortran": "nmm/module_NESTING.F90:1-13176",
+      "purpose": "Nest setup and interpolation.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: one-way nests are not part of the 12 km parent run.",
+      "wrapper": "namgpu.boundary.bnd_nesting",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "bnd-parent-child-cpl",
+      "group": "boundary",
+      "fortran": "nmm/module_PARENT_CHILD_CPL_COMP.F90:1-24839",
+      "purpose": "ESMF parent-child coupler.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: ESMF coupler; no nests in this run.",
+      "wrapper": "namgpu.boundary.bnd_parent_child_cpl",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "drv-time-loop",
+      "group": "driver",
+      "fortran": "nmm/module_NMM_INTEGRATE.F90:79-1666",
+      "purpose": "Time loop: forecast clock, step counter, history cadence (post-advance count, 0 h file before the first advance), TDFI call on its own clock. NO kernel: the loop does no device arithmetic. Not ported: restart read/write (NMM_INTEGRATE 1682-1694, 1865-1875, 816-827; refused by name), TIMESERIES_RUN (844-861, 1140-1147; no timeseries points in the 12 km case, not verified against the case config), CLOCKTIME print and ESMF alarm checks (no numerical effect; host-only, skipped).",
+      "mode": "new",
+      "deps": [
+        "drv-step-plan"
+      ],
+      "wrapper": "namgpu.steps.drv_time_loop",
+      "kernel": null,
+      "status": "partial"
+    },
+    {
+      "id": "drv-step-plan",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:2453-7168",
+      "purpose": "SOLVER_RUN call order and cadences as data (driver.py FIRST_STEP/DYNAMICS/PHYSICS lists); checks every unit exists. In: UNITS.json -> step plan.",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_step_plan",
+      "kernel": "namgpu/kernels/drv_step_plan.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-loop-limits",
+      "group": "driver",
+      "fortran": "nmm/module_DM_PARALLEL.F90:1941-1969",
+      "purpose": "looplimits and the its_b1/ite_h2 style limits as full-domain index ranges in nmmb_common.cuh macros. In: IM, JM -> limit constants.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_loop_limits",
+      "kernel": "namgpu/kernels/drv_loop_limits.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-consts",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:123-345",
+      "purpose": "CONSTS: derived dynamics constants (dt factors, smag, codamp, wcor scalings) into ctx. In: config, grid -> ctx.tables['consts'].",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts"
+      ],
+      "wrapper": "namgpu.steps.drv_consts",
+      "kernel": "namgpu/kernels/drv_consts.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-exptbl",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:1780-1820",
+      "purpose": "EXPTBL exponential look-up table. In: - -> table.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_exptbl",
+      "kernel": "namgpu/kernels/drv_exptbl.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-tablep",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:1868-1964",
+      "purpose": "TABLEP pressure/theta table for moist processes. In: - -> table.",
+      "mode": "port",
+      "deps": [
+        "drv-spline"
+      ],
+      "wrapper": "namgpu.steps.drv_tablep",
+      "kernel": "namgpu/kernels/drv_tablep.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-tablet",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:1970-2068",
+      "purpose": "TABLET temperature table. In: - -> table.",
+      "mode": "port",
+      "deps": [
+        "drv-spline"
+      ],
+      "wrapper": "namgpu.steps.drv_tablet",
+      "kernel": "namgpu/kernels/drv_tablet.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-spline",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:2074-2188",
+      "purpose": "Cubic spline used to build the tables (host, init only).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_spline",
+      "kernel": "namgpu/kernels/drv_spline.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-psitbl",
+      "group": "driver",
+      "fortran": "nmm/module_CONTROL.F90:2189-2300",
+      "purpose": "PSITBL stability-function table. In: - -> table.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_psitbl",
+      "kernel": "namgpu/kernels/drv_psitbl.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-tracer-index",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:263-2447",
+      "purpose": "Tracer slots of TRACERS (INDX_Q, INDX_CW, INDX_Q2, INDX_O3 ...) as SOLVER_INITIALIZE sets them for NUM_TRACERS_MET=3 (Fortran 943; configfile num_tracers_met=4 is overridden). In: config -> ctx.tables['indx'].",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_tracer_index",
+      "kernel": "namgpu/kernels/drv_tracer_index.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-update-water",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:11069-11530",
+      "purpose": "UPDATE_WATER: total condensate CW and F_ICE/F_RAIN/F_RIMEF <-> QC, QR, QS (spec_adv false). In: CW, F_*, T -> QC, QR, QS, CW.",
+      "mode": "port",
+      "deps": [
+        "drv-tracer-index"
+      ],
+      "wrapper": "namgpu.steps.drv_update_water",
+      "kernel": "namgpu/kernels/drv_update_water.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-calc-rh-radar-dfi",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:11537-11590",
+      "purpose": "RH hold for radar DFI.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: radar_init 0 (no GSI radar heating in the free forecast).",
+      "wrapper": "namgpu.steps.drv_calc_rh_radar_dfi",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "drv-cltend",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:11597-11681",
+      "purpose": "CLTEND: spread the microphysics/convection temperature change over NPRECIP steps (Told, Tadj). In: T, Told, Tadj -> T.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_cltend",
+      "kernel": "namgpu/kernels/drv_cltend.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-rime-factor-update",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:11688-11771",
+      "purpose": "RIME_FACTOR_UPDATE after species advection. In: F_RIMEF, QS -> F_RIMEF.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_rime_factor_update",
+      "kernel": "namgpu/kernels/drv_rime_factor_update.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-tqadjust",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:11777-12113",
+      "purpose": "TQADJUST: consistency of T, Q, CW and fractions after physics. In: T, Q, QC, CW, F_* -> same.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_tqadjust",
+      "kernel": "namgpu/kernels/drv_tqadjust.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-rdtemp",
+      "group": "driver",
+      "fortran": "phys/module_RA_GFDL.F90:116-233",
+      "purpose": "RDTEMP every step: apply RLWTT + RSWTT to T with the zenith-angle scaling of SW between radiation calls. In: RLWTT, RSWTT, CZMEAN, GLAT/GLON, time -> T.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-coszmn",
+        "phys-rrtm-sol-update"
+      ],
+      "wrapper": "namgpu.steps.drv_rdtemp",
+      "kernel": "namgpu/kernels/drv_rdtemp.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-bucket-reset",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:5367-5470,6348-6384",
+      "purpose": "Accumulator resets by NCLOD, NRDLW, NRDSW, NSRFC, NPREC (bucket hours from the config). In: counters -> accumulators.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_bucket_reset",
+      "kernel": "namgpu/kernels/drv_bucket_reset.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-h-to-v",
+      "group": "driver",
+      "fortran": "nmm/module_H_TO_V.F90:42-122",
+      "purpose": "H_TO_V_2D/3D: average H-point fields to V points.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_h_to_v",
+      "kernel": "namgpu/kernels/drv_h_to_v.cu",
+      "status": "todo"
+    },
+    {
+      "id": "drv-h-to-v-tend",
+      "group": "driver",
+      "fortran": "nmm/module_H_TO_V.F90:128-224",
+      "purpose": "H_TO_V_TEND_2D/3D: average DUDT/DVDT from H to V points and apply them to U, V over NPHS. In: DUDT, DVDT -> U, V.",
+      "mode": "port",
+      "deps": [
+        "drv-h-to-v"
+      ],
+      "wrapper": "namgpu.steps.drv_h_to_v_tend",
+      "kernel": "namgpu/kernels/drv_h_to_v_tend.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-tdfi-driver",
+      "group": "driver",
+      "fortran": "nmm/module_NMM_GRID_COMP.F90:3624-5418",
+      "purpose": "RUN_DIGITAL_FILTER_NMM, TDFI branch (filter_method 3): backward 600 s then forward 600 s at filt_dt 8 s, state save/restore, filtered state. In: state -> filtered state.",
+      "mode": "port",
+      "deps": [
+        "drv-dfi-dyn-init",
+        "drv-dfi-dyn-sum",
+        "drv-dfi-dyn-average",
+        "drv-dfi-phy-save",
+        "drv-dfi-phy-restore",
+        "drv-dfi-dolph",
+        "drv-dfi-filt-vars",
+        "drv-step-plan"
+      ],
+      "wrapper": "namgpu.steps.drv_dfi_tdfi_driver",
+      "kernel": "namgpu/kernels/drv_dfi_tdfi_driver.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-dyn-init",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:46-203",
+      "purpose": "DIGITAL_FILTER_DYN_INIT: zero the filter sums. In: - -> sums.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_dfi_dyn_init",
+      "kernel": "namgpu/kernels/drv_dfi_dyn_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-dyn-sum",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:208-383",
+      "purpose": "DIGITAL_FILTER_DYN_SUM: add the weighted state each step.",
+      "mode": "port",
+      "deps": [
+        "drv-dfi-dyn-init"
+      ],
+      "wrapper": "namgpu.steps.drv_dfi_dyn_sum",
+      "kernel": "namgpu/kernels/drv_dfi_dyn_sum.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-dyn-average",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:388-646",
+      "purpose": "DIGITAL_FILTER_DYN_AVERAGE: filtered state from sums.",
+      "mode": "port",
+      "deps": [
+        "drv-dfi-dyn-sum"
+      ],
+      "wrapper": "namgpu.steps.drv_dfi_dyn_average",
+      "kernel": "namgpu/kernels/drv_dfi_dyn_average.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-phy-init",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:650-736",
+      "purpose": "DIGITAL_FILTER_PHY_INIT.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_dfi_phy_init",
+      "kernel": "namgpu/kernels/drv_dfi_phy_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-phy-save",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:741-824",
+      "purpose": "Save physics state (soil, CW etc. 'R' variables) before DFI.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_dfi_phy_save",
+      "kernel": "namgpu/kernels/drv_dfi_phy_save.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-phy-restore",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:829-921",
+      "purpose": "Restore the saved physics state after DFI.",
+      "mode": "port",
+      "deps": [
+        "drv-dfi-phy-save"
+      ],
+      "wrapper": "namgpu.steps.drv_dfi_phy_restore",
+      "kernel": "namgpu/kernels/drv_dfi_phy_restore.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-dolph",
+      "group": "driver",
+      "fortran": "nmm/module_DIGITAL_FILTER_NMM.F90:929-1039",
+      "purpose": "DOLPH + CHEBY: Dolph-Chebyshev filter weights. In: window -> weights.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_dfi_dolph",
+      "kernel": "namgpu/kernels/drv_dfi_dolph.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-dfi-filt-vars",
+      "group": "driver",
+      "fortran": "parm/nam_filt_vars_norad.txt",
+      "purpose": "Read the filter/restore table (F/R/B per variable) into the DFI variable lists.",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_dfi_filt_vars",
+      "kernel": "namgpu/kernels/drv_dfi_filt_vars.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-physics-initialize",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:9936-11062",
+      "purpose": "PHYSICS_INITIALIZE orchestration for the selected schemes (rad_initialize_nmmb, RRTM_INIT, JSFC_INIT, MYJPBL_INIT, NOAH_LSM_INIT, BMJ_INIT, FERRIER_INIT_HR, GWD_init).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-init",
+        "phys-jsfc-init",
+        "phys-myj-init",
+        "phys-noah-init",
+        "phys-bmj-init",
+        "phys-fer-init",
+        "phys-gwd-init"
+      ],
+      "wrapper": "namgpu.steps.drv_physics_initialize",
+      "kernel": "namgpu/kernels/drv_physics_initialize.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-timing-receipt",
+      "group": "driver",
+      "fortran": "-",
+      "purpose": "Per-stage wall-clock stamps (no added syncs) into the run receipt.",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_timing_receipt",
+      "kernel": "namgpu/kernels/drv_timing_receipt.cu",
+      "status": "todo"
+    },
+    {
+      "id": "drv-gpu-lease",
+      "group": "driver",
+      "fortran": "-",
+      "purpose": "Take and release the node-2 pool lease (OWNER line) around a run.",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.steps.drv_gpu_lease",
+      "kernel": "namgpu/kernels/drv_gpu_lease.cu",
+      "status": "done"
+    },
+    {
+      "id": "drv-moving-domain",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:3053-3125",
+      "purpose": "Moving-domain tracker hooks and SET_DOMAIN_SPECS.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: my_domain_moves false, ntrack 0.",
+      "wrapper": "namgpu.steps.drv_moving_domain",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "drv-timeseries",
+      "group": "driver",
+      "fortran": "nmm/module_TIMESERIES.F90:1-612",
+      "purpose": "Point time series output.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: not part of the parent history; soundings come from history files.",
+      "wrapper": "namgpu.steps.drv_timeseries",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "drv-gfs-physics",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:6077-7000",
+      "purpose": "GFS physics package branch (gbphys, grrad_gfs).",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile gfs: false.",
+      "wrapper": "namgpu.steps.drv_gfs_physics",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "init-fetch-case",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Fetch the case from NODD (NAM native B-grid analysis, NAM 218 referee, GFS 0.25 boundaries, MRMS). In: cycle -> cases/<case>/raw.",
+      "mode": "new",
+      "deps": [],
+      "wrapper": "namgpu.init.init_fetch_case",
+      "kernel": "",
+      "status": "done"
+    },
+    {
+      "id": "init-grib2-decode",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "GRIB2 decode to device arrays through the gpuwm Rust bridges (grib2_inventory/grib2_dump), incl. GDT 3.32769 (rotated B grid) and GFS complex packing. In: grib2 -> arrays.",
+      "mode": "new",
+      "deps": [
+        "init-fetch-case"
+      ],
+      "wrapper": "namgpu.init.init_grib2_decode",
+      "kernel": "namgpu/kernels/init_grib2_decode.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-grid-geo",
+      "group": "init",
+      "fortran": "nmm/module_CONTROL.F90:351-1139",
+      "purpose": "Rotated lat-lon geometry (GLAT/GLON of H and V points) checked against NLAT/ELON of the analysis; fixes grid.rotated_to_geographic if they differ. In: config -> grid lat/lon.",
+      "mode": "port",
+      "deps": [
+        "init-grib2-decode"
+      ],
+      "wrapper": "namgpu.init.init_grid_geo",
+      "kernel": "namgpu/kernels/init_grid_geo.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-grid-consts",
+      "group": "init",
+      "fortran": "nmm/module_CONTROL.F90:351-1139",
+      "purpose": "GRID_CONSTS in full: dxh, dxv, dyh, wpdar, fcp, fdiv, fad, fah, ddmpu, ddmpv, hdac*, curv, f row arrays on device. In: grid, config -> ctx.tables['grid'].",
+      "mode": "port",
+      "deps": [
+        "init-grid-geo"
+      ],
+      "wrapper": "namgpu.init.init_grid_consts",
+      "kernel": "namgpu/kernels/init_grid_consts.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-vcoord-recover",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Fit PSGML1(l), SGML2(l) from the analysis PRES on 60 hybrid levels against PD (linear in PD, per level, on device), then SG1/SG2/DSG*/PDTOP exactly (grid.vcoord_from_mid). In: PRES, PSFC -> grid vcoord.",
+      "mode": "new",
+      "deps": [
+        "init-grib2-decode"
+      ],
+      "wrapper": "namgpu.init.init_vcoord_recover",
+      "kernel": "namgpu/kernels/init_vcoord_recover.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-native-atm",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Map nam bgrd3d00 hybrid fields to the state: TMP->T, SPFH->Q, UGRD/VGRD (V points, grid-relative)->U/V, CLMR+CICE+RWMR+SNMR->CW (NPS CWM gate: do_clouds and maxval(CLMR)>0), F_ICE/F_RAIN/F_RIMEF=0, Q2=0.02, W=0, PSFC->PD (vcoord 1: PSFC-PT). In: grib -> state.",
+      "mode": "new",
+      "deps": [
+        "init-vcoord-recover"
+      ],
+      "wrapper": "namgpu.init.init_native_atm",
+      "kernel": "namgpu/kernels/init_native_atm.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-native-sfc",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Surface/soil state from bgrd3d00: TSOIL(4)->STC, SOILW(4)->SMC, SH2O from SMC/STC (frozen fraction), TMP sfc->TSKIN, WTMP->SST, ICEC->SICE, LAND->SM, VGTYP/SOTYP, VEG, ALBDO, SNOD/WEASD, CNWAT, SFCR, SNOWC, TSOIL 3 m->TG. In: grib -> state.",
+      "mode": "new",
+      "deps": [
+        "init-grib2-decode"
+      ],
+      "wrapper": "namgpu.init.init_native_sfc",
+      "kernel": "namgpu/kernels/init_native_sfc.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-static-missing",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Static fields the analysis lacks (snow-free albedo ALBASE, max snow albedo MXSNAL, emissivity, slope type, ISLOPE, soil/veg table indices) from tables or our static assets. In: types -> state.",
+      "mode": "new",
+      "deps": [
+        "init-native-sfc"
+      ],
+      "wrapper": "namgpu.init.init_static_missing",
+      "kernel": "namgpu/kernels/init_static_missing.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gwd-orog",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "GWD orographic statistics on the B grid (HSTDV, HCNVX, HASYW, HASYS, HASYSW, HASYNW, HLENW, HLENS, HLENSW, HLENNW, HANGL, HANIS, HSLOP, HZMAX) from 30-arcsec terrain, as NPS geogrid do_gwd. In: DEM -> state.",
+      "mode": "new",
+      "deps": [
+        "init-grid-geo"
+      ],
+      "wrapper": "namgpu.init.init_gwd_orog",
+      "kernel": "namgpu/kernels/init_gwd_orog.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-derive-state",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Derived prognostics: PINT from PD and SG1/SG2, FIS, Z, DWDT=1, OMGALF, RTOP, THS/QSH, Told, TRACERS assembly (INDX_*), UP/VP/TP = current. In: state -> state.",
+      "mode": "new",
+      "deps": [
+        "init-native-atm",
+        "init-native-sfc",
+        "drv-tracer-index"
+      ],
+      "wrapper": "namgpu.init.init_derive_state",
+      "kernel": "namgpu/kernels/init_derive_state.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gfs-decode",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "GFS 0.25 deg pressure-level HGT, TMP, SPFH, UGRD, VGRD, CLMR, ICMR, RWMR, SNMR + surface PRES/HGT for each 3-h boundary time to device. In: gfs grib -> arrays.",
+      "mode": "new",
+      "deps": [
+        "init-grib2-decode"
+      ],
+      "wrapper": "namgpu.init.init_gfs_decode",
+      "kernel": "namgpu/kernels/init_gfs_decode.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gfs-hinterp",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Horizontal interpolation of GFS fields to the B-grid boundary strips (lnsh/lnsv = 5 rows, H and V points), bilinear on the GPU (METGRID.TBL.bocos rules). In: GFS arrays -> strip arrays.",
+      "mode": "new",
+      "deps": [
+        "init-gfs-decode",
+        "init-grid-geo"
+      ],
+      "wrapper": "namgpu.init.init_gfs_hinterp",
+      "kernel": "namgpu/kernels/init_gfs_hinterp.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gfs-vinterp",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Vertical interpolation to NMMB hybrid levels as nemsinterp does: PD from hydrostatic integration to model terrain (FIS), T, Q, CW, U, V at mid levels, ptsgm split. In: strips -> boundary values.",
+      "mode": "new",
+      "deps": [
+        "init-gfs-hinterp",
+        "init-vcoord-recover"
+      ],
+      "wrapper": "namgpu.init.init_gfs_vinterp",
+      "kernel": "namgpu/kernels/init_gfs_vinterp.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gfs-wind-rotate",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Rotate GFS earth-relative winds to rotated-grid-relative at V points. In: U, V earth -> grid.",
+      "mode": "new",
+      "deps": [
+        "init-gfs-hinterp"
+      ],
+      "wrapper": "namgpu.init.init_gfs_wind_rotate",
+      "kernel": "namgpu/kernels/init_gfs_wind_rotate.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-boco-tendencies",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "Boundary values for every 3-h interval and their tendencies (the boco.#### content with boundary_flux true), first interval from the native analysis edges. In: values -> ctx.bc.",
+      "mode": "new",
+      "deps": [
+        "init-gfs-vinterp",
+        "init-gfs-wind-rotate",
+        "init-derive-state"
+      ],
+      "wrapper": "namgpu.init.init_boco_tendencies",
+      "kernel": "namgpu/kernels/init_boco_tendencies.cu",
+      "status": "todo"
+    },
+    {
+      "id": "init-case-driver",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "namgpu/init/case_init.run: whole init chain in order with stage timings. In: case dir -> ctx.",
+      "mode": "new",
+      "deps": [
+        "init-boco-tendencies",
+        "init-static-missing",
+        "init-gwd-orog",
+        "drv-physics-initialize"
+      ],
+      "wrapper": "namgpu.init.init_case_driver",
+      "kernel": "namgpu/kernels/init_case_driver.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-read-nemsio",
+      "group": "init",
+      "fortran": "nmm/module_INIT_READ_NEMSIO.F90:37-4169",
+      "purpose": "NEMSIO input reader.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: inputs are GRIB2 from NODD; the NEMSIO field list is the checklist for init-native-atm/sfc.",
+      "wrapper": "namgpu.init.init_read_nemsio",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "io-history-fields",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "Build the wrfout-shaped history fields on device: PSFC, theta, PRES (full pressure), PH, QVAPOR, QCLOUD, QRAIN, QICE, QSNOW, earth-relative U10/V10, RAINNC/RAINC, U, V, W, T2, Q2, and REFL_10CM/COMPOSITE when Ferrier produced them. In: state -> fields.",
+      "mode": "new",
+      "deps": [
+        "io-wind-rotate"
+      ],
+      "wrapper": "namgpu.io.io_history_fields",
+      "kernel": "namgpu/kernels/io_history_fields.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-wind-rotate",
+      "group": "io",
+      "fortran": "sorc/nam_post0.fd/PROF_NMMB.f:2115-2150,2232-2237",
+      "purpose": "Rotate grid-relative V-point winds (3-D and 10 m) to earth-relative H-point winds: each in-domain V neighbour rotated with its exact inverse of init-gfs-wind-rotate's map, then averaged (decision: pole inside domain, see kernel). In: U, V, U10, V10 -> UEARTH, VEARTH, UE10, VE10.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.io.io_wind_rotate",
+      "kernel": "namgpu/kernels/io_wind_rotate.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-history",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "Write one history NetCDF per output hour (io/history.py). In: fields -> device-to-host copy on the step path, NetCDF encode and write on a background worker. No CUDA kernel.",
+      "mode": "host-io",
+      "deps": [
+        "io-history-fields"
+      ],
+      "wrapper": "namgpu.io.io_history",
+      "kernel": null,
+      "status": "done"
+    },
+    {
+      "id": "io-history-rust",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "Bind the gpuwm Rust NetCDF writer (libnetcdf_writer.so) for history.",
+      "mode": "new",
+      "deps": [
+        "io-history"
+      ],
+      "wrapper": "namgpu.io.io_history_rust",
+      "kernel": "namgpu/kernels/io_history_rust.cu",
+      "status": "todo"
+    },
+    {
+      "id": "io-map-regrid",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "If rw_wrfbatch refuses MAP_PROJ 203, regrid history to the NAM 218 Lambert frame on the GPU for maps. In: history -> companion file.",
+      "mode": "new",
+      "deps": [
+        "io-history"
+      ],
+      "wrapper": "namgpu.io.io_map_regrid",
+      "kernel": "namgpu/kernels/io_map_regrid.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-maps",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "Weather maps with rw_wrfbatch --cf on the history XLAT/XLONG (io/maps.py), same CF table, bounds and colour scales as the case referee maps, MRMS side-by-side for reflectivity.",
+      "mode": "new",
+      "deps": [
+        "io-history",
+        "io-map-regrid"
+      ],
+      "wrapper": "namgpu.io.io_maps",
+      "kernel": null,
+      "status": "done"
+    },
+    {
+      "id": "io-referee-sheets",
+      "group": "io",
+      "fortran": "-",
+      "purpose": "Three-panel sheets per hour: MRMS | nam-gpu | archived NAM (composite reflectivity, 2 m T, precip) with the Rust renderer. In: case raw + history -> PNGs.",
+      "mode": "new",
+      "deps": [
+        "io-maps"
+      ],
+      "wrapper": "namgpu.io.io_referee_sheets",
+      "kernel": "namgpu/kernels/io_referee_sheets.cu",
+      "status": "todo"
+    },
+    {
+      "id": "io-max-fields",
+      "group": "io",
+      "fortran": "nmm/module_DIAGNOSE.F90:2190-2518",
+      "purpose": "MAX_FIELDS_HR: hourly maxima (REFDMAX, UPHLMAX, wind max, T2 max/min ...). In: state -> maxima.",
+      "mode": "port",
+      "deps": [
+        "io-uphlcy"
+      ],
+      "wrapper": "namgpu.io.io_max_fields",
+      "kernel": "namgpu/kernels/io_max_fields.cu",
+      "status": "todo"
+    },
+    {
+      "id": "io-uphlcy",
+      "group": "io",
+      "fortran": "nmm/module_DIAGNOSE.F90:2114-2186",
+      "purpose": "CALC_UPHLCY: updraft helicity 2-5 km. In: W, U, V, Z -> UPHL.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.io.io_uphlcy",
+      "kernel": "namgpu/kernels/io_uphlcy.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-quasipost-driver",
+      "group": "io",
+      "fortran": "nmm/module_QUASIPOST.F90:68-255",
+      "purpose": "QUASIPOST driver: in-model post fields for history.",
+      "mode": "port",
+      "deps": [
+        "io-quasipost-3d",
+        "io-quasipost-interp",
+        "io-quasipost-mslp"
+      ],
+      "wrapper": "namgpu.io.io_quasipost_driver",
+      "kernel": "namgpu/kernels/io_quasipost_driver.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-quasipost-3d",
+      "group": "io",
+      "fortran": "nmm/module_QUASIPOST.F90:257-686",
+      "purpose": "calculate_3D: 3-D diagnostic fields (heights, RH ...).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.io.io_quasipost_3d",
+      "kernel": "namgpu/kernels/io_quasipost_3d.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-quasipost-interp",
+      "group": "io",
+      "fortran": "nmm/module_QUASIPOST.F90:688-815",
+      "purpose": "calculate_interP: interpolation to pressure levels.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.io.io_quasipost_interp",
+      "kernel": "namgpu/kernels/io_quasipost_interp.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-quasipost-mslp",
+      "group": "io",
+      "fortran": "nmm/module_QUASIPOST.F90:817-852",
+      "purpose": "smoothMSLP: Shuell/NAM MSLP smoothing.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.io.io_quasipost_mslp",
+      "kernel": "namgpu/kernels/io_quasipost_mslp.cu",
+      "status": "done"
+    },
+    {
+      "id": "io-wrt-pcp",
+      "group": "io",
+      "fortran": "nmm/module_DIAGNOSE.F90:1454-1584",
+      "purpose": "Write precip for assimilation.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: write_prec_adj false.",
+      "wrapper": "namgpu.io.io_wrt_pcp",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "io-nemsio-write",
+      "group": "io",
+      "fortran": "nmm/module_WRITE_ROUTINES.F90:1-5247",
+      "purpose": "NEMSIO history/restart writer.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: history is NetCDF for our renderer.",
+      "wrapper": "namgpu.io.io_nemsio_write",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rad-driver",
+      "group": "physics-driver",
+      "fortran": "nmm/module_RADIATION.F90:66-995",
+      "purpose": "RADIATION: per-call setup, cloud fractions (np3d 3), RRTM call, outputs RLWTT, RSWTT, RLWIN, RSWIN, TOA fluxes, cloud cover. In: state -> radiation fields.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-driver-prep",
+        "phys-rad-cal-cldfra"
+      ],
+      "wrapper": "namgpu.physics.driver.phys_rad_driver",
+      "kernel": "namgpu/kernels/phys_rad_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rad-radconst",
+      "group": "physics-driver",
+      "fortran": "nmm/module_RADIATION.F90:1000-1042",
+      "purpose": "RADCONST: DEAD IN NAM (no caller in nam.v4.2.11; definition only). Faithful port, no consumer.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.driver.phys_rad_radconst",
+      "kernel": "namgpu/kernels/phys_rad_radconst.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rad-cal-cldfra",
+      "group": "physics-driver",
+      "fortran": "nmm/module_RADIATION.F90:1045-1134",
+      "purpose": "CAL_CLDFRA: cloud fraction from condensate.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.driver.phys_rad_cal_cldfra",
+      "kernel": "namgpu/kernels/phys_rad_cal_cldfra.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-turbl-driver",
+      "group": "physics-driver",
+      "fortran": "nmm/module_TURBULENCE.F90:89-1420",
+      "purpose": "TURBL glue every NPHS: column prep (theta, exner, Z), calls JSFC, NOAHLSM, SFCDIAGS, MYJPBL, GWD_DRIVER, accumulates fluxes, DUDT/DVDT. In: state -> tendencies and surface fields.",
+      "mode": "port",
+      "deps": [
+        "phys-jsfc-jsfc",
+        "phys-noah-driver",
+        "phys-noah-sfcdiags",
+        "phys-myj-myjpbl",
+        "phys-gwd-driver"
+      ],
+      "wrapper": "namgpu.physics.driver.phys_turbl_driver",
+      "kernel": "namgpu/kernels/phys_turbl_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-bmj-driver",
+      "group": "physics-driver",
+      "fortran": "nmm/module_CONVECTION.F90:48-658",
+      "purpose": "CUCNVC glue every NPRECIP: column prep, BMJ call, CUPREC/ACPREC, CNVTOP/BOT, T/Q tendency. In: state -> tendencies.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-bmjdrv"
+      ],
+      "wrapper": "namgpu.physics.driver.phys_bmj_driver",
+      "kernel": "namgpu/kernels/phys_bmj_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-fer-driver",
+      "group": "physics-driver",
+      "fortran": "nmm/module_MICROPHYSICS.F90:60-558",
+      "purpose": "GSMDRIVE glue every NPRECIP: column prep, FER_HIRES call, precip accumulation, T/Q/CW update. In: state -> state.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-fer-hires"
+      ],
+      "wrapper": "namgpu.physics.driver.phys_fer_driver",
+      "kernel": "namgpu/kernels/phys_fer_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-precip-adjust",
+      "group": "physics-driver",
+      "fortran": "nmm/module_PRECIP_ADJUST.F90:26-334",
+      "purpose": "READPCP/CHKSNOW/ADJPPT.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: pcpflg false in the free forecast (exnam_fcst.sh:276).",
+      "wrapper": "namgpu.physics.driver.phys_precip_adjust",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-etamp-new",
+      "group": "physics-driver",
+      "fortran": "phys/module_MP_ETANEW.F90:1-2627",
+      "purpose": "Alternative scheme etamp-new, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects microphysics fer_hires, not fer.",
+      "wrapper": "namgpu.physics.driver.phys_alt_etamp_new",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-wsm6",
+      "group": "physics-driver",
+      "fortran": "phys/module_MP_WSM6.F90:1-1815",
+      "purpose": "Alternative scheme wsm6, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects microphysics fer_hires.",
+      "wrapper": "namgpu.physics.driver.phys_alt_wsm6",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-thompson",
+      "group": "physics-driver",
+      "fortran": "phys/module_mp_thompson.F90:1-4753",
+      "purpose": "Alternative scheme thompson, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects microphysics fer_hires.",
+      "wrapper": "namgpu.physics.driver.phys_alt_thompson",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-gfsmp",
+      "group": "physics-driver",
+      "fortran": "phys/module_MP_GFS.F90:1-327",
+      "purpose": "Alternative scheme gfsmp, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects microphysics fer_hires.",
+      "wrapper": "namgpu.physics.driver.phys_alt_gfsmp",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-sas",
+      "group": "physics-driver",
+      "fortran": "phys/module_CU_SAS.F90:1-449",
+      "purpose": "Alternative scheme sas, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects convection bmj.",
+      "wrapper": "namgpu.physics.driver.phys_alt_sas",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-sashur",
+      "group": "physics-driver",
+      "fortran": "phys/module_CU_SASHUR.F90:1-5882",
+      "purpose": "Alternative scheme sashur, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects convection bmj.",
+      "wrapper": "namgpu.physics.driver.phys_alt_sashur",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-gfspbl",
+      "group": "physics-driver",
+      "fortran": "phys/module_BL_GFSPBL.F90:1-387",
+      "purpose": "Alternative scheme gfspbl, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects turbulence myj.",
+      "wrapper": "namgpu.physics.driver.phys_alt_gfspbl",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-liss",
+      "group": "physics-driver",
+      "fortran": "phys/module_LS_LISS.F90:1-2130",
+      "purpose": "Alternative scheme liss, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects land_surface noah.",
+      "wrapper": "namgpu.physics.driver.phys_alt_liss",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-sf-gfdl",
+      "group": "physics-driver",
+      "fortran": "phys/module_SF_GFDL.F90:1-2145",
+      "purpose": "Alternative scheme sf-gfdl, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects sfc_layer myj.",
+      "wrapper": "namgpu.physics.driver.phys_alt_sf_gfdl",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-alt-ra-gfdl",
+      "group": "physics-driver",
+      "fortran": "phys/module_RA_GFDL.F90:1-115",
+      "purpose": "Alternative scheme ra-gfdl, not selected.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: nam_configfile selects shortwave/longwave rrtm.",
+      "wrapper": "namgpu.physics.driver.phys_alt_ra_gfdl",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-fer-module-data",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:1-207",
+      "purpose": "Module constants and table declarations of MP_FER_HIRES (NLImax, NSI_max, RHgrd, table sizes) into fer_hires.cuh.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_module_data",
+      "kernel": "namgpu/kernels/phys_fer_module_data.cu",
+      "status": "done",
+      "note": "standalone kernel: tools/check_phys_fer_module_data.py PASS"
+    },
+    {
+      "id": "phys-fer-init",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2391-2744",
+      "purpose": "FERRIER_INIT_hr: build MASSR, VENTR1/2, ACCRR, MASSI, VSNOWI, VEL_RF and the growth tables; upload once. In: dt, dx -> ctx.tables['fer'].",
+      "mode": "port",
+      "deps": [
+        "phys-fer-module-data",
+        "phys-fer-growth-rates",
+        "phys-fer-gpvs"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_init",
+      "kernel": "namgpu/kernels/phys_fer_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-growth-rates",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2746-2785",
+      "purpose": "MY_GROWTH_RATES_NMM_hr: ice growth table for DTPH.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_growth_rates",
+      "kernel": "namgpu/kernels/phys_fer_growth_rates.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-fer-gpvs",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2791-2836",
+      "purpose": "GPVS_hr: saturation vapour pressure table.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_gpvs",
+      "kernel": "namgpu/kernels/phys_fer_gpvs.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-fpvs",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2840-2989",
+      "purpose": "FPVS, FPVS0, FPVSX, FPVSX0 device functions.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-gpvs"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_fpvs",
+      "kernel": "namgpu/kernels/phys_fer_fpvs.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-fer-hires",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:208-604",
+      "purpose": "FER_HIRES column driver: species from CW and fractions, per-column call of EGCP01COLUMN_hr, write back T, Q, CW, F_*, precip, reflectivity inputs. In: state -> state (one thread per column).",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-setup",
+        "phys-fer-col-satcheck",
+        "phys-fer-col-ice-props",
+        "phys-fer-col-processes",
+        "phys-fer-col-melt-evap",
+        "phys-fer-col-rain-sedim"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_fer_hires",
+      "kernel": "namgpu/kernels/phys_fer_fer_hires.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-fer-col-setup",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:650-910",
+      "purpose": "EGCP01COLUMN_hr arguments, local tables, top-down level loop, precip falling in from above (rain, ice). Device function on one column.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-init"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_setup",
+      "kernel": "namgpu/kernels/phys_fer_col_setup.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-col-satcheck",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:911-1028",
+      "purpose": "Grid-scale saturation checks, effective saturation mixing ratios, RHO, THICK and process initialisation.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-setup"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_satcheck",
+      "kernel": "namgpu/kernels/phys_fer_col_satcheck.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-col-ice-props",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:1029-1320",
+      "purpose": "Decision tree, time-averaged properties, large-ice number fraction, mean size (Houze), rime factor limits, NLICE bounds.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-satcheck"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_ice_props",
+      "kernel": "namgpu/kernels/phys_fer_col_ice_props.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-col-processes",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:1321-1478",
+      "purpose": "Autoconversion and collection, homogeneous freezing, ice deposition/sublimation, condensation, rime freezing limits.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-ice-props",
+        "phys-fer-condense",
+        "phys-fer-deposit"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_processes",
+      "kernel": "namgpu/kernels/phys_fer_col_processes.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-col-melt-evap",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:1479-1587",
+      "purpose": "Melting and evaporation of snow/ice, shedding, melt limits.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-processes"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_melt_evap",
+      "kernel": "namgpu/kernels/phys_fer_col_melt_evap.cu",
+      "status": "done",
+      "note": "real-path code: phys_fer_column.cuh (1478-1587); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: wrapper run(ctx) full-size, finite (tables now from ctx.tables['fer'])"
+    },
+    {
+      "id": "phys-fer-col-rain-sedim",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:1588-2159",
+      "purpose": "Rain evaporation, accretion, rain/ice fall-out and sedimentation, final updates of the column.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-col-melt-evap",
+        "phys-fer-get-indexr"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_col_rain_sedim",
+      "kernel": "namgpu/kernels/phys_fer_col_rain_sedim.cu",
+      "status": "done",
+      "note": "real-path code: phys_fer_column.cuh (1588-2159); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: wrapper selftest full-size PASS"
+    },
+    {
+      "id": "phys-fer-condense",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2160-2225",
+      "purpose": "CONDENSE: cloud water condensation function.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-fpvs"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_condense",
+      "kernel": "namgpu/kernels/phys_fer_condense.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-deposit",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2231-2289",
+      "purpose": "DEPOSIT: ice deposition function.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-fpvs"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_deposit",
+      "kernel": "namgpu/kernels/phys_fer_deposit.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-get-indexr",
+      "group": "physics-fer_hires",
+      "fortran": "phys/module_MP_FER_HIRES.F90:2297-2380",
+      "purpose": "GET_INDEXR: rain-size table index.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_get_indexr",
+      "kernel": "namgpu/kernels/phys_fer_get_indexr.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-fer-calmict",
+      "group": "physics-fer_hires",
+      "fortran": "nmm/module_DIAGNOSE.F90:1589-1798",
+      "purpose": "CALMICT: Ferrier radar reflectivity (REFL_10CM, composite) and species diagnostics for history.",
+      "mode": "port",
+      "deps": [
+        "phys-fer-init"
+      ],
+      "wrapper": "namgpu.physics.fer_hires.phys_fer_calmict",
+      "kernel": "namgpu/kernels/phys_fer_calmict.cu",
+      "status": "done",
+      "note": "standalone kernel: tools/check_phys_fer_calmict.py PASS (history diagnostic, not on the physics step)"
+    },
+    {
+      "id": "phys-bmj-init",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:2158-2425",
+      "purpose": "BMJ_INIT: tables (ptbl, ttbl, qs0, sqs, the, sthe). In: - -> tables.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-spline"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_init",
+      "kernel": "namgpu/kernels/phys_bmj_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-spline",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:2429-2547",
+      "purpose": "SPLINE for the BMJ tables (init only).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_spline",
+      "kernel": "namgpu/kernels/phys_bmj_spline.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-ttblex",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:2071-2154",
+      "purpose": "TTBLEX: table look-up device function.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-init"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_ttblex",
+      "kernel": "namgpu/kernels/phys_bmj_ttblex.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-bmjdrv",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:117-395",
+      "purpose": "BMJDRV: per-column setup, call BMJ, tendencies and precipitation out. One thread per column.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-prep",
+        "phys-bmj-col-cloudbase",
+        "phys-bmj-col-cloudtop",
+        "phys-bmj-col-deep-ref",
+        "phys-bmj-col-deep-iter",
+        "phys-bmj-col-deep-tend",
+        "phys-bmj-col-shallow-top",
+        "phys-bmj-col-shallow-adjust"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_bmjdrv",
+      "kernel": "namgpu/kernels/phys_bmj_bmjdrv.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-bmj-col-prep",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:399-597",
+      "purpose": "BMJ arguments, locals, preparations of the column.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-ttblex"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_prep",
+      "kernel": "namgpu/kernels/phys_bmj_col_prep.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-col-cloudbase",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:598-696",
+      "purpose": "Search for the max-buoyancy parcel, table indices, saturation point, cloud base.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-prep"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_cloudbase",
+      "kernel": "namgpu/kernels/phys_bmj_col_cloudbase.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-col-cloudtop",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:697-939",
+      "purpose": "Entrainment, entropy check, updraft T along the moist adiabat, CAPE, cloud top, quick exits.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-cloudbase"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_cloudtop",
+      "kernel": "namgpu/kernels/phys_bmj_col_cloudtop.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-col-deep-ref",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:940-1084",
+      "purpose": "Deep convection: reference temperature and humidity profiles, freezing level, first adjustment.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-cloudtop"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_deep_ref",
+      "kernel": "namgpu/kernels/phys_bmj_col_deep_ref.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-col-deep-iter",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:1085-1179",
+      "purpose": "Cloud-efficiency iteration, enthalpy conservation, lqm, T/Q corrections.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-deep-ref"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_deep_iter",
+      "kernel": "namgpu/kernels/phys_bmj_col_deep_iter.cu",
+      "status": "done",
+      "note": "real-path code: phys_bmj_column.cuh (cloud_efficiency loop); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: wrapper run(ctx) full-size, finite"
+    },
+    {
+      "id": "phys-bmj-col-deep-tend",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:1180-1316",
+      "purpose": "Deep convection heating, moistening and precipitation.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-deep-iter"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_deep_tend",
+      "kernel": "namgpu/kernels/phys_bmj_col_deep_tend.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-bmj-col-shallow-top",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:1317-1449",
+      "purpose": "Shallow cloud top search (virtual-temperature excess), gather shallow points.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-cloudtop"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_shallow_top",
+      "kernel": "namgpu/kernels/phys_bmj_col_shallow_top.cu",
+      "status": "done",
+      "note": "real-path code: phys_bmj_column.cuh; 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-bmj-col-shallow-top.py PASS"
+    },
+    {
+      "id": "phys-bmj-col-shallow-adjust",
+      "group": "physics-bmj",
+      "fortran": "phys/module_CU_BMJ.F90:1450-2067",
+      "purpose": "Shallow convection adjustment with the configfile switches (fres, fr, fsl, fss, newswap), swap points, final tendencies.",
+      "mode": "port",
+      "deps": [
+        "phys-bmj-col-shallow-top"
+      ],
+      "wrapper": "namgpu.physics.bmj.phys_bmj_col_shallow_adjust",
+      "kernel": "namgpu/kernels/phys_bmj_col_shallow_adjust.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-myj-myjpbl",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:180-753",
+      "purpose": "MYJPBL column driver: theta, Q2, mixing, tendencies. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_myjpbl",
+      "kernel": "namgpu/kernels/phys_myj_myjpbl.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-myj-mixlen",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:758-965",
+      "purpose": "MIXLEN: master length scale. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_mixlen",
+      "kernel": "namgpu/kernels/phys_myj_mixlen.cu",
+      "status": "done",
+      "note": "real-path code: phys_myj_myjpbl.cu (MIXLEN inlined in the column kernel); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check_phys_myj_mixlen.py PASS"
+    },
+    {
+      "id": "phys-myj-prodq2",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:969-1173",
+      "purpose": "PRODQ2: TKE production/dissipation. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init",
+        "phys-myj-mixlen"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_prodq2",
+      "kernel": "namgpu/kernels/phys_myj_prodq2.cu",
+      "status": "done",
+      "note": "real-path code: phys_myj_myjpbl.cu (PRODQ2 inlined); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-myj-prodq2.py PASS"
+    },
+    {
+      "id": "phys-myj-difcof",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1178-1337",
+      "purpose": "DIFCOF: exchange coefficients. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_difcof",
+      "kernel": "namgpu/kernels/phys_myj_difcof.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-myj-vdifq",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1342-1420",
+      "purpose": "VDIFQ: vertical diffusion of Q2. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_vdifq",
+      "kernel": "namgpu/kernels/phys_myj_vdifq.cu",
+      "status": "done",
+      "note": "real-path code: phys_myj_myjpbl.cu (VDIFQ inlined); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-myj-vdifq.py PASS"
+    },
+    {
+      "id": "phys-myj-vdifh",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1425-1522",
+      "purpose": "VDIFH: vertical diffusion of heat/moisture. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init",
+        "phys-myj-difcof",
+        "phys-myj-myjpbl"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_vdifh",
+      "kernel": "namgpu/kernels/phys_myj_vdifh.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-myj-vdifv",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1527-1607",
+      "purpose": "VDIFV: vertical diffusion of momentum. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "wrapper": "namgpu.physics.myj.phys_myj_vdifv",
+      "kernel": "namgpu/kernels/phys_myj_vdifv.cu",
+      "status": "done",
+      "note": "real-path code: phys_myj_myjpbl.cu (VDIFV inlined); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-myj-vdifv.py PASS"
+    },
+    {
+      "id": "phys-myj-init",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1612-1657",
+      "purpose": "MYJPBL_INIT: initial Q2, EL_PBL, tables.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.myj.phys_myj_init",
+      "kernel": "namgpu/kernels/phys_myj_init.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-myj-tables",
+      "group": "physics-myj",
+      "fortran": "phys/module_BL_MYJPBL.F90:1661-2029",
+      "purpose": "HERFTBL/HERF, TABLEPT/TABLETT, SPLINE: MYJ look-up tables.",
+      "mode": "port",
+      "deps": [
+        "phys-myj-init"
+      ],
+      "wrapper": "namgpu.physics.myj.phys_myj_tables",
+      "kernel": "namgpu/kernels/phys_myj_tables.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-jsfc-jsfc",
+      "group": "physics-jsfc",
+      "fortran": "phys/module_SF_JSFC.F90:80-354",
+      "purpose": "JSFC driver: surface layer per column (USTAR, Z0, AKHS, AKMS, THZ0, QZ0, U10, V10, TH10, Q10). Start from ArWen third_party/arwen/core/kernels/myjsfc.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-jsfc-sfcdif"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjsfc.cu",
+      "wrapper": "namgpu.physics.jsfc.phys_jsfc_jsfc",
+      "kernel": "namgpu/kernels/phys_jsfc_jsfc.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-jsfc-sfcdif",
+      "group": "physics-jsfc",
+      "fortran": "phys/module_SF_JSFC.F90:357-1011",
+      "purpose": "SFCDIF: Janjic similarity, viscous sublayer over water, iterations. Start from ArWen third_party/arwen/core/kernels/myjsfc.cu; NAM copy ~80% identical to WRF.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-jsfc-init"
+      ],
+      "arwen": "third_party/arwen/core/kernels/myjsfc.cu",
+      "wrapper": "namgpu.physics.jsfc.phys_jsfc_sfcdif",
+      "kernel": "namgpu/kernels/phys_jsfc_sfcdif.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-jsfc-init",
+      "group": "physics-jsfc",
+      "fortran": "phys/module_SF_JSFC.F90:1014-1251",
+      "purpose": "JSFC_INIT: PSIM/PSIH tables, initial USTAR, Z0. Ref ArWen third_party/arwen/core/myjsfc_tables.py.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.jsfc.phys_jsfc_init",
+      "kernel": "namgpu/kernels/phys_jsfc_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-init",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:1164-1293",
+      "purpose": "NOAH_LSM_INIT: soil/veg parameters per point, SH2O, initial state.",
+      "mode": "port",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "wrapper": "namgpu.physics.noah.phys_noah_init",
+      "kernel": "namgpu/kernels/phys_noah_init.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-parm-tables",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:1298-1547",
+      "purpose": "LSM_PARM_INIT + SOIL_VEG_GEN_PARM: IGBP veg (ivegsrc 1) and soil parameter tables as the NAM sets them.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.noah.phys_noah_parm_tables",
+      "kernel": "",
+      "status": "done",
+      "note": "standalone kernel: tools/check-phys-noah-parm-tables.py PASS; tables are fix/noah (WRF V3.0 MODIFIED_IGBP_MODIS_NOAH, STAS): the NCEP NAM fix VEGPARM.TBL is a named gap"
+    },
+    {
+      "id": "phys-noah-driver",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:188-1161",
+      "purpose": "NOAHLSM driver: per land point prep (forcing from the lowest layer, radiation, precip), call SFLX, write back STC, SMC, SH2O, TSKIN, SNO, CMC, fluxes, runoff. One thread per column.",
+      "mode": "port",
+      "deps": [
+        "phys-noah-sflx"
+      ],
+      "wrapper": "namgpu.physics.noah.phys_noah_driver",
+      "kernel": "namgpu/kernels/phys_noah_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-sflx",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:1550-2278",
+      "purpose": "SFLX column physics with the NCEP v4 changes (frozen-soil transpiration, five-veg roughness). Start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-redprm",
+        "phys-noah-nopac",
+        "phys-noah-snopac",
+        "phys-noah-penman",
+        "phys-noah-canres",
+        "phys-noah-alcalc",
+        "phys-noah-csnow",
+        "phys-noah-snfrac",
+        "phys-noah-tdfcnd"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_sflx",
+      "kernel": "namgpu/kernels/phys_noah_sflx.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_driver.cu via phys_noah_sflx.cuh; 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-alcalc",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2281-2328",
+      "purpose": "ALCALC: albedo with snow. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_alcalc",
+      "kernel": "namgpu/kernels/phys_noah_alcalc.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-canres",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2331-2469",
+      "purpose": "CANRES: canopy resistance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_canres",
+      "kernel": "namgpu/kernels/phys_noah_canres.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-csnow",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2472-2511",
+      "purpose": "CSNOW: snow thermal conductivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_csnow",
+      "kernel": "namgpu/kernels/phys_noah_csnow.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-devap",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2514-2554",
+      "purpose": "DEVAP: bare-soil evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_devap",
+      "kernel": "namgpu/kernels/phys_noah_devap.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu (nam_devap); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-evapo",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2557-2641",
+      "purpose": "EVAPO: total evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_evapo",
+      "kernel": "namgpu/kernels/phys_noah_evapo.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu / snopac.cuh (nam_evapo); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-frh2o",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2644-2782",
+      "purpose": "FRH2O: unfrozen soil water. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_frh2o",
+      "kernel": "namgpu/kernels/phys_noah_frh2o.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu (nam_frh2o); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-noah-frh2o.py PASS"
+    },
+    {
+      "id": "phys-noah-hrt",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:2785-3035",
+      "purpose": "HRT: soil heat equation RHS. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_hrt",
+      "kernel": "namgpu/kernels/phys_noah_hrt.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-hrtice",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3038-3150",
+      "purpose": "HRTICE: sea-ice/glacier heat RHS. Device function; port from the Fortran (SFLX-fed mask, per-cell inputs); no ArWen source is copied.",
+      "mode": "port",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "wrapper": "namgpu.physics.noah.phys_noah_hrtice",
+      "kernel": "namgpu/kernels/phys_noah_hrtice.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-hstep",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3153-3201",
+      "purpose": "HSTEP: soil temperature step. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_hstep",
+      "kernel": "namgpu/kernels/phys_noah_hstep.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-nopac",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3204-3387",
+      "purpose": "NOPAC: no-snow energy/water balance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_nopac",
+      "kernel": "namgpu/kernels/phys_noah_nopac.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_sflx.cuh -> phys_noah_nopac.cu; 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4) | standalone kernel: tools/check-phys-noah-nopac.py PASS"
+    },
+    {
+      "id": "phys-noah-penman",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3390-3468",
+      "purpose": "PENMAN: potential evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_penman",
+      "kernel": "namgpu/kernels/phys_noah_penman.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_sflx.cuh (sflx_penman); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-redprm",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3471-3664",
+      "purpose": "REDPRM: per-point parameters, NCEP roughness change. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_redprm",
+      "kernel": "namgpu/kernels/phys_noah_redprm.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-rosr12",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3666-3725",
+      "purpose": "ROSR12: tridiagonal solver. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_rosr12",
+      "kernel": "namgpu/kernels/phys_noah_rosr12.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-shflx",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3729-3796",
+      "purpose": "SHFLX: soil heat flux. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_shflx",
+      "kernel": "namgpu/kernels/phys_noah_shflx.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu (nam_shflx); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-smflx",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3799-3916",
+      "purpose": "SMFLX: soil moisture flux. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_smflx",
+      "kernel": "namgpu/kernels/phys_noah_smflx.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-snfrac",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3920-3957",
+      "purpose": "SNFRAC: snow cover fraction. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snfrac",
+      "kernel": "namgpu/kernels/phys_noah_snfrac.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-snksrc",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:3960-4047",
+      "purpose": "SNKSRC: phase-change sink/source. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snksrc",
+      "kernel": "namgpu/kernels/phys_noah_snksrc.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu (nam_snksrc); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-snopac",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4050-4374",
+      "purpose": "SNOPAC: snow energy/water balance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snopac",
+      "kernel": "namgpu/kernels/phys_noah_snopac.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_sflx.cuh -> phys_noah_snopac.cuh; 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-snowpack",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4378-4505",
+      "purpose": "SNOWPACK: snow compaction. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snowpack",
+      "kernel": "namgpu/kernels/phys_noah_snowpack.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-snowz0",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4508-4526",
+      "purpose": "SNOWZ0: roughness with snow. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snowz0",
+      "kernel": "namgpu/kernels/phys_noah_snowz0.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-snow-new",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4530-4600",
+      "purpose": "SNOW_NEW: new-snow density. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_snow_new",
+      "kernel": "namgpu/kernels/phys_noah_snow_new.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-srt",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4603-4852 (SRT); phys/module_LS_NOAHLSM.F90:5312-5369 (WDFCND, called by SRT)",
+      "purpose": "SRT: soil water RHS, frozen-soil transpiration change. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_srt",
+      "kernel": "namgpu/kernels/phys_noah_srt.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-sstep",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4855-4942",
+      "purpose": "SSTEP: soil moisture step. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_sstep",
+      "kernel": "namgpu/kernels/phys_noah_sstep.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-tbnd",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4945-4985",
+      "purpose": "TBND: boundary-layer temperature interpolation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_tbnd",
+      "kernel": "namgpu/kernels/phys_noah_tbnd.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-tdfcnd",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:4989-5092",
+      "purpose": "TDFCND: soil thermal diffusivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_tdfcnd",
+      "kernel": "namgpu/kernels/phys_noah_tdfcnd.cu",
+      "status": "done",
+      "note": "real-path code: phys_noah_nopac.cu (nam_tdfcnd); 2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-noah-tmpavg",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:5095-5197",
+      "purpose": "TMPAVG: layer-mean temperature. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_tmpavg",
+      "kernel": "namgpu/kernels/phys_noah_tmpavg.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-transp",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:5200-5309",
+      "purpose": "TRANSP: transpiration. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_transp",
+      "kernel": "namgpu/kernels/phys_noah_transp.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-wdfcnd",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:5312-5369",
+      "purpose": "WDFCND: soil water diffusivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "mode": "copy-arwen",
+      "deps": [
+        "phys-noah-parm-tables"
+      ],
+      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "wrapper": "namgpu.physics.noah.phys_noah_wdfcnd",
+      "kernel": "namgpu/kernels/phys_noah_wdfcnd.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-sfcdiags",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:5609-5656",
+      "purpose": "SFCDIAGS: 2 m T and Q (TSHLTR, QSHLTR) from fluxes.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.noah.phys_noah_sfcdiags",
+      "kernel": "namgpu/kernels/phys_noah_sfcdiags.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-noah-sfcdif-off",
+      "group": "physics-noah",
+      "fortran": "phys/module_LS_NOAHLSM.F90:5372-5606",
+      "purpose": "Noah's own SFCDIF.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: '_off' copy, not called; JSFC provides the exchange coefficients.",
+      "wrapper": "namgpu.physics.noah.phys_noah_sfcdif_off",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-gwd-init",
+      "group": "physics-gwd",
+      "fortran": "nmm/module_GWD.F90:32-119",
+      "purpose": "GWD_init: constants and orography statistics into device arrays.",
+      "mode": "port",
+      "deps": [
+        "init-gwd-orog"
+      ],
+      "wrapper": "namgpu.physics.gwd.phys_gwd_init",
+      "kernel": "namgpu/kernels/phys_gwd_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-gwd-driver",
+      "group": "physics-gwd",
+      "fortran": "nmm/module_GWD.F90:125-362",
+      "purpose": "GWD_DRIVER: column prep (rotate winds, pressure, exner), call GWD_col, DUDT/DVDT out (cdmb 0.1, cleffamp 1.0, sigfac 3.0, factop 0.5, rlolev 50, dpmin 0).",
+      "mode": "port",
+      "deps": [
+        "phys-gwd-col-blocking",
+        "phys-gwd-col-wave"
+      ],
+      "wrapper": "namgpu.physics.gwd.phys_gwd_driver",
+      "kernel": "namgpu/kernels/phys_gwd_driver.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3: compiles (NVRTC); runs inside the physics-A plan on the REAL 2025-03-14 12Z state (954x835x60, 4 physics calls), no NaN/Inf (tools/run_physics_a.py --calls 4)"
+    },
+    {
+      "id": "phys-gwd-col-blocking",
+      "group": "physics-gwd",
+      "fortran": "nmm/module_GWD.F90:368-897",
+      "purpose": "GWD_col part 1: setup, Lott-Miller mountain blocking, mountain-induced drag terms.",
+      "mode": "port",
+      "deps": [
+        "phys-gwd-init"
+      ],
+      "wrapper": "namgpu.physics.gwd.phys_gwd_col_blocking",
+      "kernel": "namgpu/kernels/phys_gwd_col_blocking.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-gwd-col-wave",
+      "group": "physics-gwd",
+      "fortran": "nmm/module_GWD.F90:898-1132",
+      "purpose": "GWD_col part 2: low-level wind, base stress, Ri-limited stress profile, top de-acceleration limit.",
+      "mode": "port",
+      "deps": [
+        "phys-gwd-col-blocking"
+      ],
+      "wrapper": "namgpu.physics.gwd.phys_gwd_col_wave",
+      "kernel": "namgpu/kernels/phys_gwd_col_wave.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/module_RA_RRTM.F90:1424-1517",
+      "purpose": "RRTM_INIT + GAUSIN: driver init, Gaussian angles.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-rad-initialize"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_init",
+      "kernel": "namgpu/kernels/phys_rrtm_init.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); SGM from the init vcoord header (vcoord_nps)"
+    },
+    {
+      "id": "phys-rrtm-rad-initialize",
+      "group": "physics-rrtm",
+      "fortran": "phys/rad_initialize_nmmb.f:2-224",
+      "purpose": "rad_initialize_nmmb: physparam flags (icldflg, ioznflg, icmphys), calls radinit.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-radinit"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_rad_initialize",
+      "kernel": "namgpu/kernels/phys_rrtm_rad_initialize.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-radinit",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:226-451",
+      "purpose": "radinit_nmmb: init of astronomy, aerosols, gases, clouds, LW, SW.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sol-init",
+        "phys-rrtm-aer-init",
+        "phys-rrtm-clim-aerinit",
+        "phys-rrtm-gas-init",
+        "phys-rrtm-cld-init",
+        "phys-rrtm-sfc-init",
+        "phys-rrtm-lw-rlwinit",
+        "phys-rrtm-sw-rswinit"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_radinit",
+      "kernel": "namgpu/kernels/phys_rrtm_radinit.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); runs at drv-physics-initialize with its seven siblings"
+    },
+    {
+      "id": "phys-rrtm-radupdate",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:456-602",
+      "purpose": "radupdate_nmmb: date-dependent solar constant, aerosols, gases.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sol-update",
+        "phys-rrtm-aer-update",
+        "phys-rrtm-gas-update"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_radupdate",
+      "kernel": "namgpu/kernels/phys_rrtm_radupdate.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-dayparts",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:606-656",
+      "purpose": "dayparts: sunlit-point selection.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_dayparts",
+      "kernel": "namgpu/kernels/phys_rrtm_dayparts.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); FIXED: lat/lon cache keyed on id(ctx.st) went stale across row chunks (day list drifted from coszmn)"
+    },
+    {
+      "id": "phys-rrtm-driver-prep",
+      "group": "physics-rrtm",
+      "fortran": "phys/module_RA_RRTM.F90:98-878",
+      "purpose": "RRTM: column inputs from the NMMB state (plyr, plvl, tlyr, qlyr, o3, clouds from Ferrier fractions), CHNK_RRTM chunking dropped (all columns at once).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-dayparts"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_driver_prep",
+      "kernel": "namgpu/kernels/phys_rrtm_driver_prep.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-driver-call",
+      "group": "physics-rrtm",
+      "fortran": "phys/module_RA_RRTM.F90:879-1112",
+      "purpose": "RRTM: dayparts call, zenith angles, call setup.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-driver-prep",
+        "phys-rrtm-coszmn"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_driver_call",
+      "kernel": "namgpu/kernels/phys_rrtm_driver_call.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); its 2-D outputs (XLON, XLAT, SLMSK, TSEA, ...) are published to the chunk state as the GRRAD actual arguments (rrtm_call.GRRAD_SFC_ARGS)"
+    },
+    {
+      "id": "phys-rrtm-driver-post",
+      "group": "physics-rrtm",
+      "fortran": "phys/module_RA_RRTM.F90:1113-1418",
+      "purpose": "RRTM: grrad_nmmb call and outputs RLWTT, RSWTT, RLWIN, RSWIN, RSWOUT, TOA, CZMEAN, cloud cover.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-grrad-setup",
+        "phys-rrtm-grrad-gases",
+        "phys-rrtm-grrad-aerosols",
+        "phys-rrtm-grrad-clouds",
+        "phys-rrtm-grrad-sw",
+        "phys-rrtm-grrad-lw"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_driver_post",
+      "kernel": "namgpu/kernels/phys_rrtm_driver_post.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-grrad-setup",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:660-1396",
+      "purpose": "grrad_nmmb arguments, layer arrays, unit conversions.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_setup",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_setup.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-grrad-gases",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:1397-1539",
+      "purpose": "grrad_nmmb: ozone (getozn), coszmn, getgases.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-getozn",
+        "phys-rrtm-getgases",
+        "phys-rrtm-coszmn"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_gases",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_gases.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-grrad-aerosols",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:1540-1576",
+      "purpose": "grrad_nmmb: setaer call.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-setaer"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_aerosols",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_aerosols.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); passes ctx.tables to setaer/aer_property"
+    },
+    {
+      "id": "phys-rrtm-grrad-clouds",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:1577-1817",
+      "purpose": "grrad_nmmb: cloud properties, np3d 3 -> progcld2.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-progcld2"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_clouds",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_clouds.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-grrad-sw",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:1818-1962",
+      "purpose": "grrad_nmmb: setalb and swrad calls, SW heating/fluxes.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-setalb",
+        "phys-rrtm-sw-swrad"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_sw",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_sw.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-grrad-lw",
+      "group": "physics-rrtm",
+      "fortran": "phys/grrad_nmmb.f:1963-2207",
+      "purpose": "grrad_nmmb: setemis and lwrad calls, LW heating/fluxes, outputs.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-setemis",
+        "phys-rrtm-lw-lwrad"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_grrad_lw",
+      "kernel": "namgpu/kernels/phys_rrtm_grrad_lw.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-sol-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_astronomy_nmmb.f:113-259",
+      "purpose": "sol_init_nmmb: solar constant tables.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sol_init",
+      "kernel": "namgpu/kernels/phys_rrtm_sol_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sol-update",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_astronomy_nmmb.f:265-570",
+      "purpose": "sol_update_nmmb + solar: declination, equation of time.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sol_update",
+      "kernel": "namgpu/kernels/phys_rrtm_sol_update.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-coszmn",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_astronomy_nmmb.f:744-848",
+      "purpose": "coszmn_nmmb: mean cos zenith over the call period.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sol-update"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_coszmn",
+      "kernel": "namgpu/kernels/phys_rrtm_coszmn.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-aer-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_aerosols_nmmb.f:445-816",
+      "purpose": "aer_init (+wrt_aerlog, set_spectrum, set_volcaer).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_aer_init",
+      "kernel": "namgpu/kernels/phys_rrtm_aer_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-clim-aerinit",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_aerosols_nmmb.f:821-1498",
+      "purpose": "clim_aerinit, set_aercoef, optavg: aerosol optics; data parm/nam_climaeropac_global.txt.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-aer-init"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_clim_aerinit",
+      "kernel": "namgpu/kernels/phys_rrtm_clim_aerinit.cu",
+      "status": "done",
+      "deps_note": "solfwv/eirfwv from phys-rrtm-aer-init at run time (ctx.tables)"
+    },
+    {
+      "id": "phys-rrtm-aer-update",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_aerosols_nmmb.f:1504-1839",
+      "purpose": "aer_update, trop_update, volc_update.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_aer_update",
+      "kernel": "namgpu/kernels/phys_rrtm_aer_update.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-setaer",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_aerosols_nmmb.f:1845-2371",
+      "purpose": "setaer: aerosol optical properties per layer.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_setaer",
+      "kernel": "namgpu/kernels/phys_rrtm_setaer.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); aer_property stage bound through phys_rrtm_aer_property.run_call (tables from clim_aerinit + aer_update)"
+    },
+    {
+      "id": "phys-rrtm-aer-property",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_aerosols_nmmb.f:2377-3107",
+      "purpose": "aer_property + radclimaer.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_aer_property",
+      "kernel": "namgpu/kernels/phys_rrtm_aer_property.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); run_call + bind_tables added for the setaer stage"
+    },
+    {
+      "id": "phys-rrtm-gas-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_gases_nmmb.f:186-483",
+      "purpose": "gas_init: CO2/trace gas setup (co2tf 1).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_gas_init",
+      "kernel": "namgpu/kernels/phys_rrtm_gas_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-gas-update",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_gases_nmmb.f:488-838",
+      "purpose": "gas_update: monthly CO2.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_gas_update",
+      "kernel": "namgpu/kernels/phys_rrtm_gas_update.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py) (via radupdate on the first call)"
+    },
+    {
+      "id": "phys-rrtm-getgases",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_gases_nmmb.f:843-979",
+      "purpose": "getgases: gas profiles per column.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_getgases",
+      "kernel": "namgpu/kernels/phys_rrtm_getgases.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-getozn",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_gases_nmmb.f:984-1094",
+      "purpose": "getozn: climatological ozone.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_getozn",
+      "kernel": "namgpu/kernels/phys_rrtm_getozn.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-cld-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:225-349",
+      "purpose": "cld_init: cloud scheme flags.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_cld_init",
+      "kernel": "namgpu/kernels/phys_rrtm_cld_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-progcld2",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:787-1323",
+      "purpose": "progcld2: Ferrier cloud optical properties (np3d 3).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_progcld2",
+      "kernel": "namgpu/kernels/phys_rrtm_progcld2.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); NAM ivflip = 0 branch (the ivflip = 1 refusal was wrong: rad_initialize sets ivflip = IFLIP = 0); clds/mtop/mbot published as CLDS/MTOP/MBOT"
+    },
+    {
+      "id": "phys-rrtm-gethml",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:2167-2494",
+      "purpose": "gethml: high/mid/low cloud layers.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_gethml",
+      "kernel": "namgpu/kernels/phys_rrtm_gethml.cu",
+      "status": "done",
+      "note": "real path: gethml is inlined in phys_rrtm_progcld2.cu (both ivflip branches), which runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-rsipath2",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:2779-2964",
+      "purpose": "rsipath2_tmp: rain/snow/ice paths.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_rsipath2",
+      "kernel": "namgpu/kernels/phys_rrtm_rsipath2.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sfc-init",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_surface_nmmb.f:117-401",
+      "purpose": "sfc_init + sfcinit: surface albedo scheme init.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sfc_init",
+      "kernel": "namgpu/kernels/phys_rrtm_sfc_init.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-setalb",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_surface_nmmb.f:407-725",
+      "purpose": "setalb: surface albedo (diurnal variation removed, Ferrier 2005).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_setalb",
+      "kernel": "namgpu/kernels/phys_rrtm_setalb.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-setemis",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_surface_nmmb.f:730-897",
+      "purpose": "setemis: surface emissivity.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_setemis",
+      "kernel": "namgpu/kernels/phys_rrtm_setemis.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-progcld1",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:354-782",
+      "purpose": "Cloud branch progcld1.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: np3d 4 (Zhao-Carr).",
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_progcld1",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rrtm-progcld8",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:1329-1542",
+      "purpose": "Cloud branch progcld8.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: np3d 8 (Thompson).",
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_progcld8",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rrtm-diagcld1",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:1548-2162",
+      "purpose": "Cloud branch diagcld1.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: diagnostic-cloud branch; np3d 3 is prognostic.",
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_diagcld1",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rrtm-rhtable",
+      "group": "physics-rrtm",
+      "fortran": "phys/radiation_clouds_nmmb.f:2499-2769",
+      "purpose": "Cloud branch rhtable.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: used by diagcld1 only.",
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_rhtable",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rrtm-lw-lwrad",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:352-1139",
+      "purpose": "lwrad: LW driver per column.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_lwrad",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_lwrad.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-rlwinit",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:1145-1339",
+      "purpose": "rlwinit: LW init (Planck, transmittance tables).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_rlwinit",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_rlwinit.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-cldprop",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:1344-1697",
+      "purpose": "cldprop: LW cloud optical depth.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_cldprop",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_cldprop.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-mcica-subcol",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:1702-1858",
+      "purpose": "mcica_subcol: McICA sub-columns (if isubcol>0).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_mcica_subcol",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_mcica_subcol.cu",
+      "status": "done",
+      "note": "dormant on the NAM path: ISUBCLW = 0 (module_SOLVER_GRID_COMP.F90:10702, config isubclw); unit compiled and checked standalone earlier; the lwrad glue refuses isubclw != 0 by name"
+    },
+    {
+      "id": "phys-rrtm-lw-setcoef",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:1863-2121",
+      "purpose": "setcoef: per-layer interpolation coefficients.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_setcoef",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_setcoef.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); FIXED: COLAMT macro returned the array INDEX, not the value, so selffac/forfac/scaleminorn2 were scaled by an offset (OLR ~140 W m-2); now OLR 1-99 pct 151-312 W m-2, median 244"
+    },
+    {
+      "id": "phys-rrtm-lw-rtrn",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:2127-2484",
+      "purpose": "rtrn: clear/cloudy radiative transfer.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_rtrn",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_rtrn.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-rtrnmr",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:2489-3054",
+      "purpose": "rtrnmr: max-random overlap transfer.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_rtrnmr",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_rtrnmr.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-rtrnmc",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:3059-3418",
+      "purpose": "rtrnmc: McICA transfer.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_rtrnmc",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_rtrnmc.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taumol",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:3423-3609",
+      "purpose": "taumol: LW band dispatcher.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.lw_core",
+      "kernel": "",
+      "status": "done",
+      "note": "real path: namgpu/physics/rrtm/lw_core.py (band dispatch + tautot = taug + tauaer(ngb)); runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-params",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_param_nmmb.f:57-175",
+      "purpose": "LW control and band parameters (NBANDS, NGPTLW, NPLNK).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_params",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_params.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-table-avplank",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_datatb_nmmb.f:57-727",
+      "purpose": "Extract module_radlw_avplank_nmmb to namgpu/data/rrtm_lw_avplank.npz (no kernel: constant DATA table, no GPU compute).",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_table_avplank",
+      "kernel": "",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-table-cldprlw",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_datatb_nmmb.f:733-1144",
+      "purpose": "Extract module_radlw_cldprlw_nmmb to data/rrtm_lw/cldprlw.npz.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_table_cldprlw",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_table_cldprlw.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb01",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:3610-3712",
+      "purpose": "taugb01: LW band 1 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb01_nmmb (phys/radlw_datatb_nmmb.f:1150-1747) to data/rrtm_lw/kgb01.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb01",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb01.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb02",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:3716-3788",
+      "purpose": "taugb02: LW band 2 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb02_nmmb (phys/radlw_datatb_nmmb.f:1753-2777) to data/rrtm_lw/kgb02.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb02",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb02.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb03",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:3792-4094",
+      "purpose": "taugb03: LW band 3 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb03_nmmb (phys/radlw_datatb_nmmb.f:2783-8935) to data/rrtm_lw/kgb03.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb03",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb03.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb04",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:4098-4337",
+      "purpose": "taugb04: LW band 4 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb04 (phys/radlw_datatb.f:10030-15204, the module taugb04 USEs at radlw_main_nmmb.f:4105) to data/rrtm_lw/kgb04.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb04",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb04.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb05",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:4341-4598",
+      "purpose": "taugb05: LW band 5 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb05_nmmb (phys/radlw_datatb_nmmb.f:14766-20657) to data/rrtm_lw/kgb05.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb05",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb05.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb06",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:4602-4683",
+      "purpose": "taugb06: LW band 6 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb06_nmmb (phys/radlw_datatb_nmmb.f:20663-20853) to data/rrtm_lw/kgb06.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb06",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb06.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb07",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:4687-4942",
+      "purpose": "taugb07: LW band 7 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb07 (phys/radlw_datatb.f:21919-24540, the table radlw_main_nmmb.f:4695 selects by use module_radlw_kgb07) to data/rrtm_lw/kgb07.npz. The NMMB-module table (module_radlw_kgb07_nmmb) is not read and not extracted. absa and absb are zero-padded to 595 and 236 rows in the wrapper (declared deviation, Fortran edge reads).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb07",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb07.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb08",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:4946-5065",
+      "purpose": "taugb08: LW band 8 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb08_nmmb (phys/radlw_datatb_nmmb.f:22997-23638) to data/rrtm_lw/kgb08.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb08",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb08.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); FIXED: index guard was off by one (lower jp <= 11, upper jp <= 57) and NaN-poisoned legal layers; now jp 1..12 / 13..58 as setcoef"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb09",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5069-5313",
+      "purpose": "taugb09: LW band 9 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb09_nmmb (phys/radlw_datatb_nmmb.f:23644-26117) to data/rrtm_lw/kgb09.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb09",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb09.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb10",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5317-5387",
+      "purpose": "taugb10: LW band 10 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb10 (phys/radlw_datatb.f:27968-28421; the _nmmb file defines module_radlw_kgb10_nmmb with transposed, different values and is NOT the source) to data/rrtm_lw/kgb10.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb10",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb10.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb11",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5391-5478",
+      "purpose": "taugb11: LW band 11 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb11_nmmb (phys/radlw_datatb_nmmb.f:26550-27126) to data/rrtm_lw/kgb11.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb11",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb11.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb12",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5482-5662",
+      "purpose": "taugb12: LW band 12 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb12_nmmb (phys/radlw_datatb_nmmb.f:27132-28169) to data/rrtm_lw/kgb12.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb12",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb12.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb13",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5666-5908",
+      "purpose": "taugb13: LW band 13 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb13_nmmb (phys/radlw_datatb_nmmb.f:28175-28715) to data/rrtm_lw/kgb13.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb13",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb13.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb14",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5912-5976",
+      "purpose": "taugb14: LW band 14 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb14_nmmb (phys/radlw_datatb_nmmb.f:28721-28903) to data/rrtm_lw/kgb14.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb14",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb14.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb15",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:5980-6184",
+      "purpose": "taugb15: LW band 15 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb15_nmmb (phys/radlw_datatb_nmmb.f:28909-29201) to data/rrtm_lw/kgb15.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb15",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb15.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-lw-taugb16",
+      "group": "physics-rrtm",
+      "fortran": "phys/radlw_main_nmmb.f:6188-6376",
+      "purpose": "taugb16: LW band 16 optical depths and Planck fractions. Also extract its k-table module_radlw_kgb16_nmmb (phys/radlw_datatb_nmmb.f:29207-29499) to data/rrtm_lw/kgb16.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-lw-setcoef",
+        "phys-rrtm-lw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_lw_taugb16",
+      "kernel": "namgpu/kernels/phys_rrtm_lw_taugb16.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-swrad",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:374-1239",
+      "purpose": "swrad: SW driver per column.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_swrad",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_swrad.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); cosz input is SW_COSZEN (coszen_loc), not CZEN; solcon from radupdate; seam units without run_chunk go through sw_seam.ADAPTERS; loops over the NDAY day columns only"
+    },
+    {
+      "id": "phys-rrtm-sw-rswinit",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:1244-1395",
+      "purpose": "rswinit: SW init.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_rswinit",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_rswinit.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-cldprop",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:1400-1822",
+      "purpose": "cldprop: SW cloud optics.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_cldprop",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_cldprop.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-mcica-subcol",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:1827-1984",
+      "purpose": "mcica_subcol: SW McICA sub-columns (if isubcol>0).",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_mcica_subcol",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_mcica_subcol.cu",
+      "status": "done",
+      "note": "dormant on the NAM path: ISUBCSW = 0 (module_SOLVER_GRID_COMP.F90:10697); cldprop isubcsw <= 0 branch used"
+    },
+    {
+      "id": "phys-rrtm-sw-setcoef",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:1989-2139",
+      "purpose": "setcoef: SW interpolation coefficients.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_setcoef",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_setcoef.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-spcvrtc",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:2144-2964",
+      "purpose": "spcvrtc: delta-Eddington two-stream, clear/cloudy.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_spcvrtc",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_spcvrtc.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py); called through namgpu/physics/rrtm/sw_seam.py on the swrad day-column chunk"
+    },
+    {
+      "id": "phys-rrtm-sw-swflux",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:2977-3102",
+      "purpose": "swflux: SW flux/heating outputs.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_swflux",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_swflux.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3107-3383",
+      "purpose": "taumol: SW band dispatcher.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-params"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-spcvrtm",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:2970-2971",
+      "purpose": "spcvrtm stub.",
+      "mode": "skip",
+      "deps": [],
+      "reason": "skip: empty stub in NAM source.",
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_spcvrtm",
+      "kernel": "",
+      "status": "skip"
+    },
+    {
+      "id": "phys-rrtm-sw-params",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_param_nmmb.f:51-189",
+      "purpose": "SW control and band parameters.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_params",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_params.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-table-cldprtb",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_datatb_nmmb.f:52-1064",
+      "purpose": "Extract module_radsw_cldprtb_nmmb to data/rrtm_sw/cldprtb.npz.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_table_cldprtb",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_table_cldprtb.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py) (tables read by sw cldprop)"
+    },
+    {
+      "id": "phys-rrtm-sw-table-sflux",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_datatb_nmmb.f:1070-1378",
+      "purpose": "Extract module_radsw_sflux_nmmb to data/rrtm_sw/sflux.npz.",
+      "mode": "port",
+      "deps": [],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_table_sflux",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_table_sflux.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol16",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3384-3490",
+      "purpose": "taumol16: SW band 16 optical depths and solar source. Also extract its k-table module_radsw_kgb16_nmmb (phys/radsw_datatb_nmmb.f:1384-2528) to data/rrtm_sw/kgb16.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol16",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol16.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol17",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3495-3627",
+      "purpose": "taumol17: SW band 17 optical depths and solar source. Also extract its k-table module_radsw_kgb17_nmmb (phys/radsw_datatb_nmmb.f:2533-7128) to data/rrtm_sw/kgb17.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol17",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol17.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol18",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3632-3738",
+      "purpose": "taumol18: SW band 18 optical depths and solar source. Also extract its k-table module_radsw_kgb18_nmmb (phys/radsw_datatb_nmmb.f:7133-8634) to data/rrtm_sw/kgb18.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol18",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol18.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol19",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3743-3847",
+      "purpose": "taumol19: SW band 19 optical depths and solar source. Also extract its k-table module_radsw_kgb19_nmmb (phys/radsw_datatb_nmmb.f:8639-10141) to data/rrtm_sw/kgb19.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol19",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol19.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol20",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3852-3943",
+      "purpose": "taumol20: SW band 20 optical depths and solar source. Also extract its k-table module_radsw_kgb20_nmmb (phys/radsw_datatb_nmmb.f:10146-10910) to data/rrtm_sw/kgb20.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol20",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol20.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py)"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol21",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:3948-4080",
+      "purpose": "taumol21: SW band 21 optical depths and solar source. Also extract its k-table module_radsw_kgb21_nmmb (phys/radsw_datatb_nmmb.f:10915-14755) to data/rrtm_sw/kgb21.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol21",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol21.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol22",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4085-4201",
+      "purpose": "taumol22: SW band 22 optical depths and solar source. Also extract its k-table module_radsw_kgb22_nmmb (phys/radsw_datatb_nmmb.f:14760-15190) to data/rrtm_sw/kgb22.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol22",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol22.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol23",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4206-4272",
+      "purpose": "taumol23: SW band 23 optical depths and solar source. Also extract its k-table module_radsw_kgb23_nmmb (phys/radsw_datatb_nmmb.f:15195-15436) to data/rrtm_sw/kgb23.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol23",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol23.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol24",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4277-4381",
+      "purpose": "taumol24: SW band 24 optical depths and solar source. Also extract its k-table module_radsw_kgb24_nmmb (phys/radsw_datatb_nmmb.f:15441-16967) to data/rrtm_sw/kgb24.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol24",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol24.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol25",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4386-4445",
+      "purpose": "taumol25: SW band 25 optical depths and solar source. Also extract its k-table module_radsw_kgb25_nmmb (phys/radsw_datatb_nmmb.f:16972-17119) to data/rrtm_sw/kgb25.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol25",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol25.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol26",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4450-4481",
+      "purpose": "taumol26: SW band 26 optical depths and solar source. Also extract its k-table module_radsw_kgb26_nmmb (phys/radsw_datatb_nmmb.f:17124-17154) to data/rrtm_sw/kgb26.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol26",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol26.cu",
+      "status": "done"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol27",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4486-4554",
+      "purpose": "taumol27: SW band 27 optical depths and solar source. Also extract its k-table module_radsw_kgb27_nmmb (phys/radsw_datatb_nmmb.f:17159-17749) to data/rrtm_sw/kgb27.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol27",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol27.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py) (sw_seam adapter)"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol28",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4559-4678",
+      "purpose": "taumol28: SW band 28 optical depths and solar source. Also extract its k-table module_radsw_kgb28_nmmb (phys/radsw_datatb_nmmb.f:17754-20060) to data/rrtm_sw/kgb28.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol28",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol28.cu",
+      "status": "done",
+      "note": "2026-11-04 box card 3 (physics B integrator): runs inside the whole RRTM chain (phys-rad-driver -> rrtm_call, SW + LW, 32-row chunks) on the REAL 2025-03-14 12Z state (954x835x60) at 12Z and 18Z, no NaN/Inf (tools/run_rrtm_real.py) (sw_seam adapter)"
+    },
+    {
+      "id": "phys-rrtm-sw-taumol29",
+      "group": "physics-rrtm",
+      "fortran": "phys/radsw_main_nmmb.f:4683-4767",
+      "purpose": "taumol29: SW band 29 optical depths and solar source. Also extract its k-table module_radsw_kgb29_nmmb (phys/radsw_datatb_nmmb.f:20065-20973) to data/rrtm_sw/kgb29.npz.",
+      "mode": "port",
+      "deps": [
+        "phys-rrtm-sw-setcoef",
+        "phys-rrtm-sw-params",
+        "phys-rrtm-sw-table-sflux"
+      ],
+      "wrapper": "namgpu.physics.rrtm.phys_rrtm_sw_taumol29",
+      "kernel": "namgpu/kernels/phys_rrtm_sw_taumol29.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-gfs-bocos",
+      "group": "init",
+      "fortran": "nam_nps.fd/sorc/NMMB_init/NPS/nemsinterp/src/module_boundary.F90:630-1366 (boco write)",
+      "purpose": "Lateral boundary files boco.NNNN from GFS every 3 h in the NPS/READ_BC record layout: per boundary time decode, hinterp, vinterp, wind rotation on the GPU, cut the strips, slot 1 value and slot 2 tendency over tboco = 10800 s.",
+      "mode": "new",
+      "deps": [
+        "init-gfs-decode",
+        "init-gfs-hinterp",
+        "init-gfs-vinterp",
+        "init-gfs-wind-rotate",
+        "init-grid-geo"
+      ],
+      "wrapper": "namgpu.init.gfs_bocos",
+      "kernel": "",
+      "status": "done"
+    },
+    {
+      "id": "drv-filter-consts",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:3134-3196,3226-3262,3302-3342",
+      "purpose": "FIRST_PASS / changedir / end_filt: the dt-scaled int_state constants (FAD, FAH, FCP, DDMPU, DDMPV, WPDAR, HDACX/Y, HDACVX/Y, EF4T) and their TDFI scalings; bind() makes every consumer read init-grid-consts' arrays (one array per Fortran constant).",
+      "mode": "port",
+      "deps": [
+        "init-grid-consts",
+        "dyn-vtoa",
+        "dyn-ddamp-extmode"
+      ],
+      "wrapper": "namgpu.steps.drv_filter_consts",
+      "kernel": "",
+      "status": "done"
+    }
+  ]
+}

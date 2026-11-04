@@ -1,0 +1,44 @@
+# environments and caches
+.venv/
+.venv-install.log
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# run output: never committed
+runs/
+runs-*/
+scratch/
+logs/
+wrfout_d0*
+*.nc
+*.rws
+*.npz.tmp
+forecast-receipt.json
+
+# case inputs: fetched by namgpu.init.init_fetch_case, never committed
+cases/*/raw/
+cases/*/derived/
+cases/*/boco/
+cases/*/referee/png/
+cases/*/referee/tmp/
+cases/*/*.log
+cases/*/referee/*.log
+
+# NOAA fix files: fetched by tools/fetch_fix.sh, never committed (fix/noah/ is kept)
+fix/*.txt
+
+# compiled reference harnesses and build output
+tools/**/build/
+tools/fer-get-indexr-ref/ref_get_indexr
+*.mod
+*.o
+*.so
+tools/*.log
+tests/*.log
+
+# machine-local
+.box.bundle
+.stage/

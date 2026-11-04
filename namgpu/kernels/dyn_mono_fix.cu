@@ -1,0 +1,192 @@
+// dyn_mono_fix.cu -- nam-gpu unit dyn-mono-fix: MONO setup and per-species monotonisation
+// (local min/max limiter, per-species sums of positive and negative limited changes).
+//
+// NOTICE: NOAA/NCEP NMMB source (US government work, no licence file in the NAM clone). The Fortran
+// module module_DYNAMICS_ROUTINES.F90 has no author/history block of its own; the NOAA notice is
+// in the NOTICE file at the repo root.
+// Ported to CUDA for nam-gpu from nmm/module_DYNAMICS_ROUTINES.F90:4768-5075 (nam.v4.2.11, 83df4e13c1),
+// the allreduce branch of MONO (use_allreduce = true, parm/nam_configfile line 159).
+//
+// Fortran subroutine MONO(idtadt, kss, kse, lm, dsg2, pdsg1, epsq2, dare, pd, indx_q2, s, inpes,
+//                         jnpes, use_allreduce, s1, tcs)
+// Lines mapped here:
+//   4768-4893  argument list and declarations. Only s, s1, tcs, pd, dare, dsg2, pdsg1, idtadt,
+//              kss, kse, lm and use_allreduce are used by this unit. epsq2 and indx_q2 belong to
+//              the Q2 back-interpolation unit dyn-mono-q2-back.
+//   4894       steep = 1. - 0.040*idtadt              -> steep in the kernel (float)
+//   4900-4907  dvol(i,j,l) = (dsg2(l)*pd(i,j)+pdsg1(l))*dare(j), rdvol = 1/dvol.
+//              dvol is recomputed inline per cell (a pure function of pd, dare, dsg2, pdsg1).
+//              rdvol is not stored here: the rescale loop at 5160-5200 (owned by dyn-mono-global-sum)
+//              recomputes it from the same inputs.
+//   4916-4996  use_allreduce branch: for each species, for each interior (i, j, l):
+//                s1p = (s1 + tcs)**2 ; tcs = s1p - s
+//                sminh/smaxh = min/max of the 3x3 horizontal neighbourhood of s at level l
+//                sminv/smaxv = min/max of s over the vertical neighbours (l-1, l, l+1), with the
+//                              top level (l=1) using l, l+1 and the bottom level (l=lm) using l-1, l
+//                smin = min(sminh, sminv), smax = max(smaxh, smaxv)
+//                sn = s1p, then clipped above at steep*smax and below at smin (Fortran order)
+//                dsp = (sn - s1p)*dvol ; added to the positive sum if dsp > 0, else to the other sum
+//              These are the local sums that dyn-mono-global-sum reduces (a device reduction replaces
+//              MPI_Allreduce; on one card the local sums are the global sums).
+//              The allreduce branch does NOT write s1 (the Fortran rescale then reads the raw s1; that is
+//              the literal quirk the dyn-mono-global-sum rescale keeps).
+//   4997-5072  send/recv branch (use_allreduce = false): s1(i,j,l,ks) = dsp (stored to kfpt) for the
+//              interior cells, same limiter as above. The per-column sums s1l_sum are formed by
+//              dyn-mono-global-sum (mono_global_sum_reduce) from that s1, as the Fortran sums them after
+//              the send/recv. No xsums are written on this branch.
+//   5073-5078  endif. The gsums/xsums zeroing (Fortran 4925-4928, the allreduce branch's do-ks loop) is
+//              done by the wrapper: the xsums buffer is zeroed on the device before the launch.
+//
+// Layout (CONTRACT.md sections 1 and 3): Fortran s(i,j,l,ks) -> s[ks-1][l-1][j-1][i-1] via
+// IDX4(i0, j0, l0, ks0, IM, JM, LM); the same for s1 and tcs. s1 is the wrapper's S1 scratch
+// (sqrt-transformed tracers, TRACERS_SQRT in the Fortran), tcs is TRACERS_TEND. pd is [JM, IM]
+// (IDX2). dare, dsg2 and pdsg1 are per row or per level. xsums is double [2*NTR]: entry 2*(ks-1)
+// is the positive sum of dsp for species ks, entry 2*(ks-1)+1 the non-positive sum (Fortran
+// gsums(2*ks-1) and gsums(2*ks) before the global reduce).
+//
+// Loop limits: NMMB _b1 limits on the single full domain (module_DM_PARALLEL.F90 looplimits,
+// ids = 1, ide = IM): its_b1 = 2, ite_b1 = IM-1, jts_b1 = 2, jte_b1 = JM-1 (1-based). Points
+// outside the interior keep their tcs unchanged and contribute nothing, as in the Fortran.
+//
+// Thread mapping: one thread per (i, j) with the level in blockIdx.z (grid_2d, BLOCK_2D = 32 x 8).
+// Each thread loops over the species ks in kss..kse for its (i, j, l) point. No thread returns
+// early. On the allreduce branch every warp runs the shuffle reduction: the per-species dsp
+// contributions are reduced across the 32 lanes of a warp (a warp is one row of 32 threads in x),
+// and one atomicAdd(double) per warp per sign goes to xsums. Accumulation is in double, as the
+// Fortran kdbl sums are. On the send/recv branch the warp reduction is skipped and s1 is written.
+// The order of the atomic adds differs from the Fortran serial order, so the sums are not
+// bit-identical to native. That is not required (project rule, 2026-11-04). Each term is computed in the
+// same order as the Fortran.
+//
+// Fast numerics: fmad contraction is allowed by the loader. The per-term float operations keep the
+// Fortran order; the product (sn - s1p)*dvol is formed in float and then promoted to double.
+
+#include "nmmb_common.cuh"
+
+extern "C" __global__ void dyn_mono_fix(
+    const int im,                          // IM
+    const int jm,                          // JM
+    const int lm,                          // LM
+    const int idtadt,                      // IDTADT (configfile idtadt = 2 for the tracer call)
+    const int kss,                         // first tracer slot, 1-based
+    const int kse,                         // last tracer slot, 1-based
+    const int ntr,                         // NTR (first dimension of s, s1, tcs)
+    const int use_allreduce,               // 1: local sums to xsums; 0: send/recv branch, s1 = dsp
+    const float* __restrict__ s,           // TRACERS [NTR, LM, JM, IM], read only
+    float* __restrict__ s1,                // TRACERS_SQRT (sqrt-transformed tracers) [NTR, LM, JM, IM];
+                                           // read as s1 in the allreduce branch, written as dsp in send/recv
+    float* __restrict__ tcs,               // TRACERS_TEND [NTR, LM, JM, IM], interior overwritten
+    const float* __restrict__ pd,          // PD [JM, IM]
+    const float* __restrict__ dare,        // DARE [JM], grid box area per row
+    const float* __restrict__ dsg2,        // DSG2 [LM]
+    const float* __restrict__ pdsg1,       // PDSG1 [LM]
+    double* __restrict__ xsums)            // [2*NTR] double, zeroed by the caller before the launch
+{
+    const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
+    const int j0 = blockIdx.y * blockDim.y + threadIdx.y;
+    const int l0 = blockIdx.z;
+
+    // NMMB interior limits (1-based i, j in [2, IM-1], [2, JM-1]) -> zero-based [1, IM-2], [1, JM-2].
+    // Out-of-range threads still take part in the warp reduction (contribution 0) and never write.
+    const bool inside = (i0 >= 1) && (i0 <= im - 2) && (j0 >= 1) && (j0 <= jm - 2) && (l0 < lm);
+
+    // steep = 1. - 0.040*idtadt, evaluated in single precision as the Fortran does (line 4894).
+    const float steep = 1.0f - 0.040f * (float)idtadt;
+
+    // dvol(i,j,l) = (dsg2(l)*pd(i,j) + pdsg1(l)) * dare(j)   (lines 4900-4902).
+    float dvol = 0.0f;
+    if (inside) {
+        dvol = (dsg2[l0] * pd[IDX2(i0, j0, im)] + pdsg1[l0]) * dare[j0];
+    }
+
+    // Vertical neighbour levels used by the l-branches below (only read when inside).
+    const int lm1 = (l0 > 0) ? (l0 - 1) : l0;        // bottom level uses l-1
+    const int lp1 = (l0 < lm - 1) ? (l0 + 1) : l0;   // top level uses l+1
+
+    for (int ks = kss; ks <= kse; ++ks) {
+        const int k0 = ks - 1;
+        double pos = 0.0;                              // contribution to xsums(2*ks-1)
+        double neg = 0.0;                              // contribution to xsums(2*ks)
+
+        if (inside && k0 >= 0 && k0 < ntr) {
+            const size_t ix = IDX4(i0, j0, l0, k0, im, jm, lm);
+
+            // s1p = (s1 + tcs)**2 ; tcs = s1p - s   (lines 4937-4939)
+            const float t = s1[ix] + tcs[ix];
+            const float s1p = t * t;
+            tcs[ix] = s1p - s[ix];
+
+            // Horizontal 3x3 min and max of s at level l (lines 4941-4958).
+            float sminh = s[IDX4(i0 - 1, j0 - 1, l0, k0, im, jm, lm)];
+            float smaxh = sminh;
+#define MONO_H(ii, jj)                                                        \
+            {                                                                 \
+                const float v_ = s[IDX4((ii), (jj), l0, k0, im, jm, lm)];     \
+                sminh = fminf(sminh, v_);                                     \
+                smaxh = fmaxf(smaxh, v_);                                     \
+            }
+            MONO_H(i0,     j0 - 1)
+            MONO_H(i0 + 1, j0 - 1)
+            MONO_H(i0 - 1, j0    )
+            MONO_H(i0,     j0    )
+            MONO_H(i0 + 1, j0    )
+            MONO_H(i0 - 1, j0 + 1)
+            MONO_H(i0,     j0 + 1)
+            MONO_H(i0 + 1, j0 + 1)
+#undef MONO_H
+
+            // Vertical min and max (lines 4960-4972).
+            const float sc = s[ix];
+            float sminv, smaxv;
+            if (l0 > 0 && l0 < lm - 1) {
+                const float sa = s[IDX4(i0, j0, l0 - 1, k0, im, jm, lm)];
+                const float sb = s[IDX4(i0, j0, l0 + 1, k0, im, jm, lm)];
+                sminv = fminf(fminf(sa, sc), sb);
+                smaxv = fmaxf(fmaxf(sa, sc), sb);
+            } else if (l0 == 0) {
+                const float sb = s[IDX4(i0, j0, lp1, k0, im, jm, lm)];
+                sminv = fminf(sc, sb);
+                smaxv = fmaxf(sc, sb);
+            } else {
+                const float sa = s[IDX4(i0, j0, lm1, k0, im, jm, lm)];
+                sminv = fminf(sa, sc);
+                smaxv = fmaxf(sa, sc);
+            }
+
+            // smin = min(sminh, sminv), smax = max(smaxh, smaxv)   (lines 4974-4975)
+            const float smin = fminf(sminh, sminv);
+            const float smax = fmaxf(smaxh, smaxv);
+
+            // Limiter (lines 4977-4980): sn = s1p, clipped above at steep*smax, then below at smin.
+            float sn = s1p;
+            if (sn > steep * smax) sn = smax;
+            if (sn < smin) sn = smin;
+
+            // dsp = (sn - s1p)*dvol (line 4982). The product is formed in float, then held in double.
+            const double dsp = (double)((sn - s1p) * dvol);
+
+            if (use_allreduce) {
+                // Positive and non-positive sums (lines 4984-4990).
+                if (dsp > 0.0) pos = dsp;
+                else           neg = dsp;
+            } else {
+                // send/recv branch of MONO: s1 = dsp, kfpt store.
+                s1[ix] = (float)dsp;
+            }
+        }
+
+        if (use_allreduce) {
+            // Warp reduction along x. Every lane of the warp reaches this point, so the full-mask
+            // shuffles are safe. The branch is uniform across the grid (use_allreduce is a scalar).
+#pragma unroll
+            for (int off = 16; off > 0; off >>= 1) {
+                pos += __shfl_down_sync(0xffffffffu, pos, off);
+                neg += __shfl_down_sync(0xffffffffu, neg, off);
+            }
+            if ((threadIdx.x & 31) == 0 && k0 >= 0 && k0 < ntr) {
+                atomicAdd(&xsums[2 * k0],     pos);
+                atomicAdd(&xsums[2 * k0 + 1], neg);
+            }
+        }
+    }
+}

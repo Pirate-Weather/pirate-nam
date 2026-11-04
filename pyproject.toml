@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "woof-nam"
+version = "0.1.0"
+description = "GPU port of the NOAA/NCEP NAM (NMMB dynamics + NAM physics) 12 km CONUS parent"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.12"
+authors = [{ name = "Recast Systems" }]
+dependencies = [
+    "cupy-cuda13x",
+    "numpy",
+    "scipy",
+    "netCDF4",
+    "Pillow",
+    "gpuwm>=2.9.11",
+]
+# Private package: never uploaded to PyPI.
+classifiers = ["Private :: Do Not Upload"]
+
+[tool.setuptools.packages.find]
+include = ["namgpu*"]
+
+[tool.setuptools.package-data]
+namgpu = ["kernels/*.cu", "kernels/*.cuh", "data/**/*", "data/*"]

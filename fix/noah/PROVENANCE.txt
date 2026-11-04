@@ -1,0 +1,12 @@
+Build fix/noah/{VEGPARM,SOILPARM,GENPARM}.TBL in the layout NMMB's LSM_PARM_INIT reads
+(phys/module_LS_NOAHLSM.F90:1298-1547): VEGPARM first section 'IGBP', 11 items per row
+(IINDEX, ALBEDO, Z0, SHDFAC, NROOT, RS, RGL, HS, SNUP, LAI, MAXALB).
+
+Why: the NCEP NAM fix VEGPARM.TBL (IGBP first, old 10-column layout) is not published anywhere we
+can fetch. This builds the IGBP rows from WRF V3.0's MODIFIED_IGBP_MODIS_NOAH section (WRF public
+domain, www2.mmm.ucar.edu/wrf/src/WRFV3.0.TAR.gz): SHDFAC, NROOT, RS, RGL, HS, SNUP, MAXALB as given (NROOT 0 on water raised to 1, as in the WRF V2 USGS water row);
+ALBEDO, Z0 and LAI are the midpoints of WRF's min/max pairs. SOILPARM (STAS first) and GENPARM are
+WRF V3.0's files unchanged. NAMED GAP: replace with the NCEP NAM fix tables when found; the NAM state
+carries its own ALBASE / Z0BASE / VEGFRC, so the table ALBEDO/Z0 are fallbacks in NOAH_LSM_INIT.
+
+    python tools/build_noah_fix.py <WRFV3/run dir> [dest=fix/noah]
