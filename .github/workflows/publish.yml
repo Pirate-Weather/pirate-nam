@@ -1,7 +1,7 @@
 name: publish
 
 # Builds woof-nam (wheel + sdist), attaches them with SHA256SUMS to the release,
-# and uploads them to pypi.org.
+# and (only when enabled, see THE PUBLISH SWITCH) uploads them to pypi.org.
 #
 # Triggers: a published GitHub release (tag vX.Y.Z), or workflow_dispatch with a
 # version input (X.Y.Z, must equal pyproject's version; builds the selected ref).
@@ -11,12 +11,12 @@ name: publish
 #   recastsystems / woof-nam / publish.yml / pypi
 # Renaming this file, or renaming or dropping the `pypi` environment, breaks it.
 #
-# THE PUBLISH SWITCH: pyproject.toml carries the classifier
-#   "Private :: Do Not Upload"
-# and PyPI refuses any upload that carries it, so the publish job fails at the
-# upload step until that classifier is removed. Removing it is the switch, and it
-# needs the owner's explicit public yes first. Until then this workflow only
-# builds, checks and attaches the files to the (private) release.
+# THE PUBLISH SWITCH: PyPI upload enabled only on Drew's yes.
+# The publish job runs only when the repository variable WOOF_NAM_PYPI is "true"
+# (Settings > Secrets and variables > Actions > Variables). Unset, this workflow
+# builds, tests and attaches the files to the GitHub release, and the publish job
+# is skipped. Setting the variable also needs the `pypi` environment and the PyPI
+# pending publisher above.
 
 on:
   release:
@@ -122,6 +122,8 @@ jobs:
           fi
 
   publish:
+    # PyPI upload enabled only on Drew's yes: skipped unless vars.WOOF_NAM_PYPI == 'true'.
+    if: vars.WOOF_NAM_PYPI == 'true'
     needs: build
     runs-on: ubuntu-24.04
     environment: pypi
@@ -135,7 +137,6 @@ jobs:
       - name: check files against SHA256SUMS
         run: cd dist && sha256sum -c ../SHA256SUMS --strict
       - name: publish to PyPI
-        # Fails while pyproject carries "Private :: Do Not Upload" (see the switch note above).
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           packages-dir: dist/

@@ -5,7 +5,7 @@ WOOF-NAM is a GPU port of NOAA/NCEP's North American Mesoscale model (NAM, nam.v
 on one NVIDIA card or on several cards of one machine. NCEP retired the NAM on 2026-11-03 12Z; this
 package keeps the model running.
 
-Distribution name `woof-nam`, import name `namgpu`, version 0.1.0. Private repository, not on PyPI.
+Distribution name `woof-nam`, import name `namgpu`, version 0.1.0. Not on PyPI yet: install from GitHub (below) or from the wheel attached to the GitHub release.
 
 ## What it looks like
 
