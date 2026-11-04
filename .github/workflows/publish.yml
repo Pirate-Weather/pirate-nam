@@ -11,7 +11,7 @@ name: publish
 #   recastsystems / woof-nam / publish.yml / pypi
 # Renaming this file, or renaming or dropping the `pypi` environment, breaks it.
 #
-# THE PUBLISH SWITCH: PyPI upload enabled only on Drew's yes.
+# THE PUBLISH SWITCH: PyPI upload enabled only on the owner's yes.
 # The publish job runs only when the repository variable WOOF_NAM_PYPI is "true"
 # (Settings > Secrets and variables > Actions > Variables). Unset, this workflow
 # builds, tests and attaches the files to the GitHub release, and the publish job
@@ -122,7 +122,7 @@ jobs:
           fi
 
   publish:
-    # PyPI upload enabled only on Drew's yes: skipped unless vars.WOOF_NAM_PYPI == 'true'.
+    # PyPI upload enabled only on the owner's yes: skipped unless vars.WOOF_NAM_PYPI == 'true'.
     if: vars.WOOF_NAM_PYPI == 'true'
     needs: build
     runs-on: ubuntu-24.04
