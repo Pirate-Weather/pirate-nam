@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4378-4505. NOAA US
 government work; the module's NOAA header is kept as the notice in the kernel file. The kernel
-starts from the ArWen Noah snowpack body (third_party/arwen/core/kernels/noah.cu, Apache-2.0)
+starts from the ArWen Noah snowpack body (namgpu/third_party/arwen/core/kernels/noah.cu, Apache-2.0)
 and follows the NAM Fortran where they differ (NAM density limits 0.05-0.9, melt cap 0.9).
 The SNOPAC call-site gate is in the kernel: columns with ESD <= 0 (or NaN) get ESD, SNOWH and
 SNDENS set to 0 and no compaction, as the Fortran ELSE branch does.

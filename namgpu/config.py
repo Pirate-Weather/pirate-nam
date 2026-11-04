@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PARM = Path(__file__).resolve().parents[1] / "parm"
+from .paths import PARM  # noqa: E402  (shipped inside the package)
 
 # What exnam_fcst.sh substitutes for the tm00 parent forecast (scripts/exnam_fcst.sh:270-300).
 SCRIPT_SUBSTITUTIONS = {

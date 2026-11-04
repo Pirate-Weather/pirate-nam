@@ -2,7 +2,7 @@
 // conductivity (Noah LSM). NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work.
 // Author headers of the source module are kept as notices: MODULE MODULE_LS_NOAHLSM
 // (module_LS_NOAHLSM.F90). Ported from phys/module_LS_NOAHLSM.F90:5312-5369.
-// Start point for the arithmetic: third_party/arwen/core/kernels/noah.cu noah_wdfcnd (Apache-2.0,
+// Start point for the arithmetic: namgpu/third_party/arwen/core/kernels/noah.cu noah_wdfcnd (Apache-2.0,
 // ArWen LICENSE). The ArWen copy is NOT the NAM routine: it uses WRF v4.6.1 FACTR1 = 0.05/SMCMAX
 // clamped by min(FACTR1, FACTR2). NAM uses FACTR1 = 0.2/SMCMAX with no clamp, so the NAM form is
 // written here.

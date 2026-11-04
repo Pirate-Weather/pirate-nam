@@ -3,8 +3,8 @@
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4378-4505 (nam.v4.2.11, 83df4e13c1).
-// Derived from the ArWen Noah kernel (third_party/arwen/core/kernels/noah.cu, Apache-2.0, see
-// third_party/arwen/LICENSE). Its noah_snowpack body was the starting point; the NAM differences
+// Derived from the ArWen Noah kernel (namgpu/third_party/arwen/core/kernels/noah.cu, Apache-2.0, see
+// namgpu/third_party/arwen/LICENSE). Its noah_snowpack body was the starting point; the NAM differences
 // listed below are applied so the kernel follows the NAM Fortran, not the WRF-lineage code.
 //
 // Source: SUBROUTINE SNOWPACK (ESD, DTSEC, SNOWH, SNDENS, TSNOW, TSOIL). Called from SNOPAC

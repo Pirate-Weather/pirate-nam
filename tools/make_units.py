@@ -2,7 +2,7 @@
 
 Line ranges were read from the NAM clone (nam.v4.2.11, 83df4e13c1), 2026-11-04.
 fortran paths are relative to $NMMB_SRC = sorc/nam_nems_nmmb.fd/src/atmos.
-Run:  python tools/make_units.py  (writes UNITS.json at the repo root)
+Run:  python tools/make_units.py  (writes namgpu/UNITS.json, shipped in the package)
 """
 from __future__ import annotations
 
@@ -278,7 +278,7 @@ u("drv-dfi-phy-save", R, f"{DF}:741-824", "Save physics state (soil, CW etc. 'R'
 u("drv-dfi-phy-restore", R, f"{DF}:829-921", "Restore the saved physics state after DFI.",
   deps=["drv-dfi-phy-save"])
 u("drv-dfi-dolph", R, f"{DF}:929-1039", "DOLPH + CHEBY: Dolph-Chebyshev filter weights. In: window -> weights.")
-u("drv-dfi-filt-vars", R, "parm/nam_filt_vars_norad.txt",
+u("drv-dfi-filt-vars", R, "namgpu/parm/nam_filt_vars_norad.txt",
   "Read the filter/restore table (F/R/B per variable) into the DFI variable lists.", mode="new")
 u("drv-physics-initialize", R, f"{SV}:9936-11062",
   "PHYSICS_INITIALIZE orchestration for the selected schemes (rad_initialize_nmmb, RRTM_INIT, "
@@ -498,7 +498,7 @@ u("phys-bmj-col-shallow-adjust", J, f"{BJ}:1450-2067",
 
 # ------------------------------------------------------------------ physics: MYJ PBL (copy-arwen)
 M = "physics-myj"
-AW = "third_party/arwen/core/kernels/myjpbl.cu"
+AW = "namgpu/third_party/arwen/core/kernels/myjpbl.cu"
 for nm, rng, what in (("myjpbl", "180-753", "MYJPBL column driver: theta, Q2, mixing, tendencies"),
                       ("mixlen", "758-965", "MIXLEN: master length scale"),
                       ("prodq2", "969-1173", "PRODQ2: TKE production/dissipation"),
@@ -517,7 +517,7 @@ u("phys-myj-tables", M, f"{MY}:1661-2029", "HERFTBL/HERF, TABLEPT/TABLETT, SPLIN
 
 # ------------------------------------------------------------------ physics: JSFC surface layer
 S = "physics-jsfc"
-AJ = "third_party/arwen/core/kernels/myjsfc.cu"
+AJ = "namgpu/third_party/arwen/core/kernels/myjsfc.cu"
 u("phys-jsfc-jsfc", S, f"{JS}:80-354",
   f"JSFC driver: surface layer per column (USTAR, Z0, AKHS, AKMS, THZ0, QZ0, U10, V10, TH10, Q10). "
   f"Start from ArWen {AJ}.", mode="copy-arwen", deps=["phys-jsfc-sfcdif"], arwen=AJ)
@@ -525,11 +525,11 @@ u("phys-jsfc-sfcdif", S, f"{JS}:357-1011",
   f"SFCDIF: Janjic similarity, viscous sublayer over water, iterations. Start from ArWen {AJ}; NAM "
   "copy ~80% identical to WRF.", mode="copy-arwen", deps=["phys-jsfc-init"], arwen=AJ)
 u("phys-jsfc-init", S, f"{JS}:1014-1251", "JSFC_INIT: PSIM/PSIH tables, initial USTAR, Z0. Ref ArWen "
-  "third_party/arwen/core/myjsfc_tables.py.", mode="port")
+  "namgpu/third_party/arwen/core/myjsfc_tables.py.", mode="port")
 
 # ------------------------------------------------------------------ physics: Noah (copy-arwen)
 N = "physics-noah"
-AN = "third_party/arwen/core/kernels/noah.cu"
+AN = "namgpu/third_party/arwen/core/kernels/noah.cu"
 u("phys-noah-init", N, f"{NO}:1164-1293", "NOAH_LSM_INIT: soil/veg parameters per point, SH2O, initial state.",
   deps=["phys-noah-parm-tables"])
 u("phys-noah-parm-tables", N, f"{NO}:1298-1547",
@@ -626,7 +626,7 @@ for nm, path, rng, what in (
         ("sol-update", "phys/radiation_astronomy_nmmb.f", "265-570", "sol_update_nmmb + solar: declination, equation of time"),
         ("coszmn", "phys/radiation_astronomy_nmmb.f", "744-848", "coszmn_nmmb: mean cos zenith over the call period"),
         ("aer-init", "phys/radiation_aerosols_nmmb.f", "445-816", "aer_init (+wrt_aerlog, set_spectrum, set_volcaer)"),
-        ("clim-aerinit", "phys/radiation_aerosols_nmmb.f", "821-1498", "clim_aerinit, set_aercoef, optavg: aerosol optics; data parm/nam_climaeropac_global.txt"),
+        ("clim-aerinit", "phys/radiation_aerosols_nmmb.f", "821-1498", "clim_aerinit, set_aercoef, optavg: aerosol optics; data namgpu/parm/nam_climaeropac_global.txt"),
         ("aer-update", "phys/radiation_aerosols_nmmb.f", "1504-1839", "aer_update, trop_update, volc_update"),
         ("setaer", "phys/radiation_aerosols_nmmb.f", "1845-2371", "setaer: aerosol optical properties per layer"),
         ("aer-property", "phys/radiation_aerosols_nmmb.f", "2377-3107", "aer_property + radclimaer"),
@@ -743,7 +743,7 @@ def finish():
     for x in U:
         doc["counts"][x["mode"]] = doc["counts"].get(x["mode"], 0) + 1
     doc["counts"]["total"] = len(U)
-    (ROOT / "UNITS.json").write_text(json.dumps(doc, indent=1) + "\n")
+    (ROOT / "namgpu" / "UNITS.json").write_text(json.dumps(doc, indent=1) + "\n")
     return doc
 
 

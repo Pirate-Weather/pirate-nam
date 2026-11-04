@@ -33,6 +33,7 @@ PRODUCT_SOURCES = {
     "t2": ("nam_gpu", "nam_archive"),
     "precip_total": ("nam_gpu", "nam_archive"),
 }
+CMD = {"mrms": "mrms", "nam_gpu": "woof-nam", "nam_archive": "archive"}   # panel step per source
 PANEL_NAMES = {"mrms": "MRMS", "nam_gpu": "WOOF-NAM", "nam_archive": "archived NAM"}
 TITLES = {
     "composite_reflectivity": "Composite reflectivity",
@@ -58,7 +59,7 @@ def compose_hour(renderer: Path, panels: Path, out: Path, product: str, valid: d
     for source in PRODUCT_SOURCES[product]:
         p = panel_path(panels, product, source, valid)
         if not p.is_file():
-            raise FileNotFoundError(f"missing referee panel: {p} (run io_referee_panels for {source})")
+            raise FileNotFoundError(f"missing panel: {p} (draw it first: woof-nam side-by-side {CMD[source]} ...)")
         row.append(p)
     names = " | ".join(PANEL_NAMES[s] for s in PRODUCT_SOURCES[product])
     title = f"{TITLES[product]}: {names}"
@@ -81,15 +82,25 @@ def run_sheets(panels: Path, out: Path, hours: list[datetime], products=PRODUCTS
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--panels", type=Path, required=True)
-    ap.add_argument("--out", type=Path, required=True)
+    from namgpu.cli import HelpFormatter
+    ap = argparse.ArgumentParser(
+        description="Compose side-by-side sheets, one per product and valid time: MRMS | WOOF-NAM | "
+                    "archived NAM, from the panels that `woof-nam side-by-side mrms|archive|woof-nam` rendered.",
+        epilog="example: woof-nam side-by-side sheets --panels panels --out sheets --hours 2025031418",
+        formatter_class=HelpFormatter)
+    ap.add_argument("--panels", type=Path, required=True, help="the panel folder the panel steps wrote")
+    ap.add_argument("--out", type=Path, required=True, help="sheet folder")
     ap.add_argument("--hours", nargs="+", required=True, help="YYYYmmddHH valid times")
-    ap.add_argument("--products", default=",".join(PRODUCTS))
+    ap.add_argument("--products", default=",".join(PRODUCTS), help=f"comma list (default {','.join(PRODUCTS)})")
     a = ap.parse_args(argv)
     hours = [datetime.strptime(h, "%Y%m%d%H") for h in a.hours]
     products = tuple(p for p in a.products.split(",") if p)
-    for path in run_sheets(a.panels, a.out, hours, products):
+    try:
+        made = run_sheets(a.panels, a.out, hours, products)
+    except FileNotFoundError as e:
+        print(f"{UNIT}: {e}", file=sys.stderr)
+        return 1
+    for path in made:
         print(path)
     return 0
 

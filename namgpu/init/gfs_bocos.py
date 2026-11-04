@@ -155,13 +155,13 @@ def main(argv=None):
     ap.add_argument("--case", required=True)
     ap.add_argument("--hours", type=int, default=48)
     a = ap.parse_args(argv)
-    root = Path(__file__).resolve().parents[2]
+    from namgpu import paths
     cfg = config.load()
     g = gridmod.build(cfg)
     from types import SimpleNamespace
     ctx = SimpleNamespace(cfg=cfg, grid=g, stream=cp.cuda.Stream(non_blocking=True),
-                          case_dir=root / "cases" / a.case,
-                          start=datetime.strptime(a.case[:14], "%Y-%m-%d_%Hz"))
+                          case_dir=paths.case_dir(a.case),
+                          start=datetime.strptime(Path(a.case).name[:14], "%Y-%m-%d_%Hz"))
     with ctx.stream:
         out = build(ctx, a.hours)
     ctx.stream.synchronize()

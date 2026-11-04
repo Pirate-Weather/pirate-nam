@@ -22,8 +22,16 @@ dependencies = [
 # Private package: never uploaded to PyPI.
 classifiers = ["Private :: Do Not Upload"]
 
+[project.scripts]
+woof-nam = "namgpu.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["namgpu*"]
 
+# Everything a run reads ships in the wheel: kernels, tables and NOAA fix files (data/), the NAM parm
+# files (parm/), the unit list (UNITS.json) and the reused ArWen files (third_party/).
 [tool.setuptools.package-data]
-namgpu = ["kernels/*.cu", "kernels/*.cuh", "data/**/*", "data/*"]
+namgpu = ["kernels/*.cu", "kernels/*.cuh", "data/**/*", "data/*", "parm/*", "UNITS.json", "third_party/**/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__/*", "*.pyc"]

@@ -20,7 +20,7 @@
 // 4603-4852 (SRT), 4855-4942 (SSTEP), 3666-3725 (ROSR12) and 5312-5369 (WDFCND)
 // (nam.v4.2.11, 83df4e13c1).
 //
-// Starting point: ArWen (gpuwm, Apache-2.0) third_party/arwen/core/kernels/noah.cu, functions
+// Starting point: ArWen (gpuwm, Apache-2.0) namgpu/third_party/arwen/core/kernels/noah.cu, functions
 // noah_srt, noah_sstep, noah_rosr12, noah_wdfcnd, noah_smflx, copied with the ArWen notice:
 //   Copyright 2026 ArWen contributors, Licensed under the Apache License, Version 2.0
 //   (https://www.apache.org/licenses/LICENSE-2.0).

@@ -11,7 +11,7 @@
 //
 // Fill rules (the formulas are the mid-range / fallback branches of the Noah surface
 // initialisation as written in ArWen's core/kernels/noah.cu:1140-1143 and core/noah.py:292-305,
-// Apache-2.0, notice in third_party/arwen/LICENSE):
+// Apache-2.0, notice in namgpu/third_party/arwen/LICENSE):
 //   ALBASE = 0.5 * (ALBEDOMIN + ALBEDOMAX)      background albedo, no monthly albedo field
 //   MXSNAL = MAXALB[IVGTYP] * 0.01              maximum deep-snow albedo (rdmaxalb = false)
 // Out-of-range vegetation (IVGTYP outside 1..LUCATS) is set to the table's BARE category.

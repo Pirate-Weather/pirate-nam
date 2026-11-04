@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4603-4852 (SRT) and the
 WDFCND it calls. Kernel: namgpu/kernels/phys_noah_srt.cu (phys_noah_srt, one thread per (i, j),
-one launch, all NSOIL layers looped inside the thread). Adapted from ArWen third_party/arwen/core/
+one launch, all NSOIL layers looped inside the thread). Adapted from ArWen namgpu/third_party/arwen/core/
 kernels/noah.cu (Apache-2.0); the infiltration cap follows the NAM Fortran (MIN(INFMAX, PX)).
 
 Soil arrays are float32 [NSOIL=4, JM, IM] (CONTRACT section 1, layer 1 at the top). Per-column

@@ -41,9 +41,11 @@ Every map, including our MSLP (the archived NAM set has no forecast MSLP map, so
 ## What you need
 
 - **Linux** (x86_64) with Python 3.12 or newer.
-- **An NVIDIA card with more than 76 GB of memory.** The 12 km CONUS run's own memory pool is about
-  58 GB, and the card peaked at 75 GB in the 24 h run. It was run on a 96 GB RTX PRO 6000. There is no
-  smaller domain or reduced mode yet, so a 24, 32 or 48 GB card cannot run a forecast today.
+- **An NVIDIA card with more than 76 GB of memory** for a forecast with the code published today. The
+  12 km CONUS run's own memory pool is about 58 GB, and the card peaked at 75 GB in the 24 h run, which
+  ran on a 96 GB RTX PRO 6000. A fit for 32 GB cards is coming; until it lands, a 24, 32 or 48 GB
+  card cannot run a forecast. Fetching data, the static fields, maps and the side-by-side panels
+  need no big card (the static-field build uses an NVIDIA card for a few seconds).
 - **An NVIDIA driver for CUDA 13.** No system CUDA toolkit is needed: pip installs the CUDA runtime
   and the compiler headers (`cupy-cuda13x[ctk]`). The kernels are compiled on the card at first use
   (NVRTC) and cached.
@@ -54,43 +56,61 @@ Every map, including our MSLP (the archived NAM set has no forecast MSLP map, so
 ## Install
 
 ```
-git clone https://github.com/recastsystems/woof-nam.git && cd woof-nam
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .                       # cupy-cuda13x[ctk], numpy, scipy, netCDF4, Pillow, gpuwm
-tools/fetch_fix.sh                     # NOAA radiation, CO2 and ozone fix files into fix/ (seconds)
-gpuwm fetch-geog --datasets topo_gmted2010_30s --root ~/WPS_GEOG   # GMTED2010 terrain, 174 MB download
-source env.sh                          # NAMGPU_ROOT, GPUWM_BRIDGES, NAMGPU_GEOG
+python3 -m venv woof-nam-venv && source woof-nam-venv/bin/activate
+pip install "woof-nam @ git+https://github.com/recastsystems/woof-nam.git"   # or, in a clone: pip install .
+gpuwm fetch-geog --datasets topo_gmted2010_30s --root ~/WPS_GEOG              # GMTED2010 terrain, 174 MB download
 ```
 
-`gpuwm` (2.9.11 or newer, installed by pip) supplies the Rust GRIB2 decoder, the NetCDF writer and
-the map renderer `rw_wrfbatch`. `env.sh` points `GPUWM_BRIDGES` at the copy inside the installed
-gpuwm. The terrain for gravity-wave drag is read from `NAMGPU_GEOG` (default `~/WPS_GEOG`).
+pip installs `woof-nam` with everything a run reads inside the package: the NAM parm files, the
+NOAA radiation, CO2 and ozone fix files, the Noah tables and the CUDA kernels. It also installs
+`cupy-cuda13x[ctk]`, numpy, scipy, netCDF4, Pillow and `gpuwm` (2.9.11 or newer), which supplies the
+Rust GRIB2 decoder, the NetCDF writer and the map renderer `rw_wrfbatch`. The terrain for gravity-wave
+drag is read from `NAMGPU_GEOG` (default `~/WPS_GEOG`).
+
+Everything runs through one command, `woof-nam`; `woof-nam --help` lists the steps and every step has
+its own `--help`. Run them from one working folder: `cases/`, `static/` and `runs/` are made there
+(set `NAMGPU_ROOT` to use another folder).
+
+## Quick start
+
+```
+mkdir nam-work && cd nam-work
+woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z     # 3.7 GB, ~2.5 min
+woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z
+woof-nam side-by-side mrms     --raw cases/2025-03-14_12z/raw/mrms --panels panels --hours 2025031512
+woof-nam side-by-side archive  --raw cases/2025-03-14_12z/raw/nam --cycle 2025031412 --panels panels --hours 2025031512
+woof-nam side-by-side woof-nam --history runs/2025-03-14_12z/wrfout_d01_* --panels panels --hours 2025031512
+woof-nam side-by-side sheets   --panels panels --out sheets --hours 2025031512
+```
+
+The forecast (`woof-nam run`) needs the big card above; every other line runs without it.
 
 ## Get the input data
 
-Every input comes from NOAA's open data on AWS. `init_fetch_case` writes it to `<case-dir>/raw/`
-and skips files that are already there.
+Every input comes from NOAA's open data on AWS. `woof-nam fetch` writes it to `<case-dir>/raw/` and
+skips files that are already there. Name the case folder `YYYY-MM-DD_HHz`: `woof-nam run` reads the
+start time from it.
 
 **Archived NAM start (cycles before 2026-11-03 12Z).** This fetches the NAM native analysis
 (`bgrd3d00`: the initial state and the static surface fields), the archived NAM forecast of the same
 cycle for comparison, the GFS boundaries and MRMS reflectivity:
 
 ```
-python -m namgpu.init.init_fetch_case --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z
+woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z
 ```
 
 **GFS start (any cycle, including after the NAM's retirement).** This fetches GFS and MRMS only.
 For a cycle with no NAM files on NOAA's bucket, the fetch does this by itself and says so.
 
 ```
-python -m namgpu.init.init_fetch_case --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only
+woof-nam fetch --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only
 ```
 
 A GFS start still needs the NAM grid's static surface fields (land mask, soil and vegetation type,
 terrain) once. Build them from any archived NAM analysis, for example the example case's file:
 
 ```
-python -m namgpu.init.gfs_start --build-static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2
+woof-nam static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2
 ```
 
 This writes `static/nam12_static.npz` (1.4 MB, a few seconds). Every later GFS start reuses it.
@@ -98,14 +118,17 @@ This writes `static/nam12_static.npz` (1.4 MB, a few seconds). Every later GFS s
 ## Run one forecast
 
 ```
-python tools/run_forecast.py --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z
+woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z
 ```
 
-`--case` names a folder under `cases/`. `--source gfs` starts from GFS instead. The run writes:
+`--case` is the case folder from `woof-nam fetch` (a bare name is looked up under `cases/`).
+`--source gfs` starts from GFS instead. The run writes:
 - hourly history `wrfout_d01_<valid time>` (wrfout-shaped NetCDF);
 - maps in `<out>/maps/<product>/` (composite reflectivity, 2 m temperature and dewpoint, 10 m and
   850 hPa wind, MSLP, 1 h precipitation);
 - `forecast-receipt.json` (init time, ms per step, per-stage timing, end-of-run finite check).
+
+`woof-nam init` builds and writes the initial state only (0 h history and maps), without a forecast.
 
 ## Make maps
 
@@ -114,18 +137,17 @@ the init time, lead and field, plus the valid time. A forecast draws its own map
 redraw them from history files:
 
 ```
-python -m namgpu.io.maps runs/2025-03-14_12z/wrfout_d01_* --out runs/2025-03-14_12z/maps
+woof-nam maps runs/2025-03-14_12z/wrfout_d01_* --out runs/2025-03-14_12z/maps
 ```
 
-To compare sources side by side (MRMS | WOOF-NAM | archived NAM, with the same colour scales and
-map frame), draw the panels for each source, then compose the sheets:
+To compare sources side by side (MRMS | WOOF-NAM | archived NAM, with the same colour scales, map frame
+and image size), draw the panels for each source, then compose the sheets, as in the Quick start.
+`--hours` takes valid times (`YYYYmmddHH`, one or more). A sheet needs every source's panel for its
+hour; the MRMS and archived NAM panels can be drawn before any forecast has run.
 
-```
-python -m namgpu.io.io_referee_panels mrms --raw cases/2025-03-14_12z/raw/mrms --panels panels --hours 2025031418
-python -m namgpu.io.io_referee_panels archive --raw cases/2025-03-14_12z/raw/nam --cycle 2025031412 --panels panels --hours 2025031418
-python -m namgpu.io.io_referee_panels woof-nam --history runs/2025-03-14_12z/wrfout_d01_* --panels panels --hours 2025031418
-python -m namgpu.io.io_referee_sheets --panels panels --out sheets --hours 2025031418
-```
+Every `woof-nam` step is also a module (`python -m namgpu.init.init_fetch_case`, `namgpu.init.gfs_start`,
+`namgpu.run_forecast`, `namgpu.run_init_case`, `namgpu.io.maps`, `namgpu.io.io_referee_panels`,
+`namgpu.io.io_referee_sheets`, `namgpu.licence_check`), with the same options.
 
 ## Scope
 
@@ -155,15 +177,15 @@ python -m namgpu.io.io_referee_sheets --panels panels --out sheets --hours 20250
 
 ```
 namgpu/            the package: config, grid, state, kernels/ (one .cu per unit), dynamics/,
-                   boundary/, physics/, init/, io/, steps/, driver.py
-tools/             run, init, extract and check tools; fetch_fix.sh
+                   boundary/, physics/, init/, io/, steps/, driver.py, cli.py (the woof-nam command)
+namgpu/parm/       NAM parm files (NOAA, unmodified)
+namgpu/data/       tables; fix/ NOAA radiation, CO2 and ozone fix files; fix/noah/ Noah stand-in tables
+namgpu/third_party/arwen/  ArWen (gpuwm) files reused, Apache-2.0
+namgpu/UNITS.json  every port unit and its status
+tools/             extract and check tools (development); fetch_fix.sh refreshes namgpu/data/fix
 tests/             smoke_full.py (whole forecast), unit tests
-parm/              NAM parm files (NOAA, unmodified)
-fix/               fetched NOAA fix files (not committed); fix/noah/ Noah stand-in tables
 cases/<case>/      CASE.md and the referee recipe; inputs are fetched, never committed
-static/            nam12_static.npz for GFS starts, built once (not committed)
-third_party/arwen/ ArWen (gpuwm) files reused, Apache-2.0
-UNITS.json         every port unit and its status
+static/            nam12_static.npz for GFS starts, built once by woof-nam static (not committed)
 CONTRACT.md        array layout, step order, kernel convention, done rule
 ```
 
@@ -172,13 +194,13 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 - **Nests:** the NAM's nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
   ported; this is the 12 km parent only.
 - **Multi-card:** in progress.
-- **Memory fit:** in progress. Today the full domain needs more than 58 GB, so it does not fit a
-  32 or 48 GB card, and there is no smaller example to run on one.
+- **Memory fit:** the published code needs a card with more than 76 GB for a forecast, so it does not
+  fit a 32 or 48 GB card yet, and there is no smaller example to run on one. The 32 GB fit is coming.
 - **Noah vegetation table:** the NAM's own VEGPARM.TBL was never published. A stand-in built from
-  WRF's public-domain table is used (fix/noah/PROVENANCE.txt).
+  WRF's public-domain table is used (namgpu/data/fix/noah/PROVENANCE.txt).
 
 ## Licence
 
 Apache-2.0 (LICENSE). The RRTMG radiation files derived from AER's code carry AER's BSD-3-Clause
 notice, and the reused ArWen files are Apache-2.0. NOTICE lists every third-party origin and its
-terms. `python tools/licence_check.py` checks the per-file notices.
+terms. `woof-nam licence-check` checks the per-file notices (in an install or a checkout).

@@ -44,6 +44,8 @@ from namgpu import kernels
 UNIT = "init-case-driver"
 KERNEL_UNIT = "init_case_driver"
 COUNT_KERNEL = "init_case_nonfinite_count"
+from namgpu import paths  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 
 CHAIN = [
@@ -80,7 +82,7 @@ ORDER_EXCEPTIONS = {
 
 
 def _units() -> dict:
-    return {u["id"]: u for u in json.loads((ROOT / "UNITS.json").read_text())["units"]}
+    return {u["id"]: u for u in json.loads((paths.UNITS_JSON).read_text())["units"]}
 
 
 def check_order(units: dict, chain=CHAIN) -> None:

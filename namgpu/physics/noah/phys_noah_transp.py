@@ -3,7 +3,7 @@
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:5200-5309 (TRANSP). NOAA US
 government work; the NOAA header of that module is kept as the notice in the kernel file.
 Kernel: namgpu/kernels/phys_noah_transp.cu (phys_noah_transp, one launch, one thread per column,
-grid.z = 1). Started from the ArWen noah_transp (third_party/arwen/core/kernels/noah.cu,
+grid.z = 1). Started from the ArWen noah_transp (namgpu/third_party/arwen/core/kernels/noah.cu,
 Apache-2.0), which matches the NAM routine term for term.
 
 Caller gate (in the kernel, not left to the caller): the only call, EVAPO (module_LS_NOAHLSM.F90:

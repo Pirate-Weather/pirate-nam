@@ -20,11 +20,13 @@ from pathlib import Path
 
 from .steps import drv_timing_receipt as timing
 
+from . import paths
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_units() -> dict:
-    return {u["id"]: u for u in json.loads((ROOT / "UNITS.json").read_text())["units"]}
+    return {u["id"]: u for u in json.loads((paths.UNITS_JSON).read_text())["units"]}
 
 
 # ---- step plan --------------------------------------------------------------------------------
@@ -363,8 +365,8 @@ class Driver:
         ctx.dt = ctx.cfg.dt
         ctx.start_time = ctx.start
         if ctx.out_dir is None and ctx.start is not None:
-            # Run output (history, receipt) goes to nam-gpu/runs/<start> unless the caller names one.
-            ctx.out_dir = Path(__file__).resolve().parents[1] / "runs" / f"{ctx.start:%Y%m%d_%H}"
+            # Run output (history, receipt) goes to <work root>/runs/<start> unless the caller names one.
+            ctx.out_dir = paths.work_root() / "runs" / f"{ctx.start:%Y%m%d_%H}"
         if ctx.restart:
             # Refused by name: RESET_ALARMS RESTARTED_RUN (NMM_INTEGRATE.F90:1682-1694), ALARM_RESTART
             # (1865-1875) and RST_OUT_00 (816-827) have no port yet, and no restart file is read or written.

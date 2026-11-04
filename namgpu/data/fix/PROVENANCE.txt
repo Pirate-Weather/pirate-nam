@@ -1,0 +1,6 @@
+NOAA/NCEP fix files read by the RRTMG radiation init and the in-run CO2 update (the NMMB run
+directory's fix files; exnam_fcst.sh links them by these names). Unmodified copies of the NOAA
+global fix set, fix/am/20220805, from https://noaa-nws-global-pds.s3.amazonaws.com/fix/am/20220805/
+(co2historicaldata_YYYY.txt from co2dat_4a/global_co2historicaldata_YYYY.txt; 2025 and 2026 from
+the *_proj files). US Government data. Fetched 2026-11-04; tools/fetch_fix.sh fetches them again.
+The Noah tables in noah/ are described in noah/PROVENANCE.txt.

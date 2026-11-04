@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4530-4600. NOAA US government
 work; the module's NOAA header is kept as the notice in the kernel file. Start point: ArWen
-third_party/arwen/core/kernels/noah.cu (Apache-2.0, notice kept in the kernel header).
+namgpu/third_party/arwen/core/kernels/noah.cu (Apache-2.0, notice kept in the kernel header).
 Kernel: namgpu/kernels/phys_noah_snow_new.cu (phys_noah_snow_new, one thread per (i, j), one launch).
 No host sync, no per-step allocation beyond the first-call scratch, everything on the current stream.
 

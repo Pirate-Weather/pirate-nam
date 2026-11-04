@@ -3,7 +3,7 @@
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:2514-2554. NOAA US
 government work; the module's NOAA header is kept as the notice in the kernel file. The point
 function is namgpu/kernels/phys_noah_devap.cuh, shared with EVAPO (phys_noah_evapo.cu), so the
-DEVAP math exists once. The ArWen-derived starting point is Apache-2.0: third_party/arwen/LICENSE.
+DEVAP math exists once. The ArWen-derived starting point is Apache-2.0: namgpu/third_party/arwen/LICENSE.
 Kernel: namgpu/kernels/phys_noah_devap.cu (phys_noah_devap, one thread per (i, j), one launch).
 
 EDIR = FX * (1 - SHDFAC) * ETP1, with FX = clamp(SRATIO**FXEXP, 0, 1) and

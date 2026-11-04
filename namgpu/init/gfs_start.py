@@ -28,7 +28,9 @@ from pathlib import Path
 import numpy as np
 
 UNIT = "init-gfs-start"
-ROOT = Path(__file__).resolve().parents[2]
+from namgpu import paths  # noqa: E402
+
+ROOT = paths.work_root()          # cases/, static/, scratch/ live here (namgpu/paths.py)
 STATIC_NPZ = ROOT / "static" / "nam12_static.npz"
 MISSING = -9999.0
 PL_ORDER = ("HGT", "TMP", "SPFH", "RH", "UGRD", "VGRD", "CLMR", "ICMR", "RWMR", "SNMR")
@@ -381,8 +383,31 @@ def build_static(bgrd, out=STATIC_NPZ):
     print(f"wrote {out}")
 
 
-if __name__ == "__main__":
+def main(argv=None) -> int:
     import argparse
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--build-static", required=True)
-    build_static(ap.parse_args().build_static)
+    from namgpu.cli import HelpFormatter
+    ap = argparse.ArgumentParser(
+        description="Build the NAM 12 km grid's static surface fields (terrain, land mask, soil and "
+                    "vegetation type, roughness, greenness, albedo) from one archived NAM analysis. A GFS "
+                    "start needs them: build them once and every later GFS start reuses the file. Uses "
+                    "the GPU for a few seconds.",
+        epilog="example: woof-nam static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2\n"
+               "(that file comes from: woof-nam fetch --cycle 2025031412 --hours 24 "
+               "--case-dir cases/2025-03-14_12z)",
+        formatter_class=HelpFormatter)
+    ap.add_argument("bgrd", nargs="?", metavar="BGRD3D00",
+                    help="an archived NAM native analysis, <case-dir>/raw/nam/bgrd3d00.grib2")
+    ap.add_argument("--build-static", dest="bgrd_opt", metavar="BGRD3D00",
+                    help="same as BGRD3D00 (older form)")
+    ap.add_argument("--out", type=Path, default=STATIC_NPZ,
+                    help=f"where to write it (default static/nam12_static.npz in the work root: {STATIC_NPZ})")
+    a = ap.parse_args(argv)
+    bgrd = a.bgrd or a.bgrd_opt
+    if not bgrd:
+        ap.error("give the archived NAM analysis file (BGRD3D00)")
+    build_static(bgrd, a.out)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

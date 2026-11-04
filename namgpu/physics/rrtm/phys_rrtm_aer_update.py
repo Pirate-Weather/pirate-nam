@@ -62,7 +62,8 @@ RECS_PER_MONTH = IMXAE * JMXAE         # 2664 records, one per (i,j)
 MONTH_LINES = HDR_LINES + RECS_PER_MONTH   # 2666 lines per month block (checked: month starts 1, 2667, 5333, ...)
 REC_WIDTH_PAIR = 13                    # i2 + e11.4 per component pair (5 pairs = 65 columns)
 
-TROP_FILE = ROOT / "parm" / "nam_climaeropac_global.txt"
+from namgpu.paths import PARM  # noqa: E402
+TROP_FILE = PARM / "nam_climaeropac_global.txt"
 # sha256 of the shipped copy above. The NCO run script stages AERODIR/global_climaeropac_global.txt as aerosol.dat
 # (exglobal_fcst_nems.sh:946-954); that AERODIR file is not available, so identity to it is NOT verified. The pin
 # guarantees the wrapper reads the same bytes every run and makes any drift a loud error.

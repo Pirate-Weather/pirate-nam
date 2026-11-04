@@ -4,7 +4,7 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4508-4526 (nam.v4.2.11, 83df4e13c1).
 //
-// Start point and notice: ArWen (Apache-2.0, third_party/arwen/LICENSE, Copyright 2026 ArWen
+// Start point and notice: ArWen (Apache-2.0, namgpu/third_party/arwen/LICENSE, Copyright 2026 ArWen
 // contributors), core/kernels/noah.cu, function noah_snowz0. That copy is NOT carried over: it
 // blends toward a burial-depth roughness (7*Z0BRD - SNOWH), which is not in NAM's SNOWZ0. The NAM
 // routine is the one below, so the port follows NAM (CONTRACT section 7, copy-arwen: "bring it to

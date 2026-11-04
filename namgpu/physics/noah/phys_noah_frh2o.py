@@ -4,7 +4,7 @@ NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:2644-2782.
 government work; the module's NOAA header is kept as the notice in the kernel files.
 Kernel: namgpu/kernels/phys_noah_frh2o.cu (phys_noah_frh2o, one launch over (i, j, soil layer));
 the device function nam_frh2o lives in namgpu/kernels/phys_noah_frh2o.cuh for other units.
-Started from the ArWen noah_frh2o (third_party/arwen/core/kernels/noah.cu), Apache-2.0.
+Started from the ArWen noah_frh2o (namgpu/third_party/arwen/core/kernels/noah.cu), Apache-2.0.
 
 FRH2O is a device function in the Fortran: its callers are SNKSRC (per soil layer, TAVG from
 TMPAVG) and the SFLX soil paths. The one-launch wrapper is the batch form used by the done rule.

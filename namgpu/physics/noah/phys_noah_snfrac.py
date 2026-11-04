@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:3931-3968. NOAA US
 government work; the module NOAA header is kept as the notice in the kernel file. Start point:
-ArWen core/kernels/noah.cu (Apache-2.0, third_party/arwen/LICENSE).
+ArWen core/kernels/noah.cu (Apache-2.0, namgpu/third_party/arwen/LICENSE).
 Kernel: namgpu/kernels/phys_noah_snfrac.cu (phys_noah_snfrac, one thread per (i, j), one launch).
 
 SNCOVR = 1 - (exp(-SALP*r) - r*exp(-SALP)) with r = SNEQV/SNUP when SNEQV < SNUP, else 1.

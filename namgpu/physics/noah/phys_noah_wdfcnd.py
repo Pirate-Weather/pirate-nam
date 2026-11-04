@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:5312-5369. NOAA US
 government work; the module header is kept as the notice in the kernel files. Start point for the
-arithmetic: ArWen core/kernels/noah.cu noah_wdfcnd (Apache-2.0, third_party/arwen/LICENSE), which
+arithmetic: ArWen core/kernels/noah.cu noah_wdfcnd (Apache-2.0, namgpu/third_party/arwen/LICENSE), which
 differs from NAM (NAM FACTR1 = 0.2/SMCMAX with no clamp); the NAM form is what is written.
 Kernel: namgpu/kernels/phys_noah_wdfcnd.cu (phys_noah_wdfcnd, one launch over (i, j, soil layer)).
 The device function nam_wdfcnd lives in namgpu/kernels/phys_noah_wdfcnd.cuh for other units

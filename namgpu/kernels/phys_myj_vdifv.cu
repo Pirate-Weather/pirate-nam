@@ -8,7 +8,7 @@
 // The arithmetic is the NAM routine's, in its order: the tridiagonal coefficients CR and CM, the
 // forward sweep for RSU/RSV, the top (LMH) row with the surface-exchange terms UZ0/VZ0, and the back
 // substitution. Lower-case k below is the NAM level index: k0 = K-1, with K = 1 the MODEL TOP.
-// The ArWen MYJ kernel (third_party/arwen/core/kernels/myjpbl.cu, Apache-2.0, LICENSE in that tree)
+// The ArWen MYJ kernel (namgpu/third_party/arwen/core/kernels/myjpbl.cu, Apache-2.0, LICENSE in that tree)
 // carries the same VDIFV algebra inside a bottom-up column kernel; this file is written top-down
 // from the NAM Fortran, not copied across.
 //

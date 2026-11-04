@@ -2,7 +2,7 @@
 
 Ported from phys/module_BL_MYJPBL.F90:969-1173 (NAM nam.v4.2.11, 83df4e13c1). Kernel:
 namgpu/kernels/phys_myj_prodq2.cu (phys_myj_prodq2). Started from the ArWen PRODQ2 block in
-third_party/arwen/core/kernels/myjpbl.cu (Apache-2.0). One launch, one thread per column
+namgpu/third_party/arwen/core/kernels/myjpbl.cu (Apache-2.0). One launch, one thread per column
 (grid_cols), no host sync, no per-step allocation.
 
 Reads (CONTRACT names). Every input is a real producer's output; the wrapper never fills a

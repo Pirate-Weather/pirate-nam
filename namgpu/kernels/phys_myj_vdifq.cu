@@ -8,7 +8,7 @@
 // Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1342-1420 (nam.v4.2.11, 83df4e13c1).
 //
 // Apache-2.0 origin of the copied arithmetic: the expression shapes are adapted from
-// third_party/arwen/core/kernels/myjpbl.cu (ArWen, Apache-2.0), its VDIFQ block. The ArWen kernel keeps
+// namgpu/third_party/arwen/core/kernels/myjpbl.cu (ArWen, Apache-2.0), its VDIFQ block. The ArWen kernel keeps
 // the MYJ index downward from the top (zh[m] = Fortran ZHK(m+1)), which is the NAM convention too, so
 // the block carries over with the names and the per-column loads changed. ArWen's Apache-2.0 header and
 // LICENSE stay in the ArWen tree; this file keeps the attribution.

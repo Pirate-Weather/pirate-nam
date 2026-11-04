@@ -4,7 +4,7 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2644-2782 (nam.v4.2.11, 83df4e13c1).
 // Executed statements: see phys_noah_frh2o.cuh (every term is there).
-// Start point: third_party/arwen/core/kernels/noah.cu noah_frh2o (Apache-2.0, ArWen). The NAM
+// Start point: namgpu/third_party/arwen/core/kernels/noah.cu noah_frh2o (Apache-2.0, ArWen). The NAM
 // Fortran structure is kept as written (NLOG/KCOUNT loop, BX clamp, option 2 fallback).
 //
 // Layout: 3-D point kernel. One thread per (i, j, soil layer) with the soil layer on grid.z

@@ -15,8 +15,8 @@ archived NAM forecast of the same cycle and MRMS.
 ## 1. Arrays: layout and naming
 
 - Names are the NMMB names (`T`, `Q`, `CW`, `Q2`, `U`, `V`, `W`, `DWDT`, `PINT`, `PD`, `OMGALF`,
-  `DIV`, `TCU`, `TCV`, `TCT`, `TRACERS`, ...), exactly as in `parm/nam_solver_state.txt` and
-  `parm/nam_phy_state.txt`. `namgpu.state.State` allocates them; a unit that needs an array that
+  `DIV`, `TCU`, `TCV`, `TCT`, `TRACERS`, ...), exactly as in `namgpu/parm/nam_solver_state.txt` and
+  `namgpu/parm/nam_phy_state.txt`. `namgpu.state.State` allocates them; a unit that needs an array that
   is not in those tables (scratch, Adams-Bashforth history, kernel-local tables) adds it with
   `st.add(name, shape)` and lists it in its wrapper docstring.
 - Fortran `A(i,j,l)` -> CuPy `A[l, j, i]`, C order, `float32` (`int32` for integer fields).
@@ -129,7 +129,7 @@ update), `DHT` (3457).
    interface->mid interpolation), `MONO` (4519), `UPDATES` (4543), `RIME_FACTOR_UPDATE` (4590).
    The two RIME_FACTOR_UPDATE calls (before at 4448, RIME_FACTOR_INPUT=.TRUE.; after at 4590) run
    only when RIME_FACTOR_ADVECT: MICROPHYSICS == 'fer_hires' AND F_QG AND SPEC_ADV
-   (module_SOLVER_GRID_COMP.F90:2885-2890). parm/nam_configfile sets spec_adv: .false., so both
+   (module_SOLVER_GRID_COMP.F90:2885-2890). namgpu/parm/nam_configfile sets spec_adv: .false., so both
    are dormant in the 12 km config. Wrapper: namgpu/steps/drv_rime_factor_update.py `advect_enabled`.
 10. `VTOA` (4611), `UPDATET` (4648).
 11. `CDZDT` (4694): omega and nonhydrostatic w; `CDWDT` (4750): dw/dt; `VSOUND` (4807): implicit
@@ -176,7 +176,7 @@ grid constants (`module_CONTROL.F90 grid_consts`), `boundary_init`, look-up tabl
 **DFI**: `filter_method = 3` (TDFI) for every cold-start forecast (exnam_fcst.sh:280-285):
 backward `nsecs_bcktdfi = 600 s` then forward `nsecs_fwdtdfi = 600 s` at `filt_dt = 8 s`
 (`filt_dt_int: 8`), Dolph-Chebyshev window (`dolph`, `cheby`), filtered variables from
-`parm/nam_filt_vars_norad.txt` (PD, Q, Q2, PINT, DWDT, T, U, V filtered; CW and soil restored).
+`namgpu/parm/nam_filt_vars_norad.txt` (PD, Q, Q2, PINT, DWDT, T, U, V filtered; CW and soil restored).
 `RUN_DIGITAL_FILTER_NMM` (module_NMM_GRID_COMP.F90:3624-5418) drives it.
 **TDFI in the run (2026-11-04, dyn integrator):** drv-time-loop runs drv-dfi-tdfi-driver before the
 forecast (filter_method 3): 75+75 backward and 75+75 forward filter steps at 8 s through `Driver.step`
@@ -194,7 +194,7 @@ and HDIFF/DDAMP on `ctx.hdiff_on` (HDIFF_ON>0); both are True for the forecast.
 **Run directory (2026-11-04):** the Fortran opens its fix files by name in the run directory. Ours is
 `ctx.fix_dir`, else `$NAMGPU_FIX_DIR`, else `<repo>/fix` (tools/fetch_fix.sh: global_o3clim.txt,
 co2historicaldata_YYYY.txt, sfc_emissivity_idx.txt, solarconstant_*.txt from NOAA's public fix/am
-bucket; tools/build_noah_fix.py: fix/noah VEGPARM/SOILPARM/GENPARM, see fix/noah/PROVENANCE.txt).
+bucket; tools/build_noah_fix.py: namgpu/data/fix/noah VEGPARM/SOILPARM/GENPARM, see namgpu/data/fix/noah/PROVENANCE.txt).
 drv-physics-initialize and drv-time-loop run inside `drv_physics_initialize.in_run_dir(ctx)`, because
 gas_update reopens the CO2 file during the forecast. Paths a unit writes must be absolute.
 
@@ -237,7 +237,7 @@ gas_update reopens the CO2 file during the forecast. Paths a unit writes must be
 | module_DIGITAL_FILTER_NMM | filtered initial state | `ctx.st` |
 | io-wind-rotate (port of PROF_NMMB.f rotation) | UEARTH, VEARTH (earth-relative H-point winds, 3-D); UE10, VE10 (10 m) | `ctx.st` |
 
-## 5. NAM 12 km CONUS parent configuration (parm/nam_configfile)
+## 5. NAM 12 km CONUS parent configuration (namgpu/parm/nam_configfile)
 
 | item | value | source |
 |---|---|---|
@@ -285,7 +285,7 @@ No unit gets a column test, a bitwise comparison or a dry run. The integration p
 ## 7. Modes
 
 - `port`: write CUDA from the NAM Fortran line range.
-- `copy-arwen`: start from the ArWen kernel in `third_party/arwen/` (Apache-2.0, keep its header),
+- `copy-arwen`: start from the ArWen kernel in `namgpu/third_party/arwen/` (Apache-2.0, keep its header),
   then bring it to the NAM Fortran (top-down layout, NCEP changes, NAM constants).
 - `new`: no Fortran counterpart to port (driver glue, our I/O, GRIB2 decode, init that replaces
   NPS).

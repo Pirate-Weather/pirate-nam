@@ -3,8 +3,8 @@
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:5200-5309 (nam.v4.2.11, 83df4e13c1).
-// Derived from the ArWen Noah kernel (third_party/arwen/core/kernels/noah.cu, Apache-2.0, see
-// third_party/arwen/LICENSE). Its noah_transp body was the starting point; it matches the NAM
+// Derived from the ArWen Noah kernel (namgpu/third_party/arwen/core/kernels/noah.cu, Apache-2.0, see
+// namgpu/third_party/arwen/LICENSE). Its noah_transp body was the starting point; it matches the NAM
 // routine term for term apart from names, layout and single precision.
 //
 // Source: SUBROUTINE TRANSP (ET, NSOIL, ETP1, SMC, CMC, ZSOIL, SHDFAC, SMCWLT, CMCMAX, PC, CFACTR,

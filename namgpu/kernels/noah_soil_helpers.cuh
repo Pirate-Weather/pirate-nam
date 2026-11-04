@@ -12,7 +12,7 @@
 // phys_noah_tbnd.cu and phys_noah_tmpavg.cu. Do not copy them into a kernel again.
 //
 // Start point for the HRT-family routines: ArWen core/kernels/noah.cu (Apache-2.0, see
-// third_party/arwen/LICENSE), which transcribes WRF's Noah LSM. The ArWen Apache-2.0 notice applies
+// namgpu/third_party/arwen/LICENSE), which transcribes WRF's Noah LSM. The ArWen Apache-2.0 notice applies
 // to the transcribed text.
 //
 // Float32 throughout (Fortran REAL = float, kfpt = single). Fast numerics (fmad on).

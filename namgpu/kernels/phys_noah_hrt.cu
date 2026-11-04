@@ -7,7 +7,7 @@
 // shared with phys-noah-tbnd and phys-noah-tmpavg).
 //
 // Start point and notice: the column structure and the top-layer/middle-layer formulas were
-// transcribed from ArWen core/kernels/noah.cu noah_hrt (Apache-2.0, third_party/arwen/LICENSE),
+// transcribed from ArWen core/kernels/noah.cu noah_hrt (Apache-2.0, namgpu/third_party/arwen/LICENSE),
 // which transcribes WRF's Noah LSM. The ArWen Apache-2.0 notice applies to that transcribed text.
 //
 // Fortran HRT(RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,ZBOT,PSISAT,SH2O,DT,BEXP,F1,DF1,

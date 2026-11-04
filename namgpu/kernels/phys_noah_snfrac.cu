@@ -34,7 +34,7 @@
 //
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3931-3968 (nam.v4.2.11, 83df4e13c1).
 //
-// Start point and notice: ArWen (Apache-2.0, third_party/arwen/LICENSE, Copyright 2026 ArWen
+// Start point and notice: ArWen (Apache-2.0, namgpu/third_party/arwen/LICENSE, Copyright 2026 ArWen
 // contributors), core/kernels/noah.cu, function noah_snfrac. Changes from that copy:
 //   * Written as a point kernel (one thread per (i, j), CONTRACT section 3) with per-column
 //     arrays, because SNUP is vegetation-dependent (SNUP = SNUPTBL(VEGTYP), module_LS_NOAHLSM

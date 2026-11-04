@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:5095-5197. NOAA US government
 work; the module header is kept as the notice in the kernel file. Start point: ArWen
-core/kernels/noah.cu noah_tmpavg (Apache-2.0, third_party/arwen/LICENSE).
+core/kernels/noah.cu noah_tmpavg (Apache-2.0, namgpu/third_party/arwen/LICENSE).
 Kernel: namgpu/kernels/phys_noah_tmpavg.cu (phys_noah_tmpavg, one thread per (i, j, soil layer),
 one launch, grid.z = NSOIL). No host sync, no per-step allocation beyond the first-call scratch,
 everything on the current stream. Fast numerics: NVRTC may contract a*b+c (fmad), so the output is

@@ -7,7 +7,7 @@
 // Ported to CUDA for nam-gpu from phys/module_SF_JSFC.F90:80-354 (nam.v4.2.11, 83df4e13c1).
 //
 // Apache-2.0 portions: the shelter supersaturation block and the surface-state layout follow
-// ArWen third_party/arwen/core/kernels/myjsfc.cu (Apache-2.0, see third_party/arwen/LICENSE).
+// ArWen namgpu/third_party/arwen/core/kernels/myjsfc.cu (Apache-2.0, see namgpu/third_party/arwen/LICENSE).
 // That ArWen kernel is WRF's MYJ surface layer, not this NMMB routine, so its MYJ similarity code
 // is not carried over.
 //

@@ -2,7 +2,7 @@
 export NAMGPU_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -d "$NAMGPU_ROOT/.venv" ] && export PATH="$NAMGPU_ROOT/.venv/bin:$PATH"
 export PYTHONPATH="$NAMGPU_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-export ARWEN_SRC="$NAMGPU_ROOT/third_party/arwen"
+export ARWEN_SRC="$NAMGPU_ROOT/namgpu/third_party/arwen"
 # grib2_inventory, grib2_dump, rw_wrfbatch, libnetcdf_writer.so: the copy inside the installed gpuwm wheel
 export GPUWM_BRIDGES="${GPUWM_BRIDGES:-$(python3 -c 'import pathlib, gpuwm; print(pathlib.Path(gpuwm.__file__).parent / "libexec" / "bridges")' 2>/dev/null || echo "$HOME/.gpuwm/bridges")}"
 export NAMGPU_GEOG="${NAMGPU_GEOG:-$HOME/WPS_GEOG}"                 # WPS geog set with topo_gmted2010_30s

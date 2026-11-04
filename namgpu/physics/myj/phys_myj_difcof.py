@@ -3,7 +3,7 @@
 Fortran: phys/module_BL_MYJPBL.F90:1178-1337 (NAM nam.v4.2.11, 83df4e13c1). Kernel:
 namgpu/kernels/phys_myj_difcof.cu (phys_myj_difcof, one thread per column, grid_cols, one launch,
 no host sync, no per-step allocation after the first call). Start point: ArWen DIFCOF block in
-third_party/arwen/core/kernels/myjpbl.cu (Apache-2.0). Notice: NOAA/NCEP NMMB source, kept in the
+namgpu/third_party/arwen/core/kernels/myjpbl.cu (Apache-2.0). Notice: NOAA/NCEP NMMB source, kept in the
 .cu header.
 
 Reads (CONTRACT names, Fortran (i,j,l) -> [l, j, i]). Every input is a real producer's output; the

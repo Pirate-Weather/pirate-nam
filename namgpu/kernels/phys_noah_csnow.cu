@@ -24,7 +24,7 @@
 // Copied from ArWen gpuwm/core/kernels/noah.cu (Apache-2.0) for nam-gpu, 2026-11-04. The formula is
 // ArWen's noah_csnow (2.0f * 0.11631f * (0.328f * powf(10.0f, 2.25f * dsnow))), the same arithmetic
 // in the same order as the Fortran below. ArWen is Copyright 2026 ArWen contributors, licensed under
-// the Apache License, Version 2.0 (third_party/arwen/LICENSE; https://www.apache.org/licenses/LICENSE-2.0).
+// the Apache License, Version 2.0 (namgpu/third_party/arwen/LICENSE; https://www.apache.org/licenses/LICENSE-2.0).
 //
 // Fortran (SUBROUTINE CSNOW(SNCOND,DSNOW)), every executed statement:
 //   C = 0.328*10**(2.25*DSNOW)                     (line 2491; REAL**REAL, base 10 -> powf)

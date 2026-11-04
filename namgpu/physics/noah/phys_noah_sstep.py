@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4855-4942 (SSTEP) and
 :3666-3725 (ROSR12). NOAA US government work; the module header is kept in the kernel file as the
-notice. Start point: ArWen core/kernels/noah.cu (Apache-2.0, third_party/arwen/LICENSE).
+notice. Start point: ArWen core/kernels/noah.cu (Apache-2.0, namgpu/third_party/arwen/LICENSE).
 Kernel: namgpu/kernels/phys_noah_sstep.cu (phys_noah_sstep, one thread per (i, j) column, one launch,
 all NSOIL layers looped inside the thread).
 

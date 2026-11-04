@@ -4,7 +4,7 @@ NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4050-4374.
 government work; the module's NOAA header is kept as the notice in the kernel files.
 Kernel: namgpu/kernels/phys_noah_snopac.cu (phys_noah_snopac, one thread per column, grid_cols);
 the device function nam_snopac lives in namgpu/kernels/phys_noah_snopac.cuh for other units.
-Started from the ArWen noah.cu SNOPAC section (third_party/arwen/core/kernels/noah.cu, Apache-2.0).
+Started from the ArWen noah.cu SNOPAC section (namgpu/third_party/arwen/core/kernels/noah.cu, Apache-2.0).
 
 SNOPAC calls EVAPO, SMFLX, SHFLX and SNOWPACK, which are CONTRACT units phys-noah-evapo,
 phys-noah-smflx, phys-noah-shflx and phys-noah-snowpack. Until their device functions exist in

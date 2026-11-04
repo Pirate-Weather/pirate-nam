@@ -38,6 +38,8 @@ KERNEL = "radinit_ctl"
 KEY = "rrtm_ctl"
 HOST_KEY = "rrtm_ctl_host"
 N_CTL = 7
+from namgpu import paths  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[3]
 
 # Sibling init units in the Fortran call order of radinit_nmmb (grrad_nmmb.f:340-446).
@@ -64,7 +66,7 @@ def host_ctl(ctx) -> dict:
 
 
 def _sibling_run(uid: str):
-    units = {u["id"]: u for u in json.loads((ROOT / "UNITS.json").read_text())["units"]}
+    units = {u["id"]: u for u in json.loads((paths.UNITS_JSON).read_text())["units"]}
     mod = importlib.import_module(units[uid]["wrapper"])
     return mod.run
 

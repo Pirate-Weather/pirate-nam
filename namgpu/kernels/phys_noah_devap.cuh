@@ -6,9 +6,9 @@
 // Source: phys/module_LS_NOAHLSM.F90:2514-2554 (SUBROUTINE DEVAP), frozen-soil form (SH2O(1)).
 //
 // Apache-2.0 notice for the ArWen-derived starting point (noah_devap in
-// third_party/arwen/core/kernels/noah.cu): Copyright 2026 ArWen contributors. The full licence text
-// is third_party/arwen/LICENSE (Apache License, Version 2.0), and the copyright line is in
-// third_party/arwen/README.md. This header is not a copy of that licence; the notice is that file.
+// namgpu/third_party/arwen/core/kernels/noah.cu): Copyright 2026 ArWen contributors. The full licence text
+// is namgpu/third_party/arwen/LICENSE (Apache License, Version 2.0), and the copyright line is in
+// namgpu/third_party/arwen/README.md. This header is not a copy of that licence; the notice is that file.
 //
 // Fortran (every executed statement):
 //   SRATIO = (SH2O - SMCDRY) / (SMCMAX - SMCDRY)            (line 2540)

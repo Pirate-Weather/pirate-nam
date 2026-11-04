@@ -13,16 +13,18 @@ Origins
 |--------------------------------|-----------------------------------------------------|-------------------------------|
 | NOAA/NCEP NAM source, ported   | namgpu/kernels/, namgpu/{dynamics,boundary,physics, | US Government work            |
 |                                | init,steps}/ (files citing a NAM source path)       | (public domain in the US)     |
-| NOAA NAM parm files            | parm/ (unmodified)                                  | US Government work            |
+| NOAA NAM parm files            | namgpu/parm/ (unmodified)                           | US Government work            |
 | AER RRTMG (NCEP's NMMB copy)   | namgpu/kernels/phys_rrtm_lw_*, phys_rrtm_sw_*,      | BSD-3-Clause (AER); NCEP      |
 |                                | rrtm_sw_bands.cuh, namgpu/physics/rrtm/,            | modifications US Government   |
 |                                | namgpu/data/rrtm_*                                  | work                          |
-| ArWen (gpuwm) kernels, reused  | third_party/arwen/, namgpu/physics/{myj,jsfc,noah}/ | Apache-2.0                    |
-| WRF Noah tables (stand-in)     | fix/noah/, namgpu/data/noah_tables/                 | WRF public-domain statement   |
+| ArWen (gpuwm) kernels, reused  | namgpu/third_party/arwen/,                          | Apache-2.0                    |
+|                                | namgpu/physics/{myj,jsfc,noah}/                     |                               |
+| WRF Noah tables (stand-in)     | namgpu/data/fix/noah/, namgpu/data/noah_tables/     | WRF public-domain statement   |
 | Ferrier table                  | namgpu/data/ferrier/ETAMPNEW_DATA.expanded_rain     | NOAA / WRF public domain      |
-| OPAC aerosol climatology       | parm/nam_climaeropac_global.txt (NCEP format)       | as redistributed by NOAA      |
-| Data fetched at setup/run time | fix/*.txt, case inputs, GMTED2010 terrain           | US Government data            |
-|                                | (not in this repository)                            |                               |
+| OPAC aerosol climatology       | namgpu/parm/nam_climaeropac_global.txt (NCEP)       | as redistributed by NOAA      |
+| NOAA fix files (radiation)     | namgpu/data/fix/*.txt                               | US Government data            |
+| Data fetched at run time       | case inputs, GMTED2010 terrain                      | US Government data;           |
+|                                | (not in this repository)                            | public domain                 |
 
 ==========================================================================
 NOAA / NCEP NAM
@@ -96,7 +98,7 @@ Government work. The nam-gpu port of these files is Apache-2.0.
 ArWen (Python package "gpuwm")
 ==========================================================================
 
-Files under third_party/arwen/, and files that say they were copied or adapted from ArWen:
+Files under namgpu/third_party/arwen/, and files that say they were copied or adapted from ArWen:
     Copyright 2026 ArWen contributors
     Licensed under the Apache License, Version 2.0.
 Each keeps its original header and names the ArWen path it came from.
@@ -105,9 +107,9 @@ Each keeps its original header and names the ArWen path it came from.
 WRF (NCAR/UCAR)
 ==========================================================================
 
-The Noah land-surface tables (fix/noah/, namgpu/data/noah_tables/) are from WRF V3.0 and v4.6.1.
-The NAM's own VEGPARM.TBL was never published; fix/noah/VEGPARM.TBL is a stand-in built from
-WRF's MODIFIED_IGBP_MODIS_NOAH table (fix/noah/PROVENANCE.txt). UCAR's notice, kept verbatim in
+The Noah land-surface tables (namgpu/data/fix/noah/, namgpu/data/noah_tables/) are from WRF V3.0
+and v4.6.1. The NAM's own VEGPARM.TBL was never published; namgpu/data/fix/noah/VEGPARM.TBL is a
+stand-in built from WRF's MODIFIED_IGBP_MODIS_NOAH table (namgpu/data/fix/noah/PROVENANCE.txt). UCAR's notice, kept verbatim in
 namgpu/data/noah_tables/LICENSE-WRF.txt:
 
   WRF was developed at the National Center for Atmospheric Research (NCAR) which is operated by
@@ -123,15 +125,15 @@ namgpu/data/noah_tables/LICENSE-WRF.txt:
   WRF(R) is a registered trademark of the University Corporation for Atmospheric Research (UCAR).
 
 ==========================================================================
-Data fetched at setup or run time (not in this repository)
+NOAA data shipped in this package, and data fetched at run time
 ==========================================================================
 
 - NOAA fix files (CO2 history and monthly cycle, ozone climatology, solar constant, surface
-  emissivity index), fetched by tools/fetch_fix.sh from the NOAA global fix bucket (fix/am).
-  US Government data.
+  emissivity index) in namgpu/data/fix/, unmodified copies from the NOAA global fix bucket
+  (fix/am/20220805; tools/fetch_fix.sh fetches them again). US Government data.
 - Case inputs (NAM native analysis and boundary files, GFS 0.25 degree, MRMS), fetched from NOAA
   Open Data Dissemination by namgpu.init.init_fetch_case. US Government data.
 - GMTED2010 terrain (USGS/NGA), read from the user's WPS geog set. Public domain.
-- Climatological aerosol table parm/nam_climaeropac_global.txt: NCEP format of the OPAC
+- Climatological aerosol table namgpu/parm/nam_climaeropac_global.txt: NCEP format of the OPAC
   climatology, Hess, Koepke and Schult (1998), Bull. Amer. Meteor. Soc. 79, 831-844, as
   redistributed by NOAA in the GFS fix set.

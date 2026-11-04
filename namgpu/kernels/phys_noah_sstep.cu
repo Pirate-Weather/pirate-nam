@@ -18,7 +18,7 @@
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4855-4942 (SSTEP) and
 // phys/module_LS_NOAHLSM.F90:3666-3725 (ROSR12, the solve SSTEP calls) (nam.v4.2.11, 83df4e13c1).
 //
-// Start point and notice: ArWen (Apache-2.0, third_party/arwen/LICENSE, Copyright 2026 ArWen
+// Start point and notice: ArWen (Apache-2.0, namgpu/third_party/arwen/LICENSE, Copyright 2026 ArWen
 // contributors), core/kernels/noah.cu, functions noah_rosr12 and noah_sstep. Changes from that copy:
 //   * The INOUT write-backs are kept, as the Fortran has them: AI and BI are left scaled by DT, CI is
 //     left holding the ROSR12 solution P, RHSTT holds DELTA, and CMC is always updated. ArWen drops

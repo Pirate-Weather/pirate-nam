@@ -2,7 +2,7 @@
 
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:4508-4526. NOAA US
 government work; the module NOAA header is kept as the notice in the kernel file. Start point:
-ArWen core/kernels/noah.cu (Apache-2.0, third_party/arwen/LICENSE), whose burial-depth blend is
+ArWen core/kernels/noah.cu (Apache-2.0, namgpu/third_party/arwen/LICENSE), whose burial-depth blend is
 not NAM's SNOWZ0 and is not used here.
 Kernel: namgpu/kernels/phys_noah_snowz0.cu (phys_noah_snowz0, one thread per (i, j), one launch).
 

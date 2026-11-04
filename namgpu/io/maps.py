@@ -85,15 +85,22 @@ NEEDS = {"composite_reflectivity": ("COMPOSITE",), "t2m": ("T2",), "d2m": ("Q2",
 
 
 def _parse(argv):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("files", nargs="+", type=Path)
-    ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--products", default=DEFAULT_PRODUCTS)
-    ap.add_argument("--frames", default="all")
-    ap.add_argument("--width", type=int, default=1200)
-    ap.add_argument("--height", type=int, default=900)
+    from namgpu.cli import HelpFormatter
+    ap = argparse.ArgumentParser(
+        description="Draw weather maps from WOOF-NAM history files (wrfout_d01_*) with gpuwm's Rust "
+                    "renderer: composite reflectivity, 2 m temperature and dewpoint, 10 m and 850 hPa "
+                    "wind, MSLP and 1 h precipitation. A forecast draws its own maps when it ends; use "
+                    "this to redraw them. Host only, no GPU.",
+        epilog="example: woof-nam maps runs/2025-03-14_12z/wrfout_d01_* --out runs/2025-03-14_12z/maps",
+        formatter_class=HelpFormatter)
+    ap.add_argument("files", nargs="+", type=Path, help="history files (wrfout_d01_<valid time>)")
+    ap.add_argument("--out", type=Path, required=True, help="output folder; maps go to <out>/<product>/")
+    ap.add_argument("--products", default=DEFAULT_PRODUCTS, help=f"comma list (default {DEFAULT_PRODUCTS})")
+    ap.add_argument("--frames", default="all", help="which history frames to draw (default all)")
+    ap.add_argument("--width", type=int, default=1200, help="image width in pixels (default 1200)")
+    ap.add_argument("--height", type=int, default=900, help="image height in pixels (default 900)")
     ap.add_argument("--mrms", type=Path, default=None, help="folder of mrms_refc_YYYYmmddHH.grib2 (overlay)")
-    ap.add_argument("--label", default="WOOF-NAM 12 km")
+    ap.add_argument("--label", default="WOOF-NAM 12 km", help="model name in the map titles")
     return ap.parse_args(argv)
 
 

@@ -3,7 +3,7 @@
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. Author headers of the
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:3390-3468 (SUBROUTINE PENMAN).
-// Start point: ArWen third_party/arwen/core/kernels/noah.cu (noah_penman, Apache-2.0,
+// Start point: ArWen namgpu/third_party/arwen/core/kernels/noah.cu (noah_penman, Apache-2.0,
 // WRF-lineage transcription). ArWen blends latent heat and emissivity on SNCOVR; NAM's
 // PENMAN switches on SNEQV == 0 (the Fortran is the referee here), so the switch is NAM's.
 //

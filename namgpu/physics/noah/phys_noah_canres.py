@@ -3,7 +3,7 @@
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:2331-2469, called under the
 caller guard IF (SHDFAC > 0 .AND. XLAI > 0) at lines 2154-2158. NOAA US government work; the
 module's NOAA header is kept as the notice in the kernel file. Start point: ArWen core/kernels/
-noah.cu (Apache-2.0, third_party/arwen/LICENSE), CP changed to the NAM value.
+noah.cu (Apache-2.0, namgpu/third_party/arwen/LICENSE), CP changed to the NAM value.
 Kernel: namgpu/kernels/phys_noah_canres.cu (phys_noah_canres, one thread per (i, j), one launch).
 
 RC and PC (plus RCS, RCT, RCQ, RCSOIL, which the Fortran also assigns) per column. No host sync,

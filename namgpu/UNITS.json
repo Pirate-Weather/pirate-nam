@@ -1181,7 +1181,7 @@
     {
       "id": "drv-dfi-filt-vars",
       "group": "driver",
-      "fortran": "parm/nam_filt_vars_norad.txt",
+      "fortran": "namgpu/parm/nam_filt_vars_norad.txt",
       "purpose": "Read the filter/restore table (F/R/B per variable) into the DFI variable lists.",
       "mode": "new",
       "deps": [],
@@ -2278,12 +2278,12 @@
       "id": "phys-myj-myjpbl",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:180-753",
-      "purpose": "MYJPBL column driver: theta, Q2, mixing, tendencies. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "MYJPBL column driver: theta, Q2, mixing, tendencies. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_myjpbl",
       "kernel": "namgpu/kernels/phys_myj_myjpbl.cu",
       "status": "done"
@@ -2292,12 +2292,12 @@
       "id": "phys-myj-mixlen",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:758-965",
-      "purpose": "MIXLEN: master length scale. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "MIXLEN: master length scale. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_mixlen",
       "kernel": "namgpu/kernels/phys_myj_mixlen.cu",
       "status": "done",
@@ -2307,13 +2307,13 @@
       "id": "phys-myj-prodq2",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:969-1173",
-      "purpose": "PRODQ2: TKE production/dissipation. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "PRODQ2: TKE production/dissipation. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init",
         "phys-myj-mixlen"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_prodq2",
       "kernel": "namgpu/kernels/phys_myj_prodq2.cu",
       "status": "done",
@@ -2323,12 +2323,12 @@
       "id": "phys-myj-difcof",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:1178-1337",
-      "purpose": "DIFCOF: exchange coefficients. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "DIFCOF: exchange coefficients. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_difcof",
       "kernel": "namgpu/kernels/phys_myj_difcof.cu",
       "status": "done"
@@ -2337,12 +2337,12 @@
       "id": "phys-myj-vdifq",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:1342-1420",
-      "purpose": "VDIFQ: vertical diffusion of Q2. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "VDIFQ: vertical diffusion of Q2. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_vdifq",
       "kernel": "namgpu/kernels/phys_myj_vdifq.cu",
       "status": "done",
@@ -2352,14 +2352,14 @@
       "id": "phys-myj-vdifh",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:1425-1522",
-      "purpose": "VDIFH: vertical diffusion of heat/moisture. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "VDIFH: vertical diffusion of heat/moisture. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init",
         "phys-myj-difcof",
         "phys-myj-myjpbl"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_vdifh",
       "kernel": "namgpu/kernels/phys_myj_vdifh.cu",
       "status": "done"
@@ -2368,12 +2368,12 @@
       "id": "phys-myj-vdifv",
       "group": "physics-myj",
       "fortran": "phys/module_BL_MYJPBL.F90:1527-1607",
-      "purpose": "VDIFV: vertical diffusion of momentum. Start from ArWen third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
+      "purpose": "VDIFV: vertical diffusion of momentum. Start from ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (bottom-up, WRF v4.6.1) and bring it to the NAM file (top-down, NAM constants; NAM copy is ~26% line-identical to WRF).",
       "mode": "copy-arwen",
       "deps": [
         "phys-myj-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjpbl.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjpbl.cu",
       "wrapper": "namgpu.physics.myj.phys_myj_vdifv",
       "kernel": "namgpu/kernels/phys_myj_vdifv.cu",
       "status": "done",
@@ -2409,12 +2409,12 @@
       "id": "phys-jsfc-jsfc",
       "group": "physics-jsfc",
       "fortran": "phys/module_SF_JSFC.F90:80-354",
-      "purpose": "JSFC driver: surface layer per column (USTAR, Z0, AKHS, AKMS, THZ0, QZ0, U10, V10, TH10, Q10). Start from ArWen third_party/arwen/core/kernels/myjsfc.cu.",
+      "purpose": "JSFC driver: surface layer per column (USTAR, Z0, AKHS, AKMS, THZ0, QZ0, U10, V10, TH10, Q10). Start from ArWen namgpu/third_party/arwen/core/kernels/myjsfc.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-jsfc-sfcdif"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjsfc.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjsfc.cu",
       "wrapper": "namgpu.physics.jsfc.phys_jsfc_jsfc",
       "kernel": "namgpu/kernels/phys_jsfc_jsfc.cu",
       "status": "done",
@@ -2424,12 +2424,12 @@
       "id": "phys-jsfc-sfcdif",
       "group": "physics-jsfc",
       "fortran": "phys/module_SF_JSFC.F90:357-1011",
-      "purpose": "SFCDIF: Janjic similarity, viscous sublayer over water, iterations. Start from ArWen third_party/arwen/core/kernels/myjsfc.cu; NAM copy ~80% identical to WRF.",
+      "purpose": "SFCDIF: Janjic similarity, viscous sublayer over water, iterations. Start from ArWen namgpu/third_party/arwen/core/kernels/myjsfc.cu; NAM copy ~80% identical to WRF.",
       "mode": "copy-arwen",
       "deps": [
         "phys-jsfc-init"
       ],
-      "arwen": "third_party/arwen/core/kernels/myjsfc.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/myjsfc.cu",
       "wrapper": "namgpu.physics.jsfc.phys_jsfc_sfcdif",
       "kernel": "namgpu/kernels/phys_jsfc_sfcdif.cu",
       "status": "done"
@@ -2438,7 +2438,7 @@
       "id": "phys-jsfc-init",
       "group": "physics-jsfc",
       "fortran": "phys/module_SF_JSFC.F90:1014-1251",
-      "purpose": "JSFC_INIT: PSIM/PSIH tables, initial USTAR, Z0. Ref ArWen third_party/arwen/core/myjsfc_tables.py.",
+      "purpose": "JSFC_INIT: PSIM/PSIH tables, initial USTAR, Z0. Ref ArWen namgpu/third_party/arwen/core/myjsfc_tables.py.",
       "mode": "port",
       "deps": [],
       "wrapper": "namgpu.physics.jsfc.phys_jsfc_init",
@@ -2489,7 +2489,7 @@
       "id": "phys-noah-sflx",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:1550-2278",
-      "purpose": "SFLX column physics with the NCEP v4 changes (frozen-soil transpiration, five-veg roughness). Start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SFLX column physics with the NCEP v4 changes (frozen-soil transpiration, five-veg roughness). Start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-redprm",
@@ -2502,7 +2502,7 @@
         "phys-noah-snfrac",
         "phys-noah-tdfcnd"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_sflx",
       "kernel": "namgpu/kernels/phys_noah_sflx.cu",
       "status": "done",
@@ -2512,12 +2512,12 @@
       "id": "phys-noah-alcalc",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2281-2328",
-      "purpose": "ALCALC: albedo with snow. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "ALCALC: albedo with snow. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_alcalc",
       "kernel": "namgpu/kernels/phys_noah_alcalc.cu",
       "status": "done"
@@ -2526,12 +2526,12 @@
       "id": "phys-noah-canres",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2331-2469",
-      "purpose": "CANRES: canopy resistance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "CANRES: canopy resistance. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_canres",
       "kernel": "namgpu/kernels/phys_noah_canres.cu",
       "status": "done"
@@ -2540,12 +2540,12 @@
       "id": "phys-noah-csnow",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2472-2511",
-      "purpose": "CSNOW: snow thermal conductivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "CSNOW: snow thermal conductivity. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_csnow",
       "kernel": "namgpu/kernels/phys_noah_csnow.cu",
       "status": "done"
@@ -2554,12 +2554,12 @@
       "id": "phys-noah-devap",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2514-2554",
-      "purpose": "DEVAP: bare-soil evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "DEVAP: bare-soil evaporation. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_devap",
       "kernel": "namgpu/kernels/phys_noah_devap.cu",
       "status": "done",
@@ -2569,12 +2569,12 @@
       "id": "phys-noah-evapo",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2557-2641",
-      "purpose": "EVAPO: total evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "EVAPO: total evaporation. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_evapo",
       "kernel": "namgpu/kernels/phys_noah_evapo.cu",
       "status": "done",
@@ -2584,12 +2584,12 @@
       "id": "phys-noah-frh2o",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2644-2782",
-      "purpose": "FRH2O: unfrozen soil water. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "FRH2O: unfrozen soil water. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_frh2o",
       "kernel": "namgpu/kernels/phys_noah_frh2o.cu",
       "status": "done",
@@ -2599,12 +2599,12 @@
       "id": "phys-noah-hrt",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:2785-3035",
-      "purpose": "HRT: soil heat equation RHS. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "HRT: soil heat equation RHS. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_hrt",
       "kernel": "namgpu/kernels/phys_noah_hrt.cu",
       "status": "done"
@@ -2626,12 +2626,12 @@
       "id": "phys-noah-hstep",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3153-3201",
-      "purpose": "HSTEP: soil temperature step. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "HSTEP: soil temperature step. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_hstep",
       "kernel": "namgpu/kernels/phys_noah_hstep.cu",
       "status": "done"
@@ -2640,12 +2640,12 @@
       "id": "phys-noah-nopac",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3204-3387",
-      "purpose": "NOPAC: no-snow energy/water balance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "NOPAC: no-snow energy/water balance. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_nopac",
       "kernel": "namgpu/kernels/phys_noah_nopac.cu",
       "status": "done",
@@ -2655,12 +2655,12 @@
       "id": "phys-noah-penman",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3390-3468",
-      "purpose": "PENMAN: potential evaporation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "PENMAN: potential evaporation. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_penman",
       "kernel": "namgpu/kernels/phys_noah_penman.cu",
       "status": "done",
@@ -2670,12 +2670,12 @@
       "id": "phys-noah-redprm",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3471-3664",
-      "purpose": "REDPRM: per-point parameters, NCEP roughness change. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "REDPRM: per-point parameters, NCEP roughness change. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_redprm",
       "kernel": "namgpu/kernels/phys_noah_redprm.cu",
       "status": "done"
@@ -2684,12 +2684,12 @@
       "id": "phys-noah-rosr12",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3666-3725",
-      "purpose": "ROSR12: tridiagonal solver. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "ROSR12: tridiagonal solver. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_rosr12",
       "kernel": "namgpu/kernels/phys_noah_rosr12.cu",
       "status": "done"
@@ -2698,12 +2698,12 @@
       "id": "phys-noah-shflx",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3729-3796",
-      "purpose": "SHFLX: soil heat flux. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SHFLX: soil heat flux. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_shflx",
       "kernel": "namgpu/kernels/phys_noah_shflx.cu",
       "status": "done",
@@ -2713,12 +2713,12 @@
       "id": "phys-noah-smflx",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3799-3916",
-      "purpose": "SMFLX: soil moisture flux. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SMFLX: soil moisture flux. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_smflx",
       "kernel": "namgpu/kernels/phys_noah_smflx.cu",
       "status": "done"
@@ -2727,12 +2727,12 @@
       "id": "phys-noah-snfrac",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3920-3957",
-      "purpose": "SNFRAC: snow cover fraction. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNFRAC: snow cover fraction. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snfrac",
       "kernel": "namgpu/kernels/phys_noah_snfrac.cu",
       "status": "done"
@@ -2741,12 +2741,12 @@
       "id": "phys-noah-snksrc",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:3960-4047",
-      "purpose": "SNKSRC: phase-change sink/source. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNKSRC: phase-change sink/source. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snksrc",
       "kernel": "namgpu/kernels/phys_noah_snksrc.cu",
       "status": "done",
@@ -2756,12 +2756,12 @@
       "id": "phys-noah-snopac",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4050-4374",
-      "purpose": "SNOPAC: snow energy/water balance. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNOPAC: snow energy/water balance. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snopac",
       "kernel": "namgpu/kernels/phys_noah_snopac.cu",
       "status": "done",
@@ -2771,12 +2771,12 @@
       "id": "phys-noah-snowpack",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4378-4505",
-      "purpose": "SNOWPACK: snow compaction. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNOWPACK: snow compaction. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snowpack",
       "kernel": "namgpu/kernels/phys_noah_snowpack.cu",
       "status": "done"
@@ -2785,12 +2785,12 @@
       "id": "phys-noah-snowz0",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4508-4526",
-      "purpose": "SNOWZ0: roughness with snow. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNOWZ0: roughness with snow. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snowz0",
       "kernel": "namgpu/kernels/phys_noah_snowz0.cu",
       "status": "done"
@@ -2799,12 +2799,12 @@
       "id": "phys-noah-snow-new",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4530-4600",
-      "purpose": "SNOW_NEW: new-snow density. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SNOW_NEW: new-snow density. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_snow_new",
       "kernel": "namgpu/kernels/phys_noah_snow_new.cu",
       "status": "done"
@@ -2813,12 +2813,12 @@
       "id": "phys-noah-srt",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4603-4852 (SRT); phys/module_LS_NOAHLSM.F90:5312-5369 (WDFCND, called by SRT)",
-      "purpose": "SRT: soil water RHS, frozen-soil transpiration change. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SRT: soil water RHS, frozen-soil transpiration change. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_srt",
       "kernel": "namgpu/kernels/phys_noah_srt.cu",
       "status": "done"
@@ -2827,12 +2827,12 @@
       "id": "phys-noah-sstep",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4855-4942",
-      "purpose": "SSTEP: soil moisture step. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "SSTEP: soil moisture step. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_sstep",
       "kernel": "namgpu/kernels/phys_noah_sstep.cu",
       "status": "done"
@@ -2841,12 +2841,12 @@
       "id": "phys-noah-tbnd",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4945-4985",
-      "purpose": "TBND: boundary-layer temperature interpolation. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "TBND: boundary-layer temperature interpolation. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_tbnd",
       "kernel": "namgpu/kernels/phys_noah_tbnd.cu",
       "status": "done"
@@ -2855,12 +2855,12 @@
       "id": "phys-noah-tdfcnd",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:4989-5092",
-      "purpose": "TDFCND: soil thermal diffusivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "TDFCND: soil thermal diffusivity. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_tdfcnd",
       "kernel": "namgpu/kernels/phys_noah_tdfcnd.cu",
       "status": "done",
@@ -2870,12 +2870,12 @@
       "id": "phys-noah-tmpavg",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:5095-5197",
-      "purpose": "TMPAVG: layer-mean temperature. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "TMPAVG: layer-mean temperature. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_tmpavg",
       "kernel": "namgpu/kernels/phys_noah_tmpavg.cu",
       "status": "done"
@@ -2884,12 +2884,12 @@
       "id": "phys-noah-transp",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:5200-5309",
-      "purpose": "TRANSP: transpiration. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "TRANSP: transpiration. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_transp",
       "kernel": "namgpu/kernels/phys_noah_transp.cu",
       "status": "done"
@@ -2898,12 +2898,12 @@
       "id": "phys-noah-wdfcnd",
       "group": "physics-noah",
       "fortran": "phys/module_LS_NOAHLSM.F90:5312-5369",
-      "purpose": "WDFCND: soil water diffusivity. Device function; start from ArWen third_party/arwen/core/kernels/noah.cu.",
+      "purpose": "WDFCND: soil water diffusivity. Device function; start from ArWen namgpu/third_party/arwen/core/kernels/noah.cu.",
       "mode": "copy-arwen",
       "deps": [
         "phys-noah-parm-tables"
       ],
-      "arwen": "third_party/arwen/core/kernels/noah.cu",
+      "arwen": "namgpu/third_party/arwen/core/kernels/noah.cu",
       "wrapper": "namgpu.physics.noah.phys_noah_wdfcnd",
       "kernel": "namgpu/kernels/phys_noah_wdfcnd.cu",
       "status": "done"
@@ -3240,7 +3240,7 @@
       "id": "phys-rrtm-clim-aerinit",
       "group": "physics-rrtm",
       "fortran": "phys/radiation_aerosols_nmmb.f:821-1498",
-      "purpose": "clim_aerinit, set_aercoef, optavg: aerosol optics; data parm/nam_climaeropac_global.txt.",
+      "purpose": "clim_aerinit, set_aercoef, optavg: aerosol optics; data namgpu/parm/nam_climaeropac_global.txt.",
       "mode": "port",
       "deps": [
         "phys-rrtm-aer-init"

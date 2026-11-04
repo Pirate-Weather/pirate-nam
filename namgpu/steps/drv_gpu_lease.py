@@ -1,5 +1,8 @@
 """drv-gpu-lease: take and release a shared-card pool lease around a run (optional).
 
+Internal plumbing for our own shared cards, off by default: the lease is taken only with
+WOOF_NAM_BOX=1 (env-box.sh sets it). Without it gpu_lease() is a no-op on every machine.
+
 No Fortran counterpart (UNITS.json mode "new"). Kernel: namgpu/kernels/drv_gpu_lease.cu
 (lease_probe, one thread, one launch).
 
@@ -77,9 +80,10 @@ def gpu_lease(lane: str = DEFAULT_LANE, vram_mib: int = DEFAULT_VRAM_MIB,
     Blocks until run.sh admits the lease (it queues behind tenants and other leases). Raises
     RuntimeError if the holder ends before it is granted.
     """
-    if os.environ.get("NAMGPU_NO_LEASE") or not POOL_RUN.is_file():
-        # Dedicated card, or no shared-card pool on this machine: the lease is a no-op and the run
-        # uses CUDA_VISIBLE_DEVICES as set.
+    from namgpu.paths import box_mode
+    if not box_mode() or os.environ.get("NAMGPU_NO_LEASE") or not POOL_RUN.is_file():
+        # Box plumbing off (the default), dedicated card, or no shared-card pool on this machine: the
+        # lease is a no-op and the run uses CUDA_VISIBLE_DEVICES as set.
         yield os.environ.get("CUDA_VISIBLE_DEVICES", "")
         return
     holder = [sys.executable, "-u", "-c", _HOLD]

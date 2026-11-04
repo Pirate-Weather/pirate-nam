@@ -2,7 +2,7 @@
 
 Ported from phys/module_BL_MYJPBL.F90:1342-1420 (NAM nam.v4.2.11, 83df4e13c1), SUBROUTINE VDIFQ, and the
 caller's floor Q2(I,J,K)=MAX(Q2K(K),EPSQ2(K)) for K=1..LM (module_BL_MYJPBL.F90:515-517).
-Apache-2.0 origin of the copied arithmetic: ArWen third_party/arwen/core/kernels/myjpbl.cu, VDIFQ block.
+Apache-2.0 origin of the copied arithmetic: ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu, VDIFQ block.
 Kernel: namgpu/kernels/phys_myj_vdifq.cu, entry phys_myj_vdifq, one thread per column (grid_cols),
 one launch, on ctx.stream. No host sync, no per-step allocation.
 

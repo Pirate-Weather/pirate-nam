@@ -17,7 +17,7 @@ from namgpu import config
 from namgpu.init import init_grid_geo as unit
 
 CASE = Path(_ROOT + "/cases/2025-03-14_12z")
-cfg = config.load(Path(_ROOT + "/parm/nam_configfile"), None)
+cfg = config.load(Path(_ROOT + "/namgpu/parm/nam_configfile"), None)
 im, jm = int(cfg.im), int(cfg.jm)
 st = {n: cp.zeros((jm, im), dtype=cp.float32) for n in ("GLAT", "GLON", "VLAT", "VLON")}
 ctx = SimpleNamespace(cfg=cfg, grid=SimpleNamespace(im=im, jm=jm), st=st, tables={},

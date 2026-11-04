@@ -3,7 +3,7 @@
 NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), phys/module_LS_NOAHLSM.F90:3960-4047. NOAA US government
 work; the module's NOAA header is kept as the notice in the kernel file.
 Kernel: namgpu/kernels/phys_noah_snksrc.cu (phys_noah_snksrc, one launch over (i, j, soil layer)).
-Started from the ArWen noah_snksrc (third_party/arwen/core/kernels/noah.cu, Apache-2.0). FRH2O is the
+Started from the ArWen noah_snksrc (namgpu/third_party/arwen/core/kernels/noah.cu, Apache-2.0). FRH2O is the
 device function in namgpu/kernels/phys_noah_frh2o.cuh.
 
 Per-column inputs, as the NAM call sites use them:

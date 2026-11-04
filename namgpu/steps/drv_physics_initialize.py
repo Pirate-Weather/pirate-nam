@@ -48,9 +48,11 @@ from namgpu import kernels
 
 UNIT = "drv_physics_initialize"
 NXPKAP = 11001
-# NAM_NOAH_FIX_DIR (the NCEP NAM fix tables) when set, else fix/noah built by tools/build_noah_fix.py
+# NAM_NOAH_FIX_DIR (the NCEP NAM fix tables) when set, else namgpu/data/fix/noah built by tools/build_noah_fix.py
 # (IGBP-first tables in the NMMB layout; named gap until the NCEP NAM fix VEGPARM.TBL is found).
-NOAH_TBL_DIR = Path(os.environ.get("NAM_NOAH_FIX_DIR") or Path(__file__).resolve().parents[2] / "fix" / "noah")
+from namgpu import paths  # noqa: E402
+
+NOAH_TBL_DIR = Path(os.environ.get("NAM_NOAH_FIX_DIR") or paths.FIX / "noah")
 
 ACTIVE = {
     "shortwave": "rrtm", "longwave": "rrtm", "turbulence": "myj", "sfc_layer": "myj",
@@ -114,7 +116,7 @@ def _gpkap(ctx, cp) -> dict:
     return entry
 
 
-FIX_DIR = Path(__file__).resolve().parents[2] / "fix"   # tools/fetch_fix.sh fills it (NCEP fix/am files)
+FIX_DIR = paths.FIX   # NCEP fix/am files, shipped in the package (tools/fetch_fix.sh refreshes them)
 
 
 def run(ctx, *, restart: bool | None = None, noah_tbl_dir: str | Path | None = None):
@@ -123,17 +125,19 @@ def run(ctx, *, restart: bool | None = None, noah_tbl_dir: str | Path | None = N
     The Fortran opens the radiation fix files (global_o3clim.txt, co2historicaldata_YYYY.txt,
     sfc_emissivity_idx.txt, solarconstant_*.txt) by name in the run directory, where exnam_fcst.sh
     links them. Our run directory for those files is ctx.fix_dir, else $NAMGPU_FIX_DIR, else
-    <repo>/fix (tools/fetch_fix.sh); init runs with that directory as the working directory and
+    namgpu/data/fix (shipped in the package); init runs with that directory as the working directory and
     restores the caller's afterwards."""
     with in_run_dir(ctx):
         return _run(ctx, restart=restart, noah_tbl_dir=noah_tbl_dir)
 
 
 def run_dir(ctx) -> Path:
-    """The directory the Fortran would run in for its fix-file opens: ctx.fix_dir, $NAMGPU_FIX_DIR, <repo>/fix."""
+    """The directory the Fortran would run in for its fix-file opens: ctx.fix_dir, $NAMGPU_FIX_DIR, namgpu/data/fix."""
     fix = Path(getattr(ctx, "fix_dir", None) or os.environ.get("NAMGPU_FIX_DIR") or FIX_DIR)
     if not (fix / "global_o3clim.txt").is_file():
-        raise FileNotFoundError(f"drv-physics-initialize: no NCEP fix files in {fix}; run tools/fetch_fix.sh")
+        raise FileNotFoundError(f"drv-physics-initialize: no NCEP fix files in {fix}; the package ships them in "
+                                "namgpu/data/fix (reinstall woof-nam, or point NAMGPU_FIX_DIR at a folder "
+                                "filled by tools/fetch_fix.sh)")
     return fix
 
 

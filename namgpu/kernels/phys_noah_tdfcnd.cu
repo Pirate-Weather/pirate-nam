@@ -16,7 +16,7 @@
 //   !               Vasic - SOILW limitted to positive values.
 //
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4989-5092 (nam.v4.2.11, 83df4e13c1).
-// Start point was the ArWen copy (third_party/arwen/core/kernels/noah.cu, noah_tdfcnd, Apache-2.0,
+// Start point was the ArWen copy (namgpu/third_party/arwen/core/kernels/noah.cu, noah_tdfcnd, Apache-2.0,
 // Copyright 2026 ArWen contributors). That routine is WRF's TDFCND (opt_thcnd branch, Campbell
 // psisat/bexp form), a different formulation and interface from NAM's Peters-Lidard TDFCND, so
 // the body here is transcribed from the NAM Fortran, statement by statement; only the layout

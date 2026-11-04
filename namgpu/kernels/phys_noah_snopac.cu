@@ -4,7 +4,7 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4050-4374 (nam.v4.2.11, 83df4e13c1).
 // Executed statements: see phys_noah_snopac.cuh (every term is there).
-// Start point: third_party/arwen/core/kernels/noah.cu (SNOPAC section, Apache-2.0, ArWen).
+// Start point: namgpu/third_party/arwen/core/kernels/noah.cu (SNOPAC section, Apache-2.0, ArWen).
 //
 // Layout (CONTRACT section 1): soil arrays [NSOIL, JM, IM] (layer 1 at the top), 2-D columns
 // [JM, IM], integer flags int32. One thread per column (grid_cols); the NSOIL soil layers of a

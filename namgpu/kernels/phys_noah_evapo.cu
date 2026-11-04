@@ -8,7 +8,7 @@
 // The callees are carried in this file, because the unit is one launch:
 //   SUBROUTINE DEVAP   phys/module_LS_NOAHLSM.F90:2514-2554  (called from EVAPO)
 //   SUBROUTINE TRANSP  phys/module_LS_NOAHLSM.F90:5200-5309  (called from EVAPO)
-// Structure follows ArWen third_party/arwen/core/kernels/noah.cu (noah_devap, noah_transp,
+// Structure follows ArWen namgpu/third_party/arwen/core/kernels/noah.cu (noah_devap, noah_transp,
 // noah_evapo), Apache-2.0, adapted to the NAM call sites and the CONTRACT layout. Changes from the
 // ArWen copy:
 //   - DEVAP is called with SH2O(1) (EVAPO passes SH2O(1) to DEVAP, module_LS_NOAHLSM.F90 line 2586;

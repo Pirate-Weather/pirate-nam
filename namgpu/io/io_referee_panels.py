@@ -6,7 +6,9 @@ Layout written (the layout io_referee_sheets reads):
 
 Sources:
   mrms         MRMS MergedReflectivityQCComposite_00.50 (truth), composite reflectivity only.
-  nam_gpu      this port's history files, drawn by the Rust renderer through the wrfout path.
+  nam_gpu      WOOF-NAM history files (XLAT/XLONG, COMPOSITE, T2, RAINNC + RAINC), drawn through the
+               Rust renderer's CF path like the other two sources: same CONUS frame, colour tables
+               and image size, so the three panels compose into one sheet.
   nam_archive  archived NAM 12 km grid 218 forecast of the same cycle (awphysFF), drawn through
                the Rust renderer's CF path.
 
@@ -26,8 +28,8 @@ Refusals (each names the breakage it prevents):
     the archived panel would show another forecast on the same row as nam-gpu.
   - a scan mode with bit 0x20 set: column-major storage read as row-major scrambles the field.
   - a renderer that writes no PNG for a panel: the sheet would otherwise be composed from nothing.
-  - a nam-gpu history without the requested renderer slug stored: the renderer's SKIPPED reason is
-    raised, not hidden.
+  - no WOOF-NAM history frame at a requested valid time, or a frame without COMPOSITE (written once the
+    microphysics has run): the panel would otherwise be missing from its sheet without a reason.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ import shutil
 import struct
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -340,45 +342,52 @@ def archive_panels(raw: Path, cycle: datetime, panels: Path, hours: list[datetim
     return made
 
 
-# ---------------------------------------------------------------- nam-gpu history
-_NAME = re.compile(r"_(\d{8})_(\d{2})z_f(\d{3})_")
+# ---------------------------------------------------------------- WOOF-NAM history
+# The renderer's wrfout route does not place MAP_PROJ 203 (the rotated lat-lon B grid) and draws its own
+# frame size, so the sheets could not compose its panel beside the CF-drawn MRMS and archived NAM panels
+# ("panels of two sizes are not composed"). The history's own XLAT/XLONG go through the same CF route.
+NAM_GPU_NEEDS = {"XLAT", "XLONG", "COMPOSITE", "T2", "RAINNC", "RAINC"}
+
+
+def _nam_gpu_values(product: str, f: dict, name: str) -> np.ndarray:
+    if product == "composite_reflectivity":
+        if "COMPOSITE" not in f:
+            raise FileNotFoundError(f"{name}: no COMPOSITE in the history (the microphysics has not written it yet)")
+        return np.maximum(f["COMPOSITE"], -30.0)
+    if product == "t2":
+        return (f["T2"] - 273.15) * 1.8 + 32.0                     # K -> degF
+    if product == "precip_total":
+        return f["RAINNC"] + f["RAINC"]                            # mm = kg m-2 since the start
+    raise ValueError(f"no WOOF-NAM recipe for {product}")
 
 
 def nam_gpu_panels(history: list[Path], panels: Path, hours: list[datetime],
                    products=tuple(PRODUCT_SPECS)) -> list[Path]:
+    from namgpu.io.maps import _read, _times  # noqa: PLC0415
+
     rustwx, renderer = _renderer()
+    frames = {}
+    for h in history:
+        valid, start = _times(Path(h))
+        frames[valid] = (Path(h), start)
     made = []
     with tempfile.TemporaryDirectory(prefix="referee-namgpu-") as td:
-        store, out = Path(td) / "store", Path(td) / "out"
-        store.mkdir()
-        out.mkdir()
-        slugs = ",".join(PRODUCT_SPECS[p]["slug"] for p in products)
-        _written, failures, skipped = rustwx.run_renderer_series(
-            renderer, [str(Path(h).resolve()) for h in history], store_root=store, out_dir=out,
-            products=slugs, frames="all", source_label="WOOF-NAM 12 km")
-        if failures:
-            raise RuntimeError(f"renderer FAILED: {failures}")
-        by_key = {}
-        for p in out.rglob("*.png"):
-            m = _NAME.search(p.name)
-            if not m:
-                continue
-            init = datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H")
-            valid = init + timedelta(hours=int(m.group(3)))
+        for valid in hours:
+            if valid not in frames:
+                raise FileNotFoundError(f"no WOOF-NAM history frame valid {valid:%Y%m%d%H} among the "
+                                        f"{len(history)} --history files")
+            path, start = frames[valid]
+            _, _, f = _read(path, NAM_GPU_NEEDS)
+            lead = int((valid - start).total_seconds() // 3600)
             for product in products:
-                if p.name.endswith(f"_{PRODUCT_SPECS[product]['slug']}.png"):
-                    by_key[(product, valid)] = p
-        for product in products:
-            for valid in hours:
-                src = by_key.get((product, valid))
-                if src is None:
-                    why = [s for s in skipped if PRODUCT_SPECS[product]["slug"] in str(s)]
-                    raise FileNotFoundError(f"no WOOF-NAM {product} frame for {valid:%Y%m%d%H}"
-                                            + (f": {why}" if why else ""))
-                dst = panels / product / "nam_gpu" / f"{valid:%Y%m%d%H}.png"
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(src, dst)
-                made.append(dst)
+                spec = PRODUCT_SPECS[product]
+                vals = _nam_gpu_values(product, f, path.name).astype(np.float32)
+                nc = _write_cf(Path(td) / f"woof_{product}_{valid:%Y%m%d%H}.nc", valid, spec["cf_var"], vals,
+                               spec["units"], f["XLAT"], f["XLONG"],
+                               source=f"WOOF-NAM 12 km, init {start:%Y-%m-%d %HZ} +{lead} h")
+                table = _cf_table(Path(td) / f"cf_{product}.json", product, spec)
+                out = panels / product / "nam_gpu" / f"{valid:%Y%m%d%H}.png"
+                made.append(_cf_render(rustwx, renderer, nc, spec, product, valid, table, out))
     return made
 
 
@@ -388,20 +397,26 @@ def _hours(values) -> list[datetime]:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    from namgpu.cli import HelpFormatter
     sub = ap.add_subparsers(dest="cmd", required=True)
-    m = sub.add_parser("mrms")
-    m.add_argument("--raw", type=Path, required=True)
-    m.add_argument("--panels", type=Path, required=True)
-    m.add_argument("--hours", nargs="+", required=True)
-    a = sub.add_parser("archive")
-    a.add_argument("--raw", type=Path, required=True)
-    a.add_argument("--cycle", required=True)
-    a.add_argument("--panels", type=Path, required=True)
-    a.add_argument("--hours", nargs="+", required=True)
-    g = sub.add_parser("woof-nam", aliases=["nam-gpu"])
-    g.add_argument("--history", type=Path, nargs="+", required=True)
-    g.add_argument("--panels", type=Path, required=True)
-    g.add_argument("--hours", nargs="+", required=True)
+    hours_help = "valid times, YYYYmmddHH (one or more)"
+    panels_help = "panel folder (written as <panels>/<product>/<source>/<YYYYmmddHH>.png)"
+    m = sub.add_parser("mrms", formatter_class=HelpFormatter, help="observed MRMS composite reflectivity",
+                       description="Panels from MRMS observed composite reflectivity.")
+    m.add_argument("--raw", type=Path, required=True, help="the case's MRMS folder, <case-dir>/raw/mrms")
+    m.add_argument("--panels", type=Path, required=True, help=panels_help)
+    m.add_argument("--hours", nargs="+", required=True, help=hours_help)
+    a = sub.add_parser("archive", formatter_class=HelpFormatter, help="the archived operational NAM forecast of the same cycle",
+                       description="Panels from the archived NAM 12 km forecast (cycles before 2026-11-03 12Z).")
+    a.add_argument("--raw", type=Path, required=True, help="the case's NAM folder, <case-dir>/raw/nam")
+    a.add_argument("--cycle", required=True, help="the forecast's start cycle, YYYYMMDDHH")
+    a.add_argument("--panels", type=Path, required=True, help=panels_help)
+    a.add_argument("--hours", nargs="+", required=True, help=hours_help)
+    g = sub.add_parser("woof-nam", formatter_class=HelpFormatter, aliases=["nam-gpu"], help="your WOOF-NAM run's history files",
+                       description="Panels from a WOOF-NAM run's history files.")
+    g.add_argument("--history", type=Path, nargs="+", required=True, help="history files, <out>/wrfout_d01_*")
+    g.add_argument("--panels", type=Path, required=True, help=panels_help)
+    g.add_argument("--hours", nargs="+", required=True, help=hours_help)
     args = ap.parse_args(argv)
     if args.cmd == "mrms":
         out = mrms_panels(args.raw, args.panels, _hours(args.hours))

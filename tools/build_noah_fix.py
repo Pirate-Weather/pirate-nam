@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 src = Path(sys.argv[1])
-dest = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parents[1] / "fix" / "noah"
+dest = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).resolve().parents[1] / "namgpu" / "data" / "fix" / "noah"
 dest.mkdir(parents=True, exist_ok=True)
 lines = (src / "VEGPARM.TBL").read_text().splitlines()
 i = next(k for k, l in enumerate(lines) if l.strip() == "MODIFIED_IGBP_MODIS_NOAH")

@@ -4,8 +4,8 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:5095-5197 (nam.v4.2.11, 83df4e13c1).
 //
-// Start point: third_party/arwen/core/kernels/noah.cu noah_tmpavg (Apache License 2.0, ArWen,
-// third_party/arwen/LICENSE). The branch structure is kept as NAM writes it (the eight TUP/TM/TDN
+// Start point: namgpu/third_party/arwen/core/kernels/noah.cu noah_tmpavg (Apache License 2.0, ArWen,
+// namgpu/third_party/arwen/LICENSE). The branch structure is kept as NAM writes it (the eight TUP/TM/TDN
 // sign cases with the X0/XUP/XDN interface crossings), statement for statement; the only change is
 // the layout (one thread per (i, j, soil layer), Fortran K = k + 1) and the NAM T0 literal.
 //

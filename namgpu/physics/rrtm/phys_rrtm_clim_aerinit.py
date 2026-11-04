@@ -42,7 +42,8 @@ UNIT = "phys_rrtm_clim_aerinit"
 K_BANDS = "clim_aerinit_bands"
 K_OPTAVG = "clim_aerinit_optavg"
 
-DATA_FILE = Path(__file__).resolve().parents[3] / "parm" / "nam_climaeropac_global.txt"
+from namgpu.paths import PARM  # noqa: E402
+DATA_FILE = PARM / "nam_climaeropac_global.txt"
 
 NAERBND = 61
 NRHLEV = 8

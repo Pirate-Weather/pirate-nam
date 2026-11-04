@@ -4,7 +4,7 @@
 // source module are kept as notices: MODULE MODULE_LS_NOAHLSM (module_LS_NOAHLSM.F90).
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:2331-2469 (nam.v4.2.11, 83df4e13c1).
 //
-// Start point and notice: ArWen (Apache-2.0, third_party/arwen/LICENSE, Copyright 2026 ArWen
+// Start point and notice: ArWen (Apache-2.0, namgpu/third_party/arwen/LICENSE, Copyright 2026 ArWen
 // contributors), core/kernels/noah.cu, function noah_canres. Changes from that copy:
 //   * CP is the NAM module constant (module_LS_NOAHLSM.F90:44, CP = 1004.6), not the 1004.5 of the
 //     ArWen launch-time define.

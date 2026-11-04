@@ -30,8 +30,9 @@ UNIT = "init_static_missing"
 KERNEL = "init_static_missing"
 
 ROOT = Path(__file__).resolve().parents[2]
-ARWEN_NOAH = ROOT / "third_party" / "arwen" / "core" / "noah.py"
-TBL_DIR = ROOT / "namgpu" / "data" / "noah_tables"
+from namgpu import paths  # noqa: E402
+ARWEN_NOAH = paths.ARWEN / "core" / "noah.py"
+TBL_DIR = paths.DATA / "noah_tables"
 SOIL_DEFAULT_LOAM = 6          # SOILPARM order: sand, loamy sand, sandy loam, silt loam, silt, loam, ...
 
 

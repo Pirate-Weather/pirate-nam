@@ -3,7 +3,7 @@
 // NOAA / NCEP NAM (nam.v4.2.11, 83df4e13c1), NOAA US government work. The module's NOAA
 // header (MODULE MODULE_LS_NOAHLSM, module_LS_NOAHLSM.F90) is kept as the notice.
 // Ported to CUDA for nam-gpu from phys/module_LS_NOAHLSM.F90:4530-4600 (nam.v4.2.11, 83df4e13c1).
-// Start point: ArWen third_party/arwen/core/kernels/noah.cu (noah_snow_new, Apache-2.0,
+// Start point: ArWen namgpu/third_party/arwen/core/kernels/noah.cu (noah_snow_new, Apache-2.0,
 // notice kept in the ArWen tree). The ArWen copy has no RIMEF1 densification block (the NAM
 // 2013 addition), so that block is ported from the NAM Fortran.
 //

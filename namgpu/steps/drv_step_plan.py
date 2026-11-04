@@ -35,6 +35,8 @@ from namgpu import driver as _driver
 from namgpu import kernels
 
 UNIT = "drv_step_plan"
+from namgpu import paths  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 KNOWN_CADENCES = set(_driver.CADENCE_KEYS)
 
@@ -63,7 +65,7 @@ _checked = False
 
 
 def _units() -> dict:
-    return {u["id"]: u for u in json.loads((ROOT / "UNITS.json").read_text())["units"]}
+    return {u["id"]: u for u in json.loads((paths.UNITS_JSON).read_text())["units"]}
 
 
 def _matches(entry, uid, want) -> bool:

@@ -35,7 +35,7 @@ def main(ids):
     from namgpu import config, grid as gridmod, kernels, state as statemod
     from namgpu.driver import Ctx
 
-    units = {u["id"]: u for u in json.loads((ROOT / "UNITS.json").read_text())["units"]}
+    units = {u["id"]: u for u in json.loads((ROOT / "namgpu" / "UNITS.json").read_text())["units"]}
     cfg = config.load()
     g = gridmod.build(cfg)
     st = statemod.State(g).randomize(seed=1)

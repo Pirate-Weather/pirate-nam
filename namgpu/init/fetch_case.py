@@ -183,7 +183,8 @@ def main(argv=None):
     ap.add_argument("--workers", type=int, default=16)
     a = ap.parse_args(argv)
     cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
-    case = ROOT / "cases" / cycle.strftime("%Y-%m-%d_%Hz")
+    from namgpu import paths
+    case = paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")
     raw = case / "raw"
     for sub in ("nam", "gfs", "mrms"):
         (raw / sub).mkdir(parents=True, exist_ok=True)

@@ -4,8 +4,8 @@
 // header of module_BL_MYJPBL is kept as the notice:
 //   MODULE MODULE_BL_MYJPBL, "THE MYJ PBL SCHEME" (NMMB, nam.v4.2.11).
 // Ported to CUDA for nam-gpu from phys/module_BL_MYJPBL.F90:1178-1337 (nam.v4.2.11, 83df4e13c1).
-// Start point: ArWen third_party/arwen/core/kernels/myjpbl.cu (DIFCOF block, Apache-2.0, see
-// third_party/arwen/LICENSE), brought to the NAM file: top-down levels (Fortran K = 1 is the model
+// Start point: ArWen namgpu/third_party/arwen/core/kernels/myjpbl.cu (DIFCOF block, Apache-2.0, see
+// namgpu/third_party/arwen/LICENSE), brought to the NAM file: top-down levels (Fortran K = 1 is the model
 // top, zero-based k0 = K-1), NAM constants below (module_BL_MYJPBL.F90:36-122), float32.
 //
 // Fortran -> CUDA map (every term of the routine):

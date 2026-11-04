@@ -83,11 +83,23 @@ def run(ctx, hours: int = DEFAULT_HOURS, workers: int = DEFAULT_WORKERS) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cycle", required=True, help="YYYYMMDDHH")
-    ap.add_argument("--hours", type=int, default=DEFAULT_HOURS)
-    ap.add_argument("--case-dir", required=True)
-    ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
+    from namgpu.cli import HelpFormatter
+    ap = argparse.ArgumentParser(
+        description="Download one case's inputs from NOAA's open data on AWS (no account needed) into "
+                    "<case-dir>/raw/: the NAM native analysis and the archived NAM forecast (cycles before "
+                    "the NAM's retirement, 2026-11-03 12Z), the GFS boundaries and MRMS reflectivity. "
+                    "Files already there are skipped. A 24 h case is about 3.7 GB.",
+        epilog="examples:\n"
+               "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z\n"
+               "  woof-nam fetch --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only\n"
+               "Name the case folder YYYY-MM-DD_HHz: woof-nam run reads the start time from it.",
+        formatter_class=HelpFormatter)
+    ap.add_argument("--cycle", required=True, help="start cycle, YYYYMMDDHH (00, 06, 12 or 18 UTC)")
+    ap.add_argument("--hours", type=int, default=DEFAULT_HOURS,
+                    help=f"forecast length to fetch inputs for, in hours (default {DEFAULT_HOURS})")
+    ap.add_argument("--case-dir", required=True, help="case folder, e.g. cases/2025-03-14_12z")
+    ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                    help=f"parallel fetches (default {DEFAULT_WORKERS})")
     ap.add_argument("--gfs-only", action="store_true",
                     help="GFS boundaries/start and MRMS only, no NAM files (for --source gfs; any cycle, "
                          "including after the NAM's 2026-11-03 retirement)")

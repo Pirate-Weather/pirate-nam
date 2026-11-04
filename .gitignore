@@ -27,8 +27,6 @@ cases/*/referee/tmp/
 cases/*/*.log
 cases/*/referee/*.log
 
-# NOAA fix files: fetched by tools/fetch_fix.sh, never committed (fix/noah/ is kept)
-fix/*.txt
 
 # compiled reference harnesses and build output
 tools/**/build/
