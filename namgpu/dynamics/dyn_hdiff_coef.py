@@ -24,7 +24,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_hdiff_coef"
 KERNEL = "dyn_hdiff_coef"
@@ -85,4 +85,5 @@ def run(ctx):
             dyh, rdyh,
             np.int32(im), np.int32(jm), np.int32(lm),
             np.int32(lpt2), np.int32(bool(cfg.hydro)), np.int32(bool(cfg.global_)),
+            *slab.kargs(ctx),
         ))

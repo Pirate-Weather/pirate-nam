@@ -80,12 +80,15 @@ extern "C" __global__ void dyn_pgforce_divcor(
     const float* __restrict__ PGNW_3D,   // [LM, JM, IM]  pgf nw component (pgnw)
     const float* __restrict__ WPDAR,     // [JM]          divergence correction weight per row (wpdar)
     float* __restrict__ DIV,             // [LM, JM, IM]  divergence, corrected in place
-    int IM, int JM, int LM, int GLOBAL)  // GLOBAL = 1 for the global branch, 0 for regional
+    int IM, int JM, int LM, int GLOBAL,  // GLOBAL = 1 for the global branch, 0 for regional
+    int JOFF, int JMG)                   // row slab (nmmb_common.cuh): j below is GLOBAL, memory is local
 {
     const int i  = blockIdx.x * blockDim.x + threadIdx.x + 1;   // Fortran i, 1..IM
-    const int j  = blockIdx.y * blockDim.y + threadIdx.y + 1;   // Fortran j, 1..JM
+    const int jl = blockIdx.y * blockDim.y + threadIdx.y + 1;   // local memory row, 1..JM
+    const int j  = jl + JOFF;                                   // Fortran (global) j, 1..JMG
     const int l0 = blockIdx.z;                                  // Fortran l-1 (0 = top)
-    if (i > IM || j > JM || l0 >= LM) return;
+    if (i > IM || jl > JM || l0 >= LM) return;
+    if (NMMB_SLAB_EDGE(jl - 1, JM, j - 1, JMG, 1)) return;     // reads j-1..j+1
 
     const int ids = LIM[DLC_IDS],  ide = LIM[DLC_IDE];
     const int jds = LIM[DLC_JDS],  jde = LIM[DLC_JDE];
@@ -97,12 +100,12 @@ extern "C" __global__ void dyn_pgforce_divcor(
     const bool s_bdy = (jts == jds), n_bdy = (jte == jde);
     const bool w_bdy = (its == ids), e_bdy = (ite == ide);
 
-#define PX(ii, jj)  PGX_3D[IDX3((ii) - 1, (jj) - 1, l0, IM, JM)]
-#define PY(ii, jj)  PGY_3D[IDX3((ii) - 1, (jj) - 1, l0, IM, JM)]
-#define PNE(ii, jj) PGNE_3D[IDX3((ii) - 1, (jj) - 1, l0, IM, JM)]
-#define PNW(ii, jj) PGNW_3D[IDX3((ii) - 1, (jj) - 1, l0, IM, JM)]
-#define WP(jj)      WPDAR[(jj) - 1]
-#define DV(ii, jj)  DIV[IDX3((ii) - 1, (jj) - 1, l0, IM, JM)]
+#define PX(ii, jj)  PGX_3D[IDX3((ii) - 1, (jj) - 1 - JOFF, l0, IM, JM)]
+#define PY(ii, jj)  PGY_3D[IDX3((ii) - 1, (jj) - 1 - JOFF, l0, IM, JM)]
+#define PNE(ii, jj) PGNE_3D[IDX3((ii) - 1, (jj) - 1 - JOFF, l0, IM, JM)]
+#define PNW(ii, jj) PGNW_3D[IDX3((ii) - 1, (jj) - 1 - JOFF, l0, IM, JM)]
+#define WP(jj)      WPDAR[(jj) - 1 - JOFF]   /* wpdar is sliced to the local rows on the host */
+#define DV(ii, jj)  DIV[IDX3((ii) - 1, (jj) - 1 - JOFF, l0, IM, JM)]
 
     const bool in_tile = (i >= its && i <= ite && j >= jts && j <= jte);
 

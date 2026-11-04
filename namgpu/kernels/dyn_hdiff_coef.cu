@@ -56,7 +56,8 @@ extern "C" __global__ void dyn_hdiff_coef(
     const int lm,
     const int lpt2,
     const int hydro,
-    const int global)
+    const int global,
+    const int JOFF, const int JMG)     // row slab (nmmb_common.cuh): domain tests on the global row
 {
     POINT_IJL
     if (i0 >= im || j0 >= jm || l0 >= lm) return;
@@ -72,7 +73,9 @@ extern "C" __global__ void dyn_hdiff_coef(
     const float defm   = global ? 1.6875e-4f : 9999.0f;   // deformation cap (global / regional)
 
     // [A] + [B]: boundary rows and columns are zeroed; interior cells get the deformation.
-    const bool bdy = (j == 1) || (j == jm) || (i == 1) || (i == im);
+    const int jg1 = j + JOFF;          // global Fortran j
+    const bool bdy = (jg1 == 1) || (jg1 == JMG) || (i == 1) || (i == im);
+    if (!bdy && NMMB_SLAB_EDGE(j0, jm, jg1 - 1, JMG, 1)) return;   // interior reads j-1..j+1
     if (bdy) {
         F3(def3d, i, j, l) = 0.0f;
     } else {

@@ -276,11 +276,29 @@ def run(ctx, has_htrswb: bool = False, nc: int = NC_DEFAULT):
         # Day columns only: one host read of the device day count per SW call (the Fortran NDAY). Chunks
         # are multiples of CHK = 8 columns (taumol19's MINVAL tiles); n = JM*IM is one too for 8-row chunks.
         nday = int(ndayp.get()[0])
-        sc = chunk_scratch(cp, nc, nlay, nlp1)
+        # 32 GB fit: allocate the chunk scratch at the size the chunk uses. It was first allocated for
+        # nc = 32768 columns and then again for ncur whenever ncur != nc, and with 8-row rrtm-call chunks (at
+        # most 7,632 day columns) that is every call: ~4 GiB of 32768-column blocks (0.9 GB per 112-g-point
+        # array) allocated for nothing at the radiation peak. Same values: each chunk still gets a fresh
+        # zero-filled scratch of its own size whenever its size differs from nc, as before.
+        # One fixed-size block per call (ncap = all columns of this row chunk), and each SW chunk gets a zeroed
+        # leading-axis view of it: the same zero-filled [ncur, ...] arrays as before, but no differently sized
+        # allocations call to call (they fragmented the CuPy pool until a 32 GB card ran out at the 4th call).
+        from namgpu.state import fit_on  # noqa: PLC0415
+        _fit = fit_on()
+        ncap = min(nc, -(-n // 8) * 8)
+        full = None
+        sc = None if _fit else chunk_scratch(cp, nc, nlay, nlp1)
         for cstart in range(0, nday, nc):
             ncur = min(nc, nday - cstart)
             ncur = min(-(-ncur // 8) * 8, n - cstart)
-            if ncur != nc:
+            if _fit and (sc is None or ncur != nc):
+                if full is None:
+                    full = chunk_scratch(cp, ncap, nlay, nlp1)
+                sc = {k: v[:ncur] for k, v in full.items()}
+                for v in sc.values():
+                    v.fill(0)
+            elif not _fit and ncur != nc:
                 sc = chunk_scratch(cp, ncur, nlay, nlp1)
             _prep_chunk(inp, sc, ndayp, idxday, cstart, ncur, nlay, nlp1, jm, im, solcon,
                         stream=ctx.stream)

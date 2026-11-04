@@ -33,7 +33,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "io_quasipost_3d"
 NPRES = 33
@@ -120,6 +120,7 @@ def run(ctx):
             ))
             kedge_j(((im + 127) // 128, 3, 1), (128, 1, 1), (
                 np.int32(im), np.int32(jm), pu, pv, pw, pr,
+                np.int32((1 if slab.edges(ctx)[0] else 0) | (2 if slab.edges(ctx)[1] else 0)),
             ))
 
         # Section 3: 10-m wind magnitude and vorticity.

@@ -52,13 +52,15 @@ extern "C" __global__ void bnd_read_bc_scatter(
     const unsigned long long* __restrict__ dst_n, // [nent] device address of north  [NT,NL,LNSH,IM]
     const unsigned long long* __restrict__ dst_w, // [nent] device address of west   [NT,NL,JM,LNSH]
     const unsigned long long* __restrict__ dst_e, // [nent] device address of east   [NT,NL,JM,LNSH]
-    int im, int jm, int lnsh, int nl, int nt, long long payload)
+    int im, int jm, int lnsh, int nl, int nt, long long payload,
+    int JOFF, int JMG)      // row slab: records hold the GLOBAL JMG rows; W/E land on local rows jm (one card: 0, jm)
 {
     const int ent  = blockIdx.z;
     const int side = blockIdx.y;
     const long long k = (long long)blockIdx.x * blockDim.x + threadIdx.x;
     const long long S = (long long)im * lnsh * nl * nt;   // south and north element count
-    const long long W = (long long)lnsh * jm * nl * nt;   // west and east element count
+    const long long W = (long long)lnsh * jm * nl * nt;   // west and east element count (local rows)
+    const long long WG = (long long)lnsh * JMG * nl * nt; // west and east element count in the record
     const float* r = rec + (size_t)ent * (size_t)payload;
 
     if (side < 2) {
@@ -79,6 +81,7 @@ extern "C" __global__ void bnd_read_bc_scatter(
         const int t   = (int)(k / ((long long)lnsh * jm * nl));
         float* d = (float*)(side == 2 ? dst_w[ent] : dst_e[ent]);
         const size_t ci = (((size_t)t * nl + lev) * jm + j) * lnsh + n1;   // [NT][NL][JM][LNSH], CONTRACT 1a
-        d[ci] = r[2 * S + (side == 2 ? 0 : W) + k];
+        const long long kg = (((long long)t * nl + lev) * JMG + (j + JOFF)) * lnsh + n1;   // record index
+        d[ci] = r[2 * S + (side == 2 ? 0 : WG) + kg];
     }
 }

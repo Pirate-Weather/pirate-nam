@@ -20,7 +20,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_dht"
 
@@ -99,6 +99,6 @@ def run(ctx):
             dsg2, pdsg1, dxv, fcp, fdiv, st.PD, st.U, st.V,
             pcx, pcy, pcne, pcnw,
             pfx, pfy, pfne, pfnw,
-            st.DIV, tdiv, st.OMGALF,
+            st.DIV, tdiv, st.OMGALF, *slab.kargs(ctx),
         ))
         k_cum(gc, kernels.BLOCK_COL, (np.int32(im), np.int32(jm), np.int32(lm), tdiv))

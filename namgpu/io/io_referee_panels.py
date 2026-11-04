@@ -289,6 +289,42 @@ def _nam218_latlon():
     return lambert_inverse(f, X, Y)
 
 
+def _check_nam218(row, grib: Path, f_) -> None:
+    if row["gdt"] != 30 or (row["nx"], row["ny"]) != (f_.nx, f_.ny):
+        raise ValueError(f"{grib.name}: grid gdt {row['gdt']} {row['nx']}x{row['ny']} "
+                         f"is not NAM 218 ({f_.nx}x{f_.ny} Lambert)")
+    if abs(float(row["lat1"]) - f_.lat_ll) > 1e-3:
+        raise ValueError(f"{grib.name}: lat1 {row['lat1']} differs from the NAM 218 frame")
+
+
+def _archive_total_since_start(raw: Path, f: int, inv, grib: Path, match, product: str, f_, scratch: Path):
+    """Accumulation since the cycle start, from the archived NAM files.
+
+    The NAM resets its accumulations every 12 h. The f-hour file holds the window from the last reset to f
+    (an accumulation record's forecast_time is its window start) plus the (f-3)-f bucket, so at +24 h it has
+    12-24 and 21-24, not 0-24. Take the longest window in the f-hour file; if it starts after the cycle, add
+    the total since start at that hour from that hour's own file, back to 0."""
+    total = None
+    end = f
+    while True:
+        rows = [r for r in inv if match(r)]
+        if not rows:
+            raise ValueError(f"{product} in {grib.name}: 0 GRIB2 accumulation records")
+        start = min(_ints(r, "forecast_time") for r in rows)
+        row = _pick(rows, lambda r: _ints(r, "forecast_time") == start,
+                    f"{product} {start}-{end} h window in {grib.name}")
+        if not 0 <= start < end:
+            raise ValueError(f"{grib.name}: {product} window starts at {start} h, not before {end} h")
+        _check_nam218(row, grib, f_)
+        part = _place(_grib_values(grib, row, scratch.with_name(f"{scratch.name}_{start}_{end}")), row)
+        total = part if total is None else total + part
+        if start == 0:
+            return total
+        end = start
+        grib = _archive_file(raw, end)
+        inv = inventory(grib)
+
+
 def archive_panels(raw: Path, cycle: datetime, panels: Path, hours: list[datetime],
                    products=tuple(PRODUCT_SPECS)) -> list[Path]:
     rustwx, renderer = _renderer()
@@ -317,20 +353,16 @@ def archive_panels(raw: Path, cycle: datetime, panels: Path, hours: list[datetim
                         ok = ok and _ints(r, "level_value") == sel["lv"]
                     if "pdt" in sel:
                         ok = ok and _ints(r, "pdt") == sel["pdt"]
-                    if sel.get("pdt") == 8:
-                        # an accumulation's forecast_time is the start of its window: "total since start"
-                        # is the 0-f record (the f-hour file also holds the (f-3)-f bucket)
-                        ok = ok and _ints(r, "forecast_time") == 0
                     return ok
-                row = _pick(inv, match, f"{product} in {grib.name}")
-                if sel.get("pdt") != 8 and _ints(row, "forecast_time") != f:
-                    raise ValueError(f"{grib.name}: {product} forecast_time {row['forecast_time']} != {f}")
-                if row["gdt"] != 30 or (row["nx"], row["ny"]) != (f_.nx, f_.ny):
-                    raise ValueError(f"{grib.name}: grid gdt {row['gdt']} {row['nx']}x{row['ny']} "
-                                     f"is not NAM 218 ({f_.nx}x{f_.ny} Lambert)")
-                if abs(float(row["lat1"]) - f_.lat_ll) > 1e-3:
-                    raise ValueError(f"{grib.name}: lat1 {row['lat1']} differs from the NAM 218 frame")
-                vals = _place(_grib_values(grib, row, Path(td) / f"w{valid:%Y%m%d%H}{product}"), row)
+                if sel.get("pdt") == 8:
+                    vals = _archive_total_since_start(raw, f, inv, grib, match, product, f_,
+                                                      Path(td) / f"w{valid:%Y%m%d%H}{product}")
+                else:
+                    row = _pick(inv, match, f"{product} in {grib.name}")
+                    if _ints(row, "forecast_time") != f:
+                        raise ValueError(f"{grib.name}: {product} forecast_time {row['forecast_time']} != {f}")
+                    _check_nam218(row, grib, f_)
+                    vals = _place(_grib_values(grib, row, Path(td) / f"w{valid:%Y%m%d%H}{product}"), row)
                 if product == "t2":
                     vals = (vals - np.float32(273.15)) * np.float32(1.8) + np.float32(32.0)   # K -> degF
                 nc = _write_cf(Path(td) / f"arch_{product}_{valid:%Y%m%d%H}.nc", valid, spec["cf_var"],

@@ -44,7 +44,7 @@ from pathlib import Path
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "drv_physics_initialize"
 NXPKAP = 11001
@@ -64,10 +64,16 @@ class PhysicsInitRefusal(RuntimeError):
     """A scheme choice the active 12 km path does not run; the message names the Fortran branch."""
 
 
+# Other values a key may take, each a branch this unit runs: convection none is NAM's CONUS-nest choice
+# (parm/nam_configfile_conusnest; PHYSICS_INITIALIZE CASE ('none') 10961 sets CU_PHYSICS = 0 and calls no
+# convective init; SOLVER_RUN 5722 skips CUCNVC).
+ALSO = {"convection": ("none",)}
+
+
 def _check_scheme(cfg) -> None:
     for key, want in ACTIVE.items():
         got = str(getattr(cfg, key)).strip()
-        if got != want:
+        if got != want and got not in ALSO.get(key, ()):
             raise PhysicsInitRefusal(
                 f"drv-physics-initialize: {key}={got!r}; this unit ports the NAM 12 km branch "
                 f"({key}={want!r}) of PHYSICS_INITIALIZE. Other branches are not ported and are refused.")
@@ -221,21 +227,26 @@ def _run(ctx, *, restart, noah_tbl_dir):
                               ivegsrc=int(cfg.raw["ivegsrc"]))
     phys_noah_init.run(ctx, restart=restart)
 
-    # 10. BMJ_INIT (10941-10946), convection bmj
-    ctx.tables["cu_physics"] = 2
-    phys_bmj_init.run(ctx, restart=restart)
+    # 10. BMJ_INIT (10941-10946), convection bmj; CASE ('none') (10961): CU_PHYSICS = 0, no init
+    if str(cfg.convection).strip() == "none":
+        ctx.tables["cu_physics"] = 0
+    else:
+        ctx.tables["cu_physics"] = 2
+        phys_bmj_init.run(ctx, restart=restart)
 
     # 11. FERRIER_INIT_HR (10992-11006), microphysics fer_hires. The caller's DT_MICRO, DELX, DELY are
     # recorded here (single precision, Fortran operation order); phys-fer-init reads DT_MICRO itself.
     f32 = np.float32
     dt_micro = f32(cfg.nprecip) * f32(cfg.dt)
     delx = (f32(-2.0) * f32(cfg.wbd)) * f32(111.3) / f32(im)   # DX at rotated equator (km)
-    dely = (f32(-2.0) * f32(cfg.sbd)) * f32(111.3) / f32(jm)   # DY at rotated equator (km)
+    dely = (f32(-2.0) * f32(cfg.sbd)) * f32(111.3) / f32(slab.rows(ctx)[1])   # DY (km), GLOBAL JM
     ctx.tables["fer_hires_caller"] = {"dt_micro": float(dt_micro), "delx": float(delx), "dely": float(dely)}
     phys_fer_init.run(ctx, restart=restart)
 
     # 12. GWD_init (11030-11041): DTPHS = DT*NPHS
-    dtphs = float(np.float32(cfg.dt) * np.float32(cfg.nphs))
-    phys_gwd_init.run(ctx, dtphs=dtphs)
+    # IF(GWDFLG) (gwd_read, SOLVER_RUN 10202): gwdflg false (the CONUS-nest configfile) skips it.
+    if bool(cfg.gwdflg):
+        dtphs = float(np.float32(cfg.dt) * np.float32(cfg.nphs))
+        phys_gwd_init.run(ctx, dtphs=dtphs)
 
     return ctx.tables

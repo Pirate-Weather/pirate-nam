@@ -22,7 +22,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.dynamics.dyn_adv1_vert_uv import _device_vector
 
 UNIT = "dyn_adv1_horiz_uv"
@@ -60,14 +60,16 @@ def run(ctx):
 
     # Regional tile limits, single process (module_CONTROL.F90:250-275, module_DM_PARALLEL looplimits).
     lnsad = int(ctx.cfg.lnsh) + 2                  # module_CONTROL.F90:260
-    ids, ide, jds, jde = 1, im, 1, jm
-    its, ite, jts, jte = 1, im, 1, jm
+    jmg = slab.rows(ctx)[1]                        # row slab: domain limits are GLOBAL rows
+    ids, ide, jds, jde = 1, im, 1, jmg
+    its, ite, jts, jte = 1, im, 1, jmg
     adv_standard = (jte >= jds + 1 + lnsad and jts <= jde - 1 - lnsad
                     and ite >= ids + 1 + lnsad and its <= ide - 1 - lnsad)
     ibeg = max(its, ids + 1 + lnsad)               # module_DYNAMICS_ROUTINES.F90 UV block
     iend = min(ite, ide - 2 - lnsad)
     jbeg = max(jts, jds + 1 + lnsad)
     jend = min(jte, jde - 2 - lnsad)
+    jbeg, jend = slab.local_lims(ctx, jbeg, jend, reach=1)   # 1-based local rows (one card: unchanged)
 
     shape3 = (lm, jm, im)
     secadv = bool(ctx.cfg.secadv)
@@ -91,6 +93,10 @@ def run(ctx):
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
         if not secadv:
+            if slab.of(ctx) is not None:
+                raise RuntimeError("dyn-adv1-horiz-uv: the 4th-order branch (secadv false) indexes rows 0 and "
+                                   "JM-1 locally (adv1_uv_u4_edge); it is not sliced for row slabs, so multi-card "
+                                   "would write the edge formula into halo rows")
             # 4th-order branch (module_DYNAMICS_ROUTINES.F90:1869-1931), dead for the NAM config.
             u2d = st.add("U2D", shape3)
             v2d = st.add("V2D", shape3)

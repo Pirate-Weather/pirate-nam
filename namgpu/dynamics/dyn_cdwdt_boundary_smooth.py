@@ -28,7 +28,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_cdwdt_boundary_smooth"
 K_SETUP = "cdwdt_setup"
@@ -87,14 +87,16 @@ def run(ctx):
             # Global runs skip the lateral smoothing; nsmud = 0 means no smoothing iterations.
             return
 
+        s_bdy, n_bdy = slab.edges(ctx)   # row slab: S/N strips only on the edge ranks
+        flags = (FLAGS_ALL_SIDES & ~(0 if s_bdy else 1)) & ~(0 if n_bdy else 2)
         ww = st.add("CDWDT_WW", (lm, jm, im))
         kern_ww = kernels.get(UNIT, K_WW)
         kern_copy = kernels.get(UNIT, K_COPY)
         grid = kernels.grid_2d(im, jm, lm)
         for _ks in range(NSMUD):
             kern_ww(grid, kernels.BLOCK_2D, (
-                i32(im), i32(jm), i32(lm), i32(FLAGS_ALL_SIDES), st.W, ww,
+                i32(im), i32(jm), i32(lm), i32(flags), st.W, ww,
             ))
             kern_copy(grid, kernels.BLOCK_2D, (
-                i32(im), i32(jm), i32(lm), i32(FLAGS_ALL_SIDES), st.W, ww,
+                i32(im), i32(jm), i32(lm), i32(flags), st.W, ww,
             ))

@@ -36,7 +36,7 @@ from pathlib import Path
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.config import PARM
 
 UNIT = "drv_consts"
@@ -110,8 +110,10 @@ def run(ctx):
         np.int32(1 if is_global else 0),
         np.int32(cfg.lnsh),
         np.int32(MY_DOMAIN_ID),
-        np.int32(1), np.int32(im), np.int32(1), np.int32(jm),   # ids, ide, jds, jde
-        np.int32(1), np.int32(im), np.int32(1), np.int32(jm),   # its, ite, jts, jte
+        # row slab: the advection-region flags are the whole-domain ones (every rank computes all its
+        # memory rows against GLOBAL domain tests), so the tile passed here is the global domain.
+        np.int32(1), np.int32(im), np.int32(1), np.int32(slab.rows(ctx)[1]),   # ids, ide, jds, jde
+        np.int32(1), np.int32(im), np.int32(1), np.int32(slab.rows(ctx)[1]),   # its, ite, jts, jte
         np.float32(cfg.dt), np.float32(cfg.smag2), np.float32(cfg.codamp),
         np.float32(cfg.wcor), np.float32(cfg.pt), np.float32(tboco),
         outf, outi,

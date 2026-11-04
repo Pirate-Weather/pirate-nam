@@ -167,8 +167,18 @@ def run(ctx):
             # geometry is the configuration's; it was checked on every archived case that has one.
             ctx.tables["geo_check"] = {"checked": False, "why": "no NAM native analysis in the case"}
             return sw
+        from namgpu import config as configmod
+        if analysis is None and configmod.static_npz(cfg) is not None:
+            # A domain configfile with its own grid (static_npz): the case's NAM analysis is on the NAM
+            # 12 km grid, so it is not this grid's reference. The rotation is the same code the 12 km check
+            # passes; the domain's GLAT/GLON also sit in its init-static-build file.
+            ctx.tables["geo_check"] = {"checked": False, "why": "domain grid is not the NAM analysis grid"}
+            return sw
         if analysis is None:
             nlat, elon = load_analysis(ctx.case_dir)
+            win = cfg.raw.get("row_window")
+            if win:   # NAMGPU_ROW_WINDOW band: the analysis is on the parent grid; check the band rows against it
+                nlat, elon = nlat[win[0] - 1:win[1]], elon[win[0] - 1:win[1]]
         else:
             nlat = cp.asarray(analysis["NLAT"], dtype=cp.float32)
             elon = cp.asarray(analysis["ELON"], dtype=cp.float32)

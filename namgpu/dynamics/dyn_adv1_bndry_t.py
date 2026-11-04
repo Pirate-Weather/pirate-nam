@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_adv1_bndry_t"
 KERNEL = "dyn_adv1_bndry_t"
@@ -45,7 +45,8 @@ def run(ctx):
         return  # Fortran: `if(.not.global.and.adv_upstream)`
     if not _adv_upstream(im, jm, lnsad):
         return
-    if im <= 2 * lnsad + 1 or jm <= 2 * lnsad + 1:
+    jmg = slab.rows(ctx)[1]
+    if im <= 2 * lnsad + 1 or jmg <= 2 * lnsad + 1:
         raise RuntimeError(
             f"dyn-adv1-bndry-t: domain {im}x{jm} too small for lnsad={lnsad}; the four "
             "boundary strips would overlap and the single-pass kernel would double-count")
@@ -61,4 +62,5 @@ def run(ctx):
             np.float32(1.0 / g.dyh),
             rdxh,
             st["U"], st["V"], st["T"], st["OMGALF"], st["TCT"],
+            *slab.kargs(ctx),
         ))

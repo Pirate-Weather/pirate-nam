@@ -22,7 +22,8 @@ File layout (Fortran sequential unformatted, little-endian 4-byte record markers
 
 Run: as the chain stage (run(ctx), skipped when every file for the run already exists), or before a
 forecast on its own:  python -m namgpu.init.gfs_bocos --case 2025-03-14_12z --hours 48
-Output: <case>/boco/boco.0000 ... boco.(hours-3); ctx.boco_dir is set to that folder.
+Output: <case>/boco/boco.0000 ... boco.(hours-3), or <case>/boco-<domain_name>/ for a domain configfile
+that names one (config.boco_dirname); ctx.boco_dir is set to that folder.
 GPU: one private state of about 3 GB plus the decoded GFS set (~1 GB) per boundary time.
 """
 from __future__ import annotations
@@ -98,7 +99,8 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
 
     g, cfg = ctx.grid, ctx.cfg
     lm, lnsh, lnsv = int(g.lm), int(cfg.lnsh), int(cfg.lnsv)
-    out_dir = Path(out_dir or Path(ctx.case_dir) / "boco")
+    from namgpu import config as configmod
+    out_dir = Path(out_dir or Path(ctx.case_dir) / configmod.boco_dirname(cfg))
     out_dir.mkdir(parents=True, exist_ok=True)
     files = gfs_files(ctx.case_dir, ctx.start, hours)
     missing = [str(p) for _, p in files if not p.is_file()]
@@ -138,7 +140,8 @@ def run(ctx, hours: int | None = None):
         raw = str(ctx.cfg.raw.get("nhours_fcst", "48")).strip()
         hours = int(raw) if raw.lstrip("-").isdigit() else 48
     hours = int(hours)
-    out_dir = Path(ctx.case_dir) / "boco"
+    from namgpu import config as configmod
+    out_dir = Path(ctx.case_dir) / configmod.boco_dirname(ctx.cfg)
     want = [out_dir / f"boco.{fh:04d}" for fh in range(0, hours, 3)]
     if not all(p.is_file() for p in want):
         build(ctx, hours, out_dir)

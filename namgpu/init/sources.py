@@ -201,13 +201,18 @@ def decode_native(ctx, path, names3, sfc, lm, tmpdir, sink, top_first=None):
     from namgpu.init import init_grib2_decode as dec
 
     im, jm = int(ctx.grid.im), int(ctx.grid.jm)
-    kw = dict(missing_value=0.0, tmpdir=tmpdir, expect_shape=(im, jm))
+    # NAMGPU_ROW_WINDOW (config.row_window): the native file is on the parent grid; decode it there and keep the
+    # band's rows (no interpolation: the band is the same grid).
+    win = ctx.cfg.raw.get("row_window") if getattr(ctx, "cfg", None) is not None else None
+    cut = (lambda x: x) if not win else (lambda x: x[..., win[0] - 1:win[1], :])
+    kw = dict(missing_value=0.0, tmpdir=tmpdir,
+              expect_shape=(im, int(ctx.cfg.raw["jm_full"]) if win else jm))
     p1 = plm = None
     if top_first is None:
         # UPP numbers hybrid levels from one end; NMMB wants l = 1 at the model top. Decide from PRES.
         pr = dec.run(ctx, path, {"P1": _sel3(NATIVE_3D["PRES"], 1),
                                  "PL": _sel3(NATIVE_3D["PRES"], lm)}, **kw)
-        p1, plm = float(cp.mean(pr["P1"])), float(cp.mean(pr["PL"]))
+        p1, plm = float(cp.mean(cut(pr["P1"]))), float(cp.mean(cut(pr["PL"])))
         top_first = p1 < plm
         del pr
     order = list(range(1, lm + 1)) if top_first else list(range(lm, 0, -1))
@@ -215,10 +220,12 @@ def decode_native(ctx, path, names3, sfc, lm, tmpdir, sink, top_first=None):
         got = dec.run(ctx, path, {f"{n}@{lev}": _sel3(NATIVE_3D[n], lev) for lev in range(1, lm + 1)}, **kw)
         a = cp.empty((lm, jm, im), dtype=cp.float32)
         for l0, lev in enumerate(order):
-            a[l0] = got.pop(f"{n}@{lev}")
+            a[l0] = cut(got.pop(f"{n}@{lev}"))
         sink(n, a)
         del a, got
     got = dec.run(ctx, path, {n: _selsfc(NATIVE_SFC[n]) for n in sfc}, **kw) if sfc else {}
+    if win:
+        got = {k: cp.ascontiguousarray(cut(v)) for k, v in got.items()}
     return got, {"top_first_in_file": top_first, "p_level1_mean": p1, "p_levelLM_mean": plm}
 
 

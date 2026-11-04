@@ -15,7 +15,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_adv1_bndry_uv"
 KERNEL = "dyn_adv1_bndry_uv"
@@ -46,7 +46,8 @@ def run(ctx):
         return  # Fortran: `if(.not.global.and.adv_upstream)`
     if not _adv_upstream(im, jm, lnsad):
         return
-    if im <= 2 * lnsad + 1 or jm <= 2 * lnsad + 1:
+    jmg = slab.rows(ctx)[1]
+    if im <= 2 * lnsad + 1 or jmg <= 2 * lnsad + 1:
         raise RuntimeError(
             f"dyn-adv1-bndry-uv: domain {im}x{jm} too small for lnsad={lnsad}")
 
@@ -64,6 +65,7 @@ def run(ctx):
         rdyv,
         rdxv,
         st.U, st.V, st.TCU, st.TCV,
+        *slab.kargs(ctx),
     )
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:

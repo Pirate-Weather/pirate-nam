@@ -57,3 +57,30 @@ def grid_cols(im: int, jm: int):
     """One thread per column (vertical recurrences, physics columns)."""
     n = im * jm
     return ((n + BLOCK_COL[0] - 1) // BLOCK_COL[0], 1, 1)
+
+
+def trim_local_memory(reason: str = "") -> float:
+    """Give back the device local-memory (stack) reservation a high-lmem kernel left behind.
+
+    The CUDA driver keeps ONE local-memory reservation for the whole device (bytes per thread x every
+    resident thread), sized to the largest per-thread stack any launched kernel needed, until the stack
+    limit is set again. phys_myj_tables:phys_myj_tablett needs 28,848 B/thread, so after init about 7 GiB
+    of a 32 GB RTX 5090 stayed reserved for the whole forecast (memory census 2026-11-04: OOM with 22.5 GiB
+    of pool on a 31.8 GiB card). Setting the limit back to 1 KiB frees it; later launches grow it again to
+    what the step kernels need. Results are unchanged (local memory is per-thread scratch).
+    Returns the GiB freed (device used delta).
+    """
+    import cupy as cp
+    rt = cp.cuda.runtime
+    cp.cuda.Device().synchronize()
+    f0, _ = rt.memGetInfo()
+    # Keep exactly what the step loop needs, reserved now while the CuPy pool is still small: if the driver
+    # has to GROW the reservation later, at a launch, the pool already holds the free memory and the launch
+    # fails with CUDA_ERROR_OUT_OF_MEMORY (poison run, phys_rrtm_lw_rtrnmr at 23.5 GiB of pool).
+    # Largest step-loop kernel frame: phys_myj_myjpbl_column 10,920 B/thread (scan 2026-11-04); 11 KiB
+    # reserves ~2.7 GiB on a 170-SM card. NAMGPU_LMEM_RESERVE overrides (bytes per thread).
+    import os
+    keep = int(os.environ.get("NAMGPU_LMEM_RESERVE", "11264"))
+    rt.deviceSetLimit(getattr(rt, "cudaLimitStackSize", 0), keep)
+    f1, _ = rt.memGetInfo()
+    return round((f1 - f0) / 2**30, 2)

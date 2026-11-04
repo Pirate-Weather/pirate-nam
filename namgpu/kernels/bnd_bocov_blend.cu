@@ -76,7 +76,9 @@ extern "C" __global__ void bocov_blend_side(
     float* __restrict__ full,
     const float* __restrict__ bdy,
     const float* __restrict__ wv,      // [LNSV]: wv[k-1] is Fortran wv(k)
-    int side, int im, int jm, int nl, int lnsv)
+    int side, int im, int jm, int nl, int lnsv,
+    int JOFF, int JMG)                 // row slab: W/E domain tests on the global row (S only on the first
+                                       // rank, N only on the last; their local rows are exact)
 {
     const int p = blockIdx.x * blockDim.x + threadIdx.x;
     const int q = blockIdx.y * blockDim.y + threadIdx.y;
@@ -115,8 +117,8 @@ extern "C" __global__ void bocov_blend_side(
         const int ib = p + 1;                          // i = ib
         const int j = q + 1;
         const int jvs = max(1, 1 + ib);                // max(jts_h1, 1+ib)
-        const int jve = min(jm, jm - 1 - ib);          // min(jte_h1, jde-1-ib)
-        if (j < jvs || j > jve) return;
+        const int jve = min(JMG, JMG - 1 - ib);        // min(jte_h1, jde-1-ib)
+        if (j + JOFF < jvs || j + JOFF > jve) return;
         const float w = wv[ib - 1];                    // wv(ib)
         const float b = bdy[((size_t)l * jm + (j - 1)) * lnsv + (ib - 1)];
         const size_t fi = IDX3(ib - 1, j - 1, l, im, jm);
@@ -129,8 +131,8 @@ extern "C" __global__ void bocov_blend_side(
     const int i0 = ib + im - lnsv - 2;                 // zero-based i = ib + ide - lnsv - 1
     const int j = q + 1;
     const int jvs = max(1, lnsv - ib + 2);             // max(jts_h1, lnsv-ib+2)
-    const int jve = min(jm, jm - lnsv + ib - 2);       // min(jte_h1, jde-lnsv+ib-2)
-    if (j < jvs || j > jve) return;
+    const int jve = min(JMG, JMG - lnsv + ib - 2);     // min(jte_h1, jde-lnsv+ib-2)
+    if (j + JOFF < jvs || j + JOFF > jve) return;
     const float w = wv[lnsv - ib];                     // wv(lnsv+1-ib)
     const float b = bdy[((size_t)l * jm + (j - 1)) * lnsv + (ib - 1)];
     const size_t fi = IDX3(i0, j - 1, l, im, jm);

@@ -42,18 +42,21 @@ extern "C" __global__ void dyn_adv2_bndry_upstream(
     const float* __restrict__ up,        // [LM,JM,IM]
     const float* __restrict__ vp,        // [LM,JM,IM]
     const float* __restrict__ s1,        // [NT,LM,JM,IM]
-    float* tcs)                          // [NT,LM,JM,IM], added to
+    float* tcs,                          // [NT,LM,JM,IM], added to
+    const int JOFF, const int JMG)       // row slab (nmmb_common.cuh): domain tests on the global row
 {
     const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     const int j0 = blockIdx.y * blockDim.y + threadIdx.y;
     const int l0 = blockIdx.z;
     if (i0 >= im || j0 >= jm) return;
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, jm, jg, JMG, 1)) return;   // reads j0-1..j0+1
 
     // 1-based Fortran indices and single-tile limits (module_DM_PARALLEL looplimits, its = ids etc.)
     const int i = i0 + 1;
-    const int j = j0 + 1;
-    const int ids = 1, ide = im, jds = 1, jde = jm;
-    const int its = 1, ite = im, jts = 1, jte = jm;
+    const int j = jg + 1;                // global Fortran j
+    const int ids = 1, ide = im, jds = 1, jde = JMG;
+    const int its = 1, ite = im, jts = 1, jte = JMG;
     const int its_b1 = max(its, ids + 1), ite_b1 = min(ite, ide - 1);
     const int jts_b1 = max(jts, jds + 1), jte_b1 = min(jte, jde - 1);
 

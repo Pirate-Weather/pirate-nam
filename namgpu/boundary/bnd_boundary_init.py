@@ -30,7 +30,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "bnd_boundary_init"
 KERNEL = "bnd_boundary_init_strip"
@@ -91,6 +91,7 @@ def run(ctx):
     plan += [(n, lm, "V", lnsv) for n in V_3D]
 
     kern = kernels.get(UNIT, KERNEL)
+    s_bdy, n_bdy = slab.edges(ctx)   # row slab (namgpu/slab.py); W/E strips hold the local rows
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
         for name, nlev, stagger, width in plan:
@@ -98,6 +99,8 @@ def run(ctx):
             for side_name, side in SIDES:
                 extent = im if side < 2 else jm
                 buf = _buffer(ctx, side_name, name, side, nlev, width, im, jm)
+                if (side == 0 and not s_bdy) or (side == 1 and not n_bdy):
+                    continue   # row slab: S/N strips are only filled (and used) on the edge ranks
                 dst = buf[0]           # value slot; contiguous because the slot axis is outermost
                 grid = ((width + kernels.BLOCK_2D[0] - 1) // kernels.BLOCK_2D[0],
                         (extent + kernels.BLOCK_2D[1] - 1) // kernels.BLOCK_2D[1],

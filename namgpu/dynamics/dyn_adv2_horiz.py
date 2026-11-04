@@ -29,7 +29,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.dynamics.dyn_adv1_horiz_t import adv_gates
 
 UNIT = "dyn_adv2_horiz"
@@ -109,8 +109,10 @@ def run(ctx, kss: int | None = None, kse: int | None = None, idtadt: int | None 
 
     lnsad, adv_standard = adv_gates(ctx.cfg)
     idtadt = int(ctx.cfg.idtadt) if idtadt is None else int(idtadt)
-    dom, tile = _tile(ctx, im, jm)
+    dom, tile = _tile(ctx, im, slab.rows(ctx)[1])  # row slab: GLOBAL domain rows
     ibeg, iend, jbeg, jend = _standard_bounds(lnsad, dom, tile)
+    jlo, jhi = slab.local_lims(ctx, jbeg + 1, jend + 1, reach=1)   # -> local rows (one card: unchanged)
+    jbeg, jend = jlo - 1, jhi - 1
 
     s1 = st.add("TRACERS_SQRT", (ntr, lm, jm, im))
     sp = st.add("TRACERS_PREV", (ntr, lm, jm, im))

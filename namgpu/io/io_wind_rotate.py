@@ -52,7 +52,7 @@ def _v_rotation(g, offset=0.5):
     Returns (ce_e, ce_n, cn_e, cn_n).
     """
     jm, im = int(g.jm), int(g.im)
-    jj = np.arange(jm)[:, None]
+    jj = np.arange(jm)[:, None] + int(getattr(g, "joff", 0))   # GLOBAL rows (row slab: namgpu/slab.py)
     ii = np.arange(im)[None, :]
     tlm_v = np.broadcast_to(g.wb + ii * g.dlm + offset * g.dlm, (jm, im)).astype(np.float64)
     tph_v = np.broadcast_to(g.sb + jj * g.dph + offset * g.dph, (jm, im)).astype(np.float64)

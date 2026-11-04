@@ -113,6 +113,107 @@ def num_tracers_total() -> int:
     return int(host_index(cfg.microphysics, cfg.raw.get("num_tracers_chem", 0))["NUM_TRACERS_TOTAL"])
 
 
+# Step scratch (32 GB fit, 2026-11-04). Arrays the dynamics units add with st.add() that are
+# written and read inside ONE step's dynamics group only (Fortran locals of ADV1/ADV2/PGFORCE/DHT/CDZDT/...).
+# Holding them as persistent state cost ~11.8 GiB on top of the 12.9 GiB NAM state, all of it idle through
+# physics and radiation, so the 12 km domain did not fit a 32 GB card. Proof that nothing reads them across
+# steps: NAMGPU_SCRATCH_POISON=1 A/B (every state field identical). Excluded on purpose: RTOP (init writes it),
+# T1 (name also used by physics), PDWDT and CDWDT_WW (previous-step correction factor).
+STEP_SCRATCH = frozenset({
+    "U1D", "V1D", "PFXX1", "PFYX1", "PFNEX1", "PFNWX1", "PFXY1", "PFYY1", "PFNEY1", "PFNWY1",
+    "PFX", "PFY", "PFNE", "PFNW", "PDOP", "U2D", "V2D", "ADV1_RCMT", "ADV1_CRT",
+    "RCMW", "CRW", "RSTU", "RSTV", "PDOP_UV", "TRACERS_SQRT", "SS1", "ADV2_RCMS", "ADV2_CRS",
+    "TDIV", "APEL_3D", "FIM_3D", "DFI_3D", "PCX", "PCY", "PCNE", "PCNW",
+    "PGX_3D", "PGY_3D", "PGNE_3D", "PGNW_3D", "TRACERS_TEND",
+})
+# ctx.tables work arrays of the dynamics group (dyn-hdiff-apply diff/update buffers), dropped with STEP_SCRATCH
+STEP_SCRATCH_TABLE_PREFIXES = ("hdiff_",)
+# History-only device buffers (written in full by io-wind-rotate / io-quasipost-driver / io-history-fields
+# at each output time, staged to pinned host memory by io-history on the same stream): ~2.9 GiB.
+HISTORY_SCRATCH = frozenset({
+    "H_CW_SPEC", "H_FICE_SPEC", "H_FRAIN_SPEC", "H_P", "H_T", "H_QVAPOR", "H_QCLOUD", "H_QRAIN",
+    "H_QICE", "H_QSNOW", "H_PH", "UEARTH", "VEARTH", "QP_PRESTV", "QP_PRESZ", "QP_GROUND_MASK",
+})
+# Physics locals released right after the unit that owns them (driver: after that unit's run()).
+UNIT_SCRATCH = {
+    # MYJ vertical diffusion locals (VDIFH / VDIFV inside MYJPBL, called by phys-turbl-driver)
+    "phys-turbl-driver": frozenset({
+        "MYJ_TEST_D", "MYJ_TEST_RKM", "MYJ_TEST_RHO", "MYJ_TEST_AKMS_DENS", "MYJ_TEST_LMH", "MYJ_TEST_Z",
+        "MYJ_TEST_UK", "MYJ_TEST_VK", "MYJ_TEST_DUDT", "MYJ_TEST_DVDT",
+        "THK", "QK", "CWMK", "ZHK", "RHOK", "AKHK", "AKHS_DENS"}),
+    # BMJ column scratch (CUCNVC)
+    "phys-bmj-driver": frozenset({"BMJ_CT_DPRS", "BMJ_SCAL", "BMJ_FLAG"}),
+    # GSMDRIVE locals (phys_fer_driver._SCRATCH3)
+    "phys-fer-driver": frozenset({"DZ8W", "RHO_PHY", "P_PHY", "PI_PHY", "TH_PHY"}),
+}
+# Physics driver-level arrays (TURBL / CUCNVC / GSMDRIVE locals that the port keeps on ctx.st), released after
+# their LAST user in the PHYSICS plan (Driver._phys_last_use maps helper modules to their driver unit). Radiation
+# runs FIRST in the physics group, so while it runs these ~3-4 GiB sat idle from the previous step.
+PHYS_SCRATCH = frozenset({
+    "TURBL_Z", "RTHBLTEN", "RQBLTEN", "RQCBLTEN", "RQIBLTEN", "DUDT_GWD", "DVDT_GWD", "RTHCUTEN", "RQCUTEN",
+    "PHINT", "DZ", "TH", "EXNER", "RR", "PHMID", "U_PHY", "V_PHY", "DUDT", "DVDT",
+})
+# init-only arrays of init-derive-state (no step unit names them)
+INIT_ONLY = ("TOLD", "TADJ")
+import os as _os  # noqa: E402
+POISON = _os.environ.get("NAMGPU_SCRATCH_POISON", "") == "1"
+_POISON_VALUES = (float("nan"), 1.0e30, -1.0e30)
+
+# Memory path. "fit" = the 32 GB fit above (step scratch released after its last user, radiation working set
+# dropped after each call, init-only memory returned, RRTM in 8-row chunks): the whole 12 km domain with
+# every unit on runs on one 32 GB card. "full" = every array held for the whole run (needs ~58-76 GB, a little
+# faster). Same physics, same units on both paths; the released arrays are proven write-before-read
+# (NAMGPU_SCRATCH_POISON=1 A/B: every state field identical). NAMGPU_MEMORY_PATH=auto|fit|full (default auto:
+# fit when the card has less than FIT_BELOW_GIB). NAMGPU_SCRATCH_ARENA=1/0 is the older spelling of fit/full.
+FIT_BELOW_GIB = 64.0
+FIT_RRTM_ROWS = 8
+_MEMORY_PATH: dict | None = None
+
+
+def memory_path() -> dict:
+    """{"path": "fit"|"full", "how": "auto"|"set", "card_gib": float, "reason": str}, resolved once per
+    process on the current CuPy device and cached. Read by the driver, init, radiation and the run receipt."""
+    global _MEMORY_PATH
+    if _MEMORY_PATH is not None:
+        return _MEMORY_PATH
+    want = _os.environ.get("NAMGPU_MEMORY_PATH", "").strip().lower()
+    old = _os.environ.get("NAMGPU_SCRATCH_ARENA", "").strip()
+    if not want and old in ("0", "1"):
+        want = "fit" if old == "1" else "full"
+    try:
+        import cupy as _cp
+        card = _cp.cuda.Device().mem_info[1] / 2**30
+    except Exception:  # noqa: BLE001  (no CUDA: CPU-only imports and tests)
+        card = 0.0
+    _MEMORY_PATH = resolve_memory_path(want, card)
+    return _MEMORY_PATH
+
+
+def resolve_memory_path(want: str, card: float) -> dict:
+    """Pure part of memory_path(): the setting (auto/fit/full/empty) and the card size in GiB -> the path."""
+    want = (want or "").strip().lower()
+    if want in ("fit", "full"):
+        path, how = want, "set"
+        reason = f"NAMGPU_MEMORY_PATH={want}"
+    elif want in ("", "auto"):
+        path, how = ("fit" if card < FIT_BELOW_GIB else "full"), "auto"
+        reason = f"card {card:.1f} GiB {'<' if path == 'fit' else '>='} {FIT_BELOW_GIB:.0f} GiB"
+    else:
+        raise ValueError(f"NAMGPU_MEMORY_PATH={want!r}: use auto, fit or full")
+    return {"path": path, "how": how, "card_gib": round(card, 1), "reason": reason}
+
+
+def fit_on() -> bool:
+    return memory_path()["path"] == "fit"
+
+
+def _empty_scratch() -> bool:
+    # released scratch comes back without the zero fill on the fit path (contents proven irrelevant by the
+    # poison A/B); NAMGPU_SCRATCH_EMPTY=0/1 overrides
+    v = _os.environ.get("NAMGPU_SCRATCH_EMPTY", "")
+    return v == "1" if v in ("0", "1") else fit_on()
+
+
 class State:
     """Device-resident NMMB state.  ``State(grid)`` allocates every 2-D/3-D/4-D field of the
     two tables on the current CuPy device, zero-filled; scalars and 1-D arrays live in
@@ -129,6 +230,7 @@ class State:
         self.specs = all_specs()
         self.fields: dict[str, object] = {}
         self.scalars: dict[str, float] = {}
+        self._poison_k = 0
         for s in self.specs.values():
             if names is not None and s.name not in names:
                 continue
@@ -150,10 +252,44 @@ class State:
         return self.fields[name]
 
     def add(self, name, shape, dtype="float32"):
-        """Scratch or unit-owned array not in the NAM tables (e.g. Adams-Bashforth history)."""
+        """Scratch or unit-owned array not in the NAM tables (e.g. Adams-Bashforth history).
+
+        Names in STEP_SCRATCH / HISTORY_SCRATCH are pool temporaries: the driver drops them after the
+        dynamics group (release_scratch("dyn")) or after the history write (release_scratch("history")),
+        and the next add() hands out a fresh zero-filled array, i.e. every step sees them exactly as the
+        first step did. NAMGPU_SCRATCH_POISON=1 fills them with NaN / +1e30 / -1e30 instead (by step
+        parity) to prove no unit reads a scratch value it did not write in the same step."""
         if name not in self.fields:
-            self.fields[name] = self.xp.zeros(shape, dtype=dtype)
+            if POISON and (name in STEP_SCRATCH or name in HISTORY_SCRATCH or name in PHYS_SCRATCH
+                           or any(name in v for v in UNIT_SCRATCH.values())):
+                a = self.xp.empty(shape, dtype=dtype)
+                if a.dtype.kind == "f":
+                    a.fill(_POISON_VALUES[self._poison_k % 3])
+                else:
+                    a.fill(-2147483647)
+                self.fields[name] = a
+            elif _empty_scratch() and (name in STEP_SCRATCH or name in HISTORY_SCRATCH or name in PHYS_SCRATCH
+                            or any(name in v for v in UNIT_SCRATCH.values())):
+                # contents proven irrelevant (poison A/B): skip the zero fill
+                self.fields[name] = self.xp.empty(shape, dtype=dtype)
+            else:
+                self.fields[name] = self.xp.zeros(shape, dtype=dtype)
         return self.fields[name]
+
+    def release_scratch(self, which: str) -> int:
+        """Drop the step-scratch arrays of `which` ("dyn" or "history") from the state; their memory goes
+        back to the CuPy pool (stream-ordered, so later kernels on the same stream may reuse it).
+        Returns the bytes released."""
+        names = (STEP_SCRATCH if which == "dyn" else HISTORY_SCRATCH if which == "history"
+                 else UNIT_SCRATCH.get(which, ()))
+        n = 0
+        for k in names:
+            a = self.fields.pop(k, None)
+            if a is not None:
+                n += int(a.nbytes)
+        if which == "dyn":
+            self._poison_k += 1
+        return n
 
     def nbytes(self) -> int:
         # aliases (one array under two names) count once

@@ -28,7 +28,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.physics.jsfc import phys_jsfc_sfcdif
 
 UNIT = "phys_jsfc_jsfc"
@@ -98,6 +98,8 @@ def run(ctx, ntsd=None):
     scr = {n: st.add("JSFC_" + n, (jm, im)) for n in SCRATCH}
     mavail = f["MAVAIL"] if "MAVAIL" in f else _ones(ctx, jm, im)
     lim = tables[LIMITS_KEY]
+    if LIMITS_KEY == "NMMB_LIMITS":
+        lim = slab.local_limits(ctx)   # row slab: j limits in local rows (one card: the same table)
 
     grid = kernels.grid_cols(im, jm)
     block = kernels.BLOCK_COL

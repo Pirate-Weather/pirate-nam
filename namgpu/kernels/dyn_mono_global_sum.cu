@@ -117,10 +117,14 @@ extern "C" __global__ void mono_global_sum_rescale(
     const float* __restrict__ dare,       // [JM]      DARE (grid box area, row constant)
     const float* __restrict__ s1,         // [NTR,LM,JM,IM] S1 (TRACERS_SQRT) from dyn-mono-fix
     const double* __restrict__ sfac,      // [2*NTR]   from mono_global_sum_reduce
-    float* __restrict__ tcs)              // [NTR,LM,JM,IM] TRACERS_TEND, inout
+    float* __restrict__ tcs,              // [NTR,LM,JM,IM] TRACERS_TEND, inout
+    const int joff,                       // global row of local row 0, minus 1 (0 on one card; namgpu/slab.py)
+    const int JMG)                        // global JM (= JM on one card)
 {
     POINT_IJL                              // l0 = blockIdx.z
-    if (i0 < 1 || i0 > IM - 2 || j0 < 1 || j0 > JM - 2) return;   // b1 range
+    // b1 range on the GLOBAL row; j0 < JM is the memory guard (one card: the same test as before)
+    const int jg = j0 + joff;
+    if (i0 < 1 || i0 > IM - 2 || jg < 1 || jg > JMG - 2 || j0 >= JM) return;
 
     // [R] rdvol as the top of MONO computes it (all kfpt)
     const float dvol = (dsg2[l0] * pd[IDX2(i0, j0, IM)] + pdsg1[l0]) * dare[j0];

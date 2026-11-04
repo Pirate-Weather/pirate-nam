@@ -67,6 +67,8 @@ def run(ctx, kss: int = 1, kse: int | None = None):
     nspec = kse - kss + 1
 
     allreduce = bool(ctx.cfg.raw["use_allreduce"])
+    from namgpu import slab as slabmod
+    joff, jmg = slabmod.rows(ctx)
 
     dare = _dare(ctx)
     pdsg1 = _device_vector(ctx, "pdsg1", g.pdsg1)
@@ -91,7 +93,7 @@ def run(ctx, kss: int = 1, kse: int | None = None):
              np.int32(1 if allreduce else 0), xsums, s1, gsums, sfac))
         resc(kernels.grid_2d(im, jm, lm), kernels.BLOCK_2D,
              (np.int32(kss), np.int32(kse), np.int32(im), np.int32(jm), np.int32(lm),
-              st["PD"], dsg2, pdsg1, dare, s1, sfac, tcs))
+              st["PD"], dsg2, pdsg1, dare, s1, sfac, tcs, np.int32(joff), np.int32(jmg)))
 
 
 def _double_scratch(ctx, key: str, n: int):

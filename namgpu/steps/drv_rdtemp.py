@@ -21,7 +21,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.steps import drv_loop_limits as dll
 
 UNIT = "drv_rdtemp"
@@ -66,4 +66,4 @@ def run(ctx):
              (np.int32(ctx.ntimestep), np.float32(ctx.dt),
               np.int32(julday), np.int32(julyr), np.int32(ihrst), np.int32(leap_seen),
               st.GLAT, st.GLON, st.CZEN, st.CZMEAN, st.T, st.RSWTT, st.RLWTT,
-              np.int32(im), np.int32(jm), np.int32(lm), lim))
+              np.int32(im), np.int32(jm), np.int32(lm), lim, np.int32(slab.rows(ctx)[0])))

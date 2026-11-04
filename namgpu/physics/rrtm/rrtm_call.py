@@ -114,7 +114,12 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
                  + _cp.asarray(_g.psgml1).reshape(_lm, 1, 1))
 
     jm = int(ctx.grid.jm)
-    rows = min(int(rows or ROWS), jm)
+    from namgpu.state import FIT_RRTM_ROWS, fit_on  # noqa: PLC0415
+    _fit = fit_on()
+    if not rows:
+        # NAMGPU_RRTM_ROWS wins; otherwise 32 rows on the full path, 8 on the 32 GB fit (16 rows ran out of memory at the 5th radiation call)
+        rows = ROWS if ("NAMGPU_RRTM_ROWS" in os.environ or not _fit) else FIT_RRTM_ROWS
+    rows = min(int(rows), jm)
     cc = _chunk_ctx(ctx, rows)
     _s("grrad-chunks")
     for (w0, w1, a, b) in rrtm_chunk.windows(jm, rows):
@@ -138,4 +143,20 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
         grrad_lw.run(cc, sw_done=True)
         driver_post.run(cc, ntimestep=nts)
         cc.st.writeback(a, b)
+    if _fit and os.environ.get("NAMGPU_RRTM_KEEP_CHUNK", "") != "1":
+        # 32 GB fit: the chunk context holds the whole RRTM working set (chunk copies, chunk-local
+        # scratch and tables: swrad chunk_scratch alone is 2 x 0.9 GB). Held between radiation calls it sat
+        # idle through 47 of every 48 steps and pushed the step peak past a 32 GB card. Drop it; the next
+        # call rebuilds it exactly as the first call does (zero-filled, one shape).
+        ctx.tables.pop(KEY_CHUNK, None)
+        # driver-prep's full-domain scratch (KTOP, KBTM, CAMT, CSMID, CCMID, TAUTOTAL, ...: ~1.1 GiB) is
+        # rebuilt by driver-prep at the start of every call; the small rrtm_prep:vec:* vectors stay
+        for _k in [k for k in ctx.tables if k.startswith("rrtm_prep:") and not k.startswith("rrtm_prep:vec:")]:
+            del ctx.tables[_k]
+        # give the freed radiation working set back whole, so the next 47 steps and the next call start from
+        # unsplit blocks (pool fragmentation: the 4th call OOMed at ROWS=16 with 27.7 GiB in the pool)
+        import cupy as _cp2
+        if ctx.stream is not None:
+            ctx.stream.synchronize()
+        _cp2.get_default_memory_pool().free_all_blocks()
     _s("rrtm-done")

@@ -145,13 +145,24 @@ def run(ctx, only=None, log=print) -> dict:
 
     stages = []
     t_all = time.perf_counter()
+    from namgpu.state import fit_on as _fit_on  # noqa: PLC0415
     for uid in chain:
         mod = importlib.import_module(units[uid]["wrapper"])
         t0 = time.perf_counter()
+        if uid == "drv-physics-initialize" and _fit_on():
+            # 32 GB fit: the MYJ/BMJ table kernels need a large device local-memory reservation at launch;
+            # hand the init temporaries cached in the CuPy pool back to the driver first
+            import cupy as _cp  # noqa: PLC0415
+            if ctx.stream is not None:
+                ctx.stream.synchronize()
+            _cp.get_default_memory_pool().free_all_blocks()
         try:
             mod.run(ctx)
         except Exception as e:
             raise RuntimeError(f"{UNIT}: stage {uid} failed: {type(e).__name__}: {e}") from e
+        if uid == "init-gwd-orog" and _fit_on():
+            # the 30-arcsec terrain (gwd_dem, int16 21600 x 43200 = 1.78 GiB) is read only by init-gwd-orog
+            ctx.tables.pop("gwd_dem", None)
         if uid == "init-vcoord-recover":
             from namgpu.init import sources  # noqa: PLC0415
             sources.release_staged(ctx, keep=())     # staged decode inputs are dead from here on
@@ -159,7 +170,20 @@ def run(ctx, only=None, log=print) -> dict:
         stages.append({"unit": uid, "host_s": round(dt, 3), "status": "ok"})
         log(f"{UNIT}: {uid:<26} {dt:9.2f} s")
 
+    from namgpu.state import INIT_ONLY, fit_on  # noqa: PLC0415
+    _fit = fit_on()
+    if _fit:
+        # the 30-arcsec terrain (gwd_dem, int16 21600 x 43200 = 1.78 GiB) is read only by init-gwd-orog
+        ctx.tables.pop("gwd_dem", None)
+        for _n in INIT_ONLY:                # init-derive-state locals (no step unit reads them)
+            ctx.st.fields.pop(_n, None)
     bad = census(ctx)
+    # init-only table kernels (phys_myj_tablett 28.8 KB/thread, bmj ttblq 12.3 KB) left ~7 GiB of device
+    # local memory reserved for the whole run; give it back before the forecast (kernels.trim_local_memory)
+    if _fit:
+        from namgpu import kernels as _k  # noqa: PLC0415
+        freed = _k.trim_local_memory("init")
+        log(f"{UNIT}: local-memory reservation trimmed after init: {freed} GiB freed")
     total = time.perf_counter() - t_all
     rec = {"stages": stages, "total_s": round(total, 3), "nonfinite": bad}
     ctx.timings["init"] = rec

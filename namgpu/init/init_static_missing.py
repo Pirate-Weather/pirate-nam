@@ -77,6 +77,12 @@ def run(ctx):
     im, jm = int(g.im), int(g.jm)
     tab = _tables(ctx)
     kern = kernels.get(UNIT, KERNEL)
+    # A domain static from init-static-build carries ALBASE and MXSNAL from data (gfs_start.load_static
+    # stages them); they go in first, so the table fill below only touches cells they leave invalid.
+    extra = ctx.tables.pop("static_extra", None) or {}
+    for name in ("ALBASE", "MXSNAL"):
+        if name in extra:
+            st.fields[name][...] = extra[name]
 
     # Count what the fill touches (one reduction at init, reported; nothing is switched off).
     iv, isl = st.IVGTYP, st.ISLTYP

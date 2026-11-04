@@ -24,7 +24,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.boundary import bnd_bocov_view
 
 UNIT = "bnd_bocov_update"
@@ -98,21 +98,23 @@ def run(ctx):
             we_faces.append("west")
         if E_BDY:
             we_faces.append("east")
+        # row slab: jb = 1..JM-1 is the GLOBAL range; a rank below the top holds no row JMG
+        n_we = jm - 1 if slab.edges(ctx)[1] else jm
         for face in we_faces:
             if bv.var_2d:
                 arrs = [getattr(v, face) for v in bv.var_2d]
                 _check_shape(arrs, (2, jm, lnsv), f"{face} 2-D")
                 tbl = _ptr_table(arrs)
                 kernels.get(UNIT, "bocov_we_2d")(
-                    grid_for(jm - 1, lnsv, len(arrs)), block,
-                    (np.int32(len(arrs)), np.int32(lnsv), np.int32(jm), np.int32(jm - 1), dt, tbl),
+                    grid_for(n_we, lnsv, len(arrs)), block,
+                    (np.int32(len(arrs)), np.int32(lnsv), np.int32(jm), np.int32(n_we), dt, tbl),
                 )
             if bv.var_3d:
                 arrs = [getattr(v, face) for v in bv.var_3d]
                 _check_shape(arrs, (2, lm, jm, lnsv), f"{face} 3-D")
                 tbl = _ptr_table(arrs)
                 kernels.get(UNIT, "bocov_we_3d")(
-                    grid_for(jm - 1, lnsv, len(arrs) * lm), block,
+                    grid_for(n_we, lnsv, len(arrs) * lm), block,
                     (np.int32(len(arrs)), np.int32(lm), np.int32(lnsv), np.int32(jm),
-                     np.int32(jm - 1), dt, tbl),
+                     np.int32(n_we), dt, tbl),
                 )

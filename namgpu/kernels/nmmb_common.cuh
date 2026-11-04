@@ -23,6 +23,13 @@
     const int i0 = col_ % (IM);                                     \
     const int j0 = col_ / (IM);
 
+// Row slabs (multi-card, namgpu/slab.py, CONTRACT.md 1c). A kernel with row tests takes two trailing
+// arguments JOFF and JMG: jg = j0 + JOFF is the 0-based GLOBAL row, JMG the global JM. DOMAIN tests use
+// jg and JMG; MEMORY guards use j0 and the local JM. One card: JOFF = 0, JMG = JM, every test unchanged.
+// NMMB_SLAB_EDGE(j0, JM, jg, JMG, S) is true for a row whose S-row stencil would leave local memory while
+// still inside the domain (an inner halo edge); such a row is skipped. On one card it is always false.
+#define NMMB_SLAB_EDGE(j0, JM, jg, JMG, S)     ((((j0) < (S)) && ((jg) >= (S))) || (((j0) > (JM) - 1 - (S)) && ((jg) <= (JMG) - 1 - (S))))
+
 // NMMB module_CONSTANTS.F90 values (single precision, as kfpt=single), copied 2026-11-04.
 #define NMMB_A        6376000.0f
 #define NMMB_G        9.8060226f

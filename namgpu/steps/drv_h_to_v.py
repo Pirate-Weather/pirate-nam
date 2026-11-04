@@ -20,7 +20,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.steps import drv_loop_limits as dll
 
 UNIT = "drv_h_to_v"
@@ -48,13 +48,15 @@ def run(ctx, array_h=None, array_v=None):
                 raise ValueError(f"drv-h-to-v: 2-D shape {array_h.shape} != (JM, IM)=({jm}, {im})")
             kern = kernels.get(UNIT, KERNEL_2D)
             grid = kernels.grid_2d(im, jm, 1)
-            kern(grid, kernels.BLOCK_2D, (np.int32(im), np.int32(jm), lim, array_h, array_v))
+            kern(grid, kernels.BLOCK_2D, (np.int32(im), np.int32(jm), lim, array_h, array_v,
+                                          np.int32(slab.rows(ctx)[0])))
         elif array_h.ndim == 3:
             if array_h.shape != (lm, jm, im):
                 raise ValueError(f"drv-h-to-v: 3-D shape {array_h.shape} != (LM, JM, IM)")
             kern = kernels.get(UNIT, KERNEL_3D)
             grid = kernels.grid_2d(im, jm, lm)
             kern(grid, kernels.BLOCK_2D,
-                 (np.int32(lm), np.int32(im), np.int32(jm), lim, array_h, array_v))
+                 (np.int32(lm), np.int32(im), np.int32(jm), lim, array_h, array_v,
+                  np.int32(slab.rows(ctx)[0])))
         else:
             raise ValueError(f"drv-h-to-v: array rank must be 2 or 3, got {array_h.ndim}")

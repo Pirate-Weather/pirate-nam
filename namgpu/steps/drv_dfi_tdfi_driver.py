@@ -200,6 +200,9 @@ def run(ctx, ops: Ops | None = None) -> dict:
         if k == s.n_fwd - 1:
             ops.dyn_average(ctx)
             ops.phy_restore(ctx)
+            # REFL_10CM is not in the restore table: recompute the 0 h reflectivity from the 0 h state
+            from namgpu.steps import drv_dfi_refl_restore  # noqa: PLC0415
+            drv_dfi_refl_restore.run(ctx)
 
     drv_filter_consts.filter_end(ctx)
     return {"ndfistep": s.ndfistep, "n_bck": s.n_bck, "n_fwd": s.n_fwd, "filt_dt": s.filt_dt}

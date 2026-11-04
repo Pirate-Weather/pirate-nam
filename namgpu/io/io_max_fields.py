@@ -114,11 +114,10 @@ def run(ctx):
 
     nchk = nsteps_per_check(cfg.dt)
     nrst = nsteps_per_reset(cfg)
-    if nrst % nchk != 0:
-        raise RuntimeError(
-            f"io-max-fields: NSTEPS_PER_RESET={nrst} is not a multiple of NSTEPS_PER_CHECK={nchk}; "
-            "the Fortran hourly reset would fall on steps the MAX_FIELDS_HR call gate skips and "
-            "would be missed. The driver must run the reset on its own cadence first.")
+    # The driver calls this unit on check steps and on reset steps (the reset block, SOLVER_RUN 4963, has
+    # its own cadence before the MAX_FIELDS_HR gate at 5000). The old refusal of NSTEPS_PER_RESET not a
+    # multiple of NSTEPS_PER_CHECK (the 4 km dt 25/3 s: 432 vs 5) is retired with that fix.
+    check = ntsd % nchk == 0
 
     table = ctx.tables.get(TABLE_KEY)
     if table is None:
@@ -130,15 +129,15 @@ def run(ctx):
 
     # Hourly reset (NTIMESTEP == 0 or MOD(NTIMESTEP, NSTEPS_PER_RESET) == 0), then NCOUNT.
     reset = (ntsd == 0) or (ntsd % nrst == 0)
-    if reset:
-        ctx.tables[NCOUNT_KEY] = 0
-    ncount = int(ctx.tables.get(NCOUNT_KEY, 0)) + 1
-    ctx.tables[NCOUNT_KEY] = ncount
-
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     if reset:
+        ctx.tables[NCOUNT_KEY] = 0
         with scope:
             _reset(st)
+    if not check:
+        return None
+    ncount = int(ctx.tables.get(NCOUNT_KEY, 0)) + 1
+    ctx.tables[NCOUNT_KEY] = ncount
 
     # UPHL fields first (CALC_UPHLCY, the two CALL sites in MAX_FIELDS_HR).
     io_uphlcy.run(ctx)

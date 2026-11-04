@@ -152,13 +152,14 @@ extern "C" __global__ void rdtemp_apply(const int ntsd, const float dt,
                                         const float* __restrict__ rswtt,
                                         const float* __restrict__ rlwtt,
                                         const int im, const int jm, const int lm,
-                                        const int* __restrict__ lim) {
+                                        const int* __restrict__ lim,
+                                        const int JOFF) {   // row slab: lim is GLOBAL, jg = j0 + JOFF
     COLUMN_IJ(im, jm)
 
     // ZENITH loops MYIS..MYIE x MYJS..MYJE, which RDTEMP passes as ITS..ITE x JTS..JTE; the
     // RDTEMP copy loop writes CZEN and FACTR on the same range. Cells outside keep their value.
     const bool in_tile = (i0 >= lim[DL_ITS] - 1) && (i0 <= lim[DL_ITE] - 1) &&
-                         (j0 >= lim[DL_JTS] - 1) && (j0 <= lim[DL_JTE] - 1);
+                         (j0 + JOFF >= lim[DL_JTS] - 1) && (j0 + JOFF <= lim[DL_JTE] - 1);
     if (!in_tile) return;
 
     int jmonth, jday;
@@ -186,7 +187,7 @@ extern "C" __global__ void rdtemp_apply(const int ntsd, const float dt,
     // DO J=JTS_B1,JTE_B1 / DO I=ITS_B1,ITE_B1 (1-based values from the drv-loop-limits table).
     // B1 is inside the tile by construction of the table (its_b1 >= its, ite_b1 <= ite).
     const bool in_b1 = (i0 >= lim[DL_ITS_B1] - 1) && (i0 <= lim[DL_ITE_B1] - 1) &&
-                       (j0 >= lim[DL_JTS_B1] - 1) && (j0 <= lim[DL_JTE_B1] - 1);
+                       (j0 + JOFF >= lim[DL_JTS_B1] - 1) && (j0 + JOFF <= lim[DL_JTE_B1] - 1);
     if (in_b1) {
         for (int l0 = 0; l0 < lm; l0++) {
             const size_t idx = IDX3(i0, j0, l0, im, jm);

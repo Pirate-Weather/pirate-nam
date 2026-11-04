@@ -34,12 +34,14 @@ extern "C" __global__ void h_to_v_2d(
     const int jm,                               // JM
     const int* __restrict__ lim,                // [DL_NLIM] drv-loop-limits table
     const float* __restrict__ array_h,          // [JM, IM] H-point field (read)
-    float* __restrict__ array_v)                // [JM, IM] V-point field (written)
+    float* __restrict__ array_v,                // [JM, IM] V-point field (written)
+    const int JOFF)                             // row slab: lim holds GLOBAL rows, jg = j0 + JOFF
 {
     const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     const int j0 = blockIdx.y * blockDim.y + threadIdx.y;
+    const int jg = j0 + JOFF;
     if (i0 < lim[DL_ITS] - 1 || i0 >= lim[DL_ITE_B1] ||
-        j0 < lim[DL_JTS] - 1 || j0 >= lim[DL_JTE_B1]) return;
+        jg < lim[DL_JTS] - 1 || jg >= lim[DL_JTE_B1] || j0 + 1 >= jm) return;
     const float a = array_h[IDX2(i0,     j0,     im)];
     const float b = array_h[IDX2(i0 + 1, j0,     im)];
     const float c = array_h[IDX2(i0,     j0 + 1, im)];
@@ -54,11 +56,13 @@ extern "C" __global__ void h_to_v_3d(
     const int jm,                               // JM
     const int* __restrict__ lim,                // [DL_NLIM] drv-loop-limits table
     const float* __restrict__ array_h,          // [LM, JM, IM] H-point field (read)
-    float* __restrict__ array_v)                // [LM, JM, IM] V-point field (written)
+    float* __restrict__ array_v,                // [LM, JM, IM] V-point field (written)
+    const int JOFF)                             // row slab: lim holds GLOBAL rows, jg = j0 + JOFF
 {
     POINT_IJL
+    const int jg = j0 + JOFF;
     if (i0 < lim[DL_ITS] - 1 || i0 >= lim[DL_ITE_B1] ||
-        j0 < lim[DL_JTS] - 1 || j0 >= lim[DL_JTE_B1] || l0 >= lm) return;
+        jg < lim[DL_JTS] - 1 || jg >= lim[DL_JTE_B1] || j0 + 1 >= jm || l0 >= lm) return;
     const float a = array_h[IDX3(i0,     j0,     l0, im, jm)];
     const float b = array_h[IDX3(i0 + 1, j0,     l0, im, jm)];
     const float c = array_h[IDX3(i0,     j0 + 1, l0, im, jm)];

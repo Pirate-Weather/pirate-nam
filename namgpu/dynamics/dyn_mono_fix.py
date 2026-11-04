@@ -67,25 +67,81 @@ def run(ctx, kss: int, kse: int, idtadt: int, use_allreduce: bool | None = None)
     tcs = st.add("TRACERS_TEND", (ntr, lm, jm, im))
     dsg2 = st["DSG2"]
     pdsg1 = _device_vector(ctx, "pdsg1", g.pdsg1)
-    dare = _device_vector(ctx, "dare", np.asarray(g.dxh, dtype=np.float32) * np.float32(g.dyh))
+    dxh = np.asarray(g.dxh, dtype=np.float32)
+    if dxh.shape[0] != jm:
+        # several cards: grid.dxh is still the global row table; take this slab's memory rows (namgpu/slab.py)
+        from namgpu import slab as _slab
+        dxh = np.asarray(_slab.take_rows(dxh, ctx, axis=0))
+    dare = _device_vector(ctx, "dare", dxh * np.float32(g.dyh))
+
+    import cupy as cp
+    from namgpu import parallel as par
+    from namgpu import slab as slabmod
 
     xsums = ctx.tables.get("MONO_XSUMS")
     if xsums is None or xsums.shape != (2 * ntr,):
-        import cupy as cp
         xsums = cp.zeros((2 * ntr,), dtype=cp.float64)
         ctx.tables["MONO_XSUMS"] = xsums
+    joff, jmg = slabmod.rows(ctx)
+    comm = par.get(ctx)
+    if comm is not None and not use_allreduce:
+        raise RuntimeError("dyn-mono-fix: use_allreduce=false on several cards is refused: its per-column sums "
+                           "(dyn-mono-global-sum send/recv branch) are not decomposition-invariant yet; the NAM "
+                           "configfile sets use_allreduce true")
     kern = kernels.get(UNIT, KERNEL)
     grid = kernels.grid_2d(im, jm, lm)
     block = kernels.BLOCK_2D
+    nwx = int(grid[0])
+    nks = kse - kss + 1
+    wkey = f"MONO_WPART_{nks}"
+    wpart = ctx.tables.get(wkey)
+    if wpart is None or wpart.size != nks * 2 * lm * jm * nwx:
+        wpart = cp.empty((nks * 2 * lm * jm * nwx,), dtype=cp.float64)
+        ctx.tables[wkey] = wpart
     args = (
         np.int32(im), np.int32(jm), np.int32(lm), np.int32(idtadt),
         np.int32(kss), np.int32(kse), np.int32(ntr), np.int32(1 if use_allreduce else 0),
-        s, s1, tcs, st.PD, dare, dsg2, pdsg1, xsums,
+        s, s1, tcs, st.PD, dare, dsg2, pdsg1, np.int32(joff), np.int32(jmg), np.int32(nwx), wpart,
     )
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
-        # zeroed on the same stream as the launch, so the atomics never see the previous call's sums
-        if use_allreduce:
-            xsums.fill(0.0)
         kern(grid, block, args)
+        if use_allreduce:
+            _deterministic_sums(ctx, cp, comm, jm, lm, nwx, kss, kse, ntr, wpart, xsums)
     return xsums
+
+
+def _deterministic_sums(ctx, cp, comm, jm, lm, nwx, kss, kse, ntr, wpart, xsums):
+    """Per-row partials (one block per row, fixed tree), owned rows allgathered over the cards, then a fixed-order
+    sum over the global rows. The same code on one card (no gather), so one card and N cards give the same bits."""
+    rowp = ctx.tables.get("MONO_ROWP")
+    if rowp is None or rowp.shape != (jm, 2 * ntr):
+        rowp = ctx.tables["MONO_ROWP"] = cp.empty((jm, 2 * ntr), dtype=cp.float64)
+    kernels.get(UNIT, "mono_row_partials")((jm, 1, 1), (256, 1, 1),
+                                            (np.int32(jm), np.int32(lm), np.int32(nwx), np.int32(kss),
+                                             np.int32(kse), np.int32(ntr), wpart, rowp))
+    s = getattr(ctx, "slab", None)
+    if comm is None:
+        nranks, nmax, growp = 1, jm, rowp
+        nown = ctx.tables.get("MONO_NOWN1")
+        if nown is None or int(ctx.tables.get("MONO_NOWN1_JM", -1)) != jm:
+            nown = ctx.tables["MONO_NOWN1"] = cp.asarray(np.array([jm], dtype=np.int32))
+            ctx.tables["MONO_NOWN1_JM"] = jm
+    else:
+        from namgpu.slab import split_rows
+        parts = split_rows(s.jmg, s.nranks)
+        nranks = s.nranks
+        nmax = max(b - a + 1 for a, b in parts)
+        g = ctx.tables.get("MONO_GATHER")
+        if g is None:
+            g = ctx.tables["MONO_GATHER"] = {
+                "send": cp.zeros((nmax, 2 * ntr), dtype=cp.float64),
+                "recv": cp.empty((nranks, nmax, 2 * ntr), dtype=cp.float64),
+                "nown": cp.asarray(np.array([b - a + 1 for a, b in parts], dtype=np.int32)),
+            }
+        g["send"][:s.nown] = rowp[s.own0:s.own0 + s.nown]
+        comm.allgather(g["send"], g["recv"], ctx.stream)
+        growp, nown = g["recv"], g["nown"]
+    kernels.get(UNIT, "mono_rows_total")(((2 * ntr + 63) // 64, 1, 1), (64, 1, 1),
+                                          (np.int32(nranks), np.int32(nmax), nown, np.int32(ntr), np.int32(kss),
+                                           np.int32(kse), growp, xsums))

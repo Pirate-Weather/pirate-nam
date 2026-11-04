@@ -43,7 +43,7 @@ def _unit_tangents(g):
     Returns four float32 [JM,IM] arrays: (ce_e, ce_n) for grid i, (cn_e, cn_n) for grid j.
     """
     jm, im = g.jm, g.im
-    jj = np.arange(jm)[:, None]
+    jj = np.arange(jm)[:, None] + int(getattr(g, "joff", 0))   # GLOBAL rows (row slab: namgpu/slab.py)
     ii = np.arange(im)[None, :]
     tlm_v = np.broadcast_to(g.wb + ii * g.dlm + 0.5 * g.dlm, (jm, im)).astype(np.float64)
     tph_v = np.broadcast_to(g.sb + jj * g.dph + 0.5 * g.dph, (jm, im)).astype(np.float64)

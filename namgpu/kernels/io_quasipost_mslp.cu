@@ -36,7 +36,8 @@
 extern "C" __global__ void io_quasipost_mslp_relax(
     const int IM, const int JM,
     const float* __restrict__ work,     // [JM,IM] in: membrane_mslp (Pa), relaxwork
-    float* __restrict__ next)           // [JM,IM] out: one relaxation pass of work
+    float* __restrict__ next,           // [JM,IM] out: one relaxation pass of work
+    const int JOFF, const int JMG)      // row slab: domain tests on the global row (one card: 0, JM)
 {
     const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     const int j0 = blockIdx.y * blockDim.y + threadIdx.y;
@@ -45,22 +46,24 @@ extern "C" __global__ void io_quasipost_mslp_relax(
     const size_t c = IDX2(i0, j0, IM);
     const float wc = work[c];
     float out = wc;   // relax4e initj copy: points not updated below keep the old value
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) { next[c] = out; return; }   // inner halo edge: kept, exchanged
 
     // Fortran (i,j) = (i0+1, j0+1); neighbours: W = i0-1, E = i0+1, S = j0-1, N = j0+1.
     const bool interior_i = (i0 >= 1 && i0 <= IM - 2);
-    const bool interior_j = (j0 >= 1 && j0 <= JM - 2);
+    const bool interior_j = (jg >= 1 && jg <= JMG - 2);
 
     if (interior_i && interior_j) {
         // bigj/bigi loop: r1*work + r*(W + S + E + N)/4
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0, j0 - 1, IM)]
                       + work[IDX2(i0 + 1, j0, IM)] + work[IDX2(i0, j0 + 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 4.0f;
-    } else if (j0 == 0 && interior_i) {
+    } else if (jg == 0 && interior_i) {
         // SOUTH (j=1): r1*work + r*(W + E + N)/3
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0 + 1, j0, IM)]
                       + work[IDX2(i0, j0 + 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 3.0f;
-    } else if (j0 == JM - 1 && interior_i) {
+    } else if (jg == JMG - 1 && interior_i) {
         // NORTH (j=jde): r1*work + r*(W + E + S)/3
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0 + 1, j0, IM)]
                       + work[IDX2(i0, j0 - 1, IM)];
@@ -75,19 +78,19 @@ extern "C" __global__ void io_quasipost_mslp_relax(
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0, j0 - 1, IM)]
                       + work[IDX2(i0, j0 + 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 3.0f;
-    } else if (i0 == 0 && j0 == 0) {
+    } else if (i0 == 0 && jg == 0) {
         // SOUTHWEST (ids,jds): r1*work + r*(E + N)/2
         const float s = work[IDX2(i0 + 1, j0, IM)] + work[IDX2(i0, j0 + 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 2.0f;
-    } else if (i0 == IM - 1 && j0 == 0) {
+    } else if (i0 == IM - 1 && jg == 0) {
         // SOUTHEAST (ide,jds): r1*work + r*(W + N)/2
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0, j0 + 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 2.0f;
-    } else if (i0 == 0 && j0 == JM - 1) {
+    } else if (i0 == 0 && jg == JMG - 1) {
         // NORTHWEST (ids,jde): r1*work + r*(E + S)/2
         const float s = work[IDX2(i0 + 1, j0, IM)] + work[IDX2(i0, j0 - 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 2.0f;
-    } else if (i0 == IM - 1 && j0 == JM - 1) {
+    } else if (i0 == IM - 1 && jg == JMG - 1) {
         // NORTHEAST (ide,jde): r1*work + r*(W + S)/2
         const float s = work[IDX2(i0 - 1, j0, IM)] + work[IDX2(i0, j0 - 1, IM)];
         out = QPM_R1 * wc + QPM_R * s / 2.0f;

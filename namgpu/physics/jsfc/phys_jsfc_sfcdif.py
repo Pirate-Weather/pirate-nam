@@ -34,7 +34,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "phys_jsfc_sfcdif"
 KERNEL = "phys_jsfc_sfcdif_column"
@@ -182,7 +182,7 @@ def run(ctx=None, *, im=None, jm=None, step: int = 1, seed: int = 1):
         if "NMMB_LIMITS" not in ctx.tables:
             raise RuntimeError("phys-jsfc-sfcdif: ctx.tables['NMMB_LIMITS'] missing (drv-loop-limits)")
         tbl = ctx.tables["jsfc"]
-        lim = ctx.tables["NMMB_LIMITS"]
+        lim = slab.local_limits(ctx)   # row slab: j limits in local rows (one card: NMMB_LIMITS itself)
         arrs = {name: st[name] for name in _IN_F32 + _INOUT_F32}
         stream = getattr(ctx, "stream", None)
 

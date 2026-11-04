@@ -30,7 +30,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.boundary import bnd_bocov_view
 
 UNIT = "bnd_bocov_blend"
@@ -104,9 +104,15 @@ def run(ctx, nsmud: int = 0):
 
     blend = kernels.get(UNIT, "bocov_blend_side")
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
+    s_bdy, n_bdy = slab.edges(ctx)         # row slab: S strips on the first rank, N on the last
+    if nsmud >= 1 and slab.of(ctx) is not None:
+        raise RuntimeError("bnd-bocov-blend: nsmud >= 1 smooths by global row regions (_regions) and needs a "
+                           "halo exchange between iterations; not built for row slabs (NAM runs nsmud = 0)")
     with scope:
         # ---- blend: S, N, W, E; each side does the 2-D variables, then the 3-D ----
         for side, face in enumerate(FACES):
+            if (side == 0 and not s_bdy) or (side == 1 and not n_bdy):
+                continue
             if side < 2:                       # S, N: thread (i, jb) over IM x LNSV
                 P, Q = im, lnsv
             else:                              # W, E: thread (ib, j) over LNSV x JM
@@ -115,7 +121,7 @@ def run(ctx, nsmud: int = 0):
                 for full, strip in _blend_side_vars(group, face, three_d, lm, im, jm, lnsv):
                     blend(_grid(P, Q, nl), block,
                           (full, strip, wv, np.int32(side), np.int32(im), np.int32(jm),
-                           np.int32(nl), np.int32(lnsv)))
+                           np.int32(nl), np.int32(lnsv), *slab.kargs(ctx)))
 
         # ---- smoothing (BOCOV `if(nsmud>=1)`): dead in NAM (nsmud = 0), ported in full ----
         if nsmud >= 1:

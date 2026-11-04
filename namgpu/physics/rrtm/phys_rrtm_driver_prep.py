@@ -181,6 +181,8 @@ def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | 
     st = ctx.st
     im, jm, lm = int(g.im), int(g.jm), int(g.lm)
     jte = int(getattr(g, "jte", jm))
+    if getattr(ctx, "slab", None) is not None:
+        jte = jm          # several cards: the last rank's row JM is the domain's JTE, broadcast below
     if jte != jm:
         raise RuntimeError(f"phys-rrtm-driver-prep: kernel 1 assumes the Fortran JTE == JM "
                            f"(one full-domain tile); grid has jte={jte}, jm={jm}")
@@ -255,6 +257,15 @@ def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | 
             np.int32(im), np.int32(jm), np.int32(lm), np.float32(g.pt),
             st["PD"], pdsg1, st["DSG2"], st["SGML2"], psgml1, p8w, p_phy,
         ))
+        # Several cards: kernel 1 used each slab's last memory row; the domain's row J = JMG lives on the last
+        # rank (its memory ends at the domain edge), so its P8W/P_PHY go to every rank and all ranks use the
+        # one-card values (MULTICARD-PLAN.md section 5). One card: comm is None, nothing runs.
+        from namgpu import parallel as _par
+        _comm = _par.get(ctx)
+        if _comm is not None:
+            _root = _comm.nranks - 1
+            _comm.bcast(p8w, _root, ctx.stream)
+            _comm.bcast(p_phy, _root, ctx.stream)
         kc(kernels.grid_cols(im, jm), kernels.BLOCK_COL, (
             np.int32(im), np.int32(jm), np.int32(lm),
             np.int32(1 if ctl["ICWP"] == -1 else 0),

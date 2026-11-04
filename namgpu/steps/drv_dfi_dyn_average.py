@@ -139,6 +139,11 @@ def run(ctx, dfi=None, bounds=None):
                 raise ValueError(f"drv-dfi-dyn-average: {name} has shape {dst.shape}")
             _launch(ctx, K_COPY4D, kernels.grid_2d(im, jm, lm),
                     (np.int32(im), np.int32(jm), np.int32(lm), np.int32(nspec), sv4[n], dst))
+        # Several cards: the HALO_EXCH after the 2-D and 3-D copies (module_DIGITAL_FILTER_NMM.F90:527, 573), and
+        # the tracers with them: every filtered field put back is exchanged (MULTICARD-PLAN.md section 3).
+        # One card: no-op.
+        from namgpu.steps import drv_halo_exch as _hx
+        _hx.exchange_names(ctx, list(names2) + list(names3) + list(names4), "DFI_AVG")
 
     # Fortran 627-644: deallocate and reset TOT_RANK_*, KSTEP, NSTEP. The sum arrays are CONTRACT
     # scratch owned by dyn-init, so they are kept (not freed); the counts and names are state, so they

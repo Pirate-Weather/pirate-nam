@@ -38,7 +38,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.boundary.bnd_boundary_init import H_2D, H_3D
 
 UNIT = "bnd_bocoh_smooth"
@@ -99,6 +99,9 @@ def run(ctx, nsmud: int | None = None):
     nsmud = NSMUD if nsmud is None else int(nsmud)
     if nsmud < 1:
         return
+    if slab.of(ctx) is not None:
+        raise RuntimeError("bnd-bocoh-smooth: nsmud >= 1 smooths fixed global row bands and needs a halo "
+                           "exchange between iterations; not built for row slabs (NAM runs nsmud = 0)")
     st = ctx.st
     g = ctx.grid
     cfg = ctx.cfg

@@ -8,10 +8,34 @@ substitutes with sed (``YSTART``, ``LENGTH``, ``FILTEROPTION`` ...) are filled f
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import paths  # noqa: E402
 from .paths import PARM  # noqa: E402  (shipped inside the package)
+
+DEFAULT_CONFIGFILE = PARM / "nam_configfile"
+# Domain selection: NAMGPU_CONFIGFILE names the configfile that every default config.load() reads (a relative
+# path is looked up from the current folder, then the work root, then the package: parm/nam_configfile_4km), so one setting moves the whole run (init, bocos, driver, done-rule stubs,
+# every rank) to another grid. Unset = parm/nam_configfile, the NAM 12 km parent, unchanged; an explicit path
+# given to load() always wins. A domain configfile may carry two port keys NAM does not have: static_npz (the
+# init-static-build file for that grid) and domain_name (the case boco folder is boco-<domain_name>, so the
+# 12 km boco files are never overwritten).
+CONFIG_ENV = "NAMGPU_CONFIGFILE"
+
+
+def configfile_path(path=None) -> Path:
+    """The configfile to read: an explicit non-default path; else NAMGPU_CONFIGFILE; else parm/nam_configfile."""
+    p = Path(path) if path is not None else DEFAULT_CONFIGFILE
+    if p == DEFAULT_CONFIGFILE and os.environ.get(CONFIG_ENV):
+        p = Path(os.environ[CONFIG_ENV])
+    if p.is_absolute() or p.exists():
+        return p
+    for base in (paths.work_root(), paths.PKG):
+        if (base / p).exists():
+            return base / p
+    return paths.PKG / p
 
 # What exnam_fcst.sh substitutes for the tm00 parent forecast (scripts/exnam_fcst.sh:270-300).
 SCRIPT_SUBSTITUTIONS = {
@@ -54,7 +78,7 @@ def _coerce(text: str):
 def parse_configfile(path: Path, subs: dict[str, str] | None = None) -> dict:
     subs = dict(SCRIPT_SUBSTITUTIONS, **(subs or {}))
     out: dict = {}
-    for raw in Path(path).read_text().splitlines():
+    for raw in configfile_path(path).read_text().splitlines():
         line = raw.split("#", 1)[0].strip()
         if not line or ":" not in line:
             continue
@@ -148,6 +172,21 @@ class NamConfig:
         return -2.0 * self.sbd / (self.jm - 1)
 
 
+def static_npz(cfg) -> Path | None:
+    """The domain's own static file (configfile key static_npz), or None for the NAM grid."""
+    v = cfg.raw.get("static_npz")
+    if not v:
+        return None
+    p = Path(str(v))
+    return p if p.is_absolute() else paths.work_root() / p
+
+
+def boco_dirname(cfg) -> str:
+    """Case boco folder name: boco for the NAM grid, boco-<domain_name> for another domain."""
+    d = cfg.raw.get("domain_name")
+    return f"boco-{d}" if d else "boco"
+
+
 def parse_nps_coord_levs(path: Path) -> tuple[float, float, list[float]]:
     pt = ptsgm = None
     levs: list[float] = []
@@ -175,8 +214,28 @@ def parse_nps_flags(path: Path) -> dict:
     return out
 
 
+def row_window(r: dict) -> dict:
+    """NAMGPU_ROW_WINDOW=a:b (1-based rows of the configured grid, symmetric about its rotated equator): the
+    centre-band sub-domain of the same grid (MULTICARD-PLAN.md section 10.2, the 954 x 279 proof band = 279:557 of
+    the 12 km parent, sbd -15.012). jm and sbd change, every other key stays; jm_full and row_window record the
+    parent so the native static decode can cut the same rows. Symmetric only: config derives dphd from sbd and jm,
+    so an off-centre window would change the row spacing."""
+    import os
+    win = os.environ.get("NAMGPU_ROW_WINDOW", "").strip()
+    if not win:
+        return r
+    a, b = (int(x) for x in win.split(":"))
+    jf = int(r["jm"])
+    if not (1 <= a <= b <= jf) or (a - 1) != (jf - b):
+        raise ValueError(f"NAMGPU_ROW_WINDOW={win}: rows must lie in 1..{jf} and be symmetric (a-1 == jm-b) so the "
+                         "row spacing dphd = -2 sbd/(jm-1) is unchanged")
+    dph = -2.0 * float(r["sbd"]) / (jf - 1)
+    r = dict(r, jm_full=jf, row_window=(a, b), jm=b - a + 1, sbd=round(float(r["sbd"]) + (a - 1) * dph, 6))
+    return r
+
+
 def load(configfile: Path | None = None, npsfile: Path | None = None) -> NamConfig:
-    r = parse_configfile(configfile or PARM / "nam_configfile")
+    r = row_window(parse_configfile(configfile or PARM / "nam_configfile"))
     pt, ptsgm, levs = parse_nps_coord_levs(npsfile or PARM / "nam_namelist.nps")
     flags = parse_nps_flags(npsfile or PARM / "nam_namelist.nps")
     dt = r["dt_int"] + (r["dt_num"] / r["dt_den"] if r["dt_den"] else 0.0)

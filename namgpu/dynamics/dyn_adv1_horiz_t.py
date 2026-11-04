@@ -29,7 +29,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_adv1_horiz_t"
 FAH_KEY = "FAH"
@@ -120,4 +120,5 @@ def run(ctx):
         if adv_standard:
             horiz(kernels.grid_2d(im, jm, lm), kernels.BLOCK_2D,
                   (np.int32(im), np.int32(jm), np.int32(lm), np.int32(lnsad),
-                   t1, pfx, pfy, pfne, pfnw, fah, st.DSG2, pdsg1, pdop, st.OMGALF, st.TCT))
+                   t1, pfx, pfy, pfne, pfnw, fah, st.DSG2, pdsg1, pdop, st.OMGALF, st.TCT,
+                   *slab.kargs(ctx)))

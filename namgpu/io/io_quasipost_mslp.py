@@ -18,7 +18,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "io_quasipost_mslp"
 KERNEL_RELAX = "io_quasipost_mslp_relax"
@@ -42,5 +42,5 @@ def run(ctx):
     block = kernels.BLOCK_2D
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
-        relax(grid, block, (np.int32(im), np.int32(jm), work, next_))
+        relax(grid, block, (np.int32(im), np.int32(jm), work, next_, *slab.kargs(ctx)))
         copy(grid, block, (np.int32(im), np.int32(jm), next_, work))

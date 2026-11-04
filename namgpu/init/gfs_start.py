@@ -53,6 +53,7 @@ SFC = {
 }
 SOIL_KEYS = ("TSOIL1", "TSOIL2", "TSOIL3", "TSOIL4", "SOILW1", "SOILW2", "SOILW3", "SOILW4", "CNWAT")
 STATIC_KEYS = ("HGT_SFC", "LAND", "VGTYP", "SOTYP", "SFCR", "VEG", "ALBDO")
+STATIC_EXTRA = ("ALBASE", "MXSNAL")   # init-static-build files only (fractions); NAM's bgrd3d00 has neither
 LAT_MARGIN = 2.0      # deg of source rows kept south of the domain's southernmost point
 
 
@@ -270,8 +271,24 @@ def model_state(ctx, path, tmpdir, sfc_keys=None):
 def load_static(ctx):
     """NAM-grid static surface: the case's native file if present, else static/nam12_static.npz."""
     import cupy as cp
+    from namgpu import config as configmod
     from namgpu.init import sources as srcmod
 
+    own = configmod.static_npz(ctx.cfg) if getattr(ctx, "cfg", None) is not None else None
+    if own is not None:
+        # A domain other than the NAM grid: its init-static-build file (the case's native file is on the
+        # NAM 12 km grid and does not apply).
+        if not own.is_file():
+            raise FileNotFoundError(f"{UNIT}: configfile static_npz {own} missing (python -m namgpu.init.static_build)")
+        z = np.load(own)
+        bad = [k for k in STATIC_KEYS if z[k].shape != (int(ctx.grid.jm), int(ctx.grid.im))]
+        if bad:
+            raise ValueError(f"{UNIT}: {own} fields {bad} are not on the {ctx.grid.im}x{ctx.grid.jm} grid")
+        # The builder also carries the snow-free base albedo and the maximum snow albedo from data
+        # (albedo_modis, maxsnowalb_modis); init-static-missing puts them in the state before its table fill.
+        if getattr(ctx, "tables", None) is not None:
+            ctx.tables["static_extra"] = {k: cp.asarray(z[k]) for k in STATIC_EXTRA if k in z.files}
+        return {k: cp.asarray(z[k]) for k in STATIC_KEYS}, str(own)
     path = Path(ctx.case_dir) / srcmod.SOURCES["native"]["file"]
     if path.is_file():
         tmpdir = str(Path(ctx.case_dir).resolve().parents[1] / "scratch")

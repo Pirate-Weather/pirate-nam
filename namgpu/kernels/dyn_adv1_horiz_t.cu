@@ -102,17 +102,20 @@ extern "C" __global__ void adv1_t_horiz_std(
     const float* __restrict__ pdsg1,   // PDSG1[LM] in
     const float* __restrict__ pdop,    // PDOP [JM,IM] in, (pd+pdo)*0.5 from the adv1 section before
     const float* __restrict__ omgalf,  // OMGALF [LM,JM,IM] in
-    float* __restrict__ tct)           // TCT  [LM,JM,IM] inout (added to, as in Fortran)
+    float* __restrict__ tct,           // TCT  [LM,JM,IM] inout (added to, as in Fortran)
+    const int JOFF, const int JMG)     // row slab (nmmb_common.cuh): domain tests on the global row
 {
     POINT_IJL
     if (i0 >= IM || j0 >= JM || l0 >= LM) return;
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) return;   // reads j0-1..j0+1
 
     // item [3] standard region (Fortran ibeg..iend, jbeg..jend with ids=jds=1)
     const int ibeg = 1 + lnsad;
     const int iend = IM - 2 - lnsad;
     const int jbeg = 1 + lnsad;
-    const int jend = JM - 2 - lnsad;
-    if (i0 < ibeg || i0 > iend || j0 < jbeg || j0 > jend) return;
+    const int jend = JMG - 2 - lnsad;
+    if (i0 < ibeg || i0 > iend || jg < jbeg || jg > jend) return;
 
     const size_t lo = (size_t)l0 * JM * IM;           // level offset
     const float* t1l  = t1  + lo;

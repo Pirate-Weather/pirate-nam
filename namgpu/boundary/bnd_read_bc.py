@@ -50,7 +50,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "bnd_read_bc"
 KERNEL = "bnd_read_bc_scatter"
@@ -245,13 +245,16 @@ def _check_view(arr, shape, what):
 
 
 def place(ctx, cls: Strips, im: int, jm: int, expect_slots=None) -> None:
-    """Scatter every entry of one class in one kernel launch on ctx.stream."""
+    """Scatter every entry of one class in one kernel launch on ctx.stream.
+    Row slab: jm is the LOCAL row count; the records hold the GLOBAL JMG rows and the W/E strips
+    receive rows jms..jme (slab.rows). One card: JOFF = 0, JMG = jm."""
     import cupy as cp
 
     n = len(cls.entries)
     if n == 0:
         return
-    expect = payload(im, jm, cls.width, cls.nl)
+    joff, jmg = slab.rows(ctx)
+    expect = payload(im, jmg, cls.width, cls.nl)
     _check_view(cls.records, (n, expect), "records")
     sn_shape, we_shape = _entry_shapes(im, jm, cls.width, cls.nl)
     for k, (s, nn, w, ee) in enumerate(cls.entries):
@@ -286,7 +289,7 @@ def place(ctx, cls: Strips, im: int, jm: int, expect_slots=None) -> None:
         kern(grid, (BLOCK, 1, 1), (
             cls.records, bufs[0], bufs[1], bufs[2], bufs[3],
             np.int32(im), np.int32(jm), np.int32(cls.width), np.int32(cls.nl),
-            np.int32(NT), np.int64(expect),
+            np.int32(NT), np.int64(expect), np.int32(joff), np.int32(jmg),
         ))
 
 
@@ -341,7 +344,8 @@ def run(ctx):
         if not readbc_due(ctx, nboco):
             return None
         g = ctx.grid
-        dims = dict(PARENT_DIMS, im=g.im, jm=g.jm, lm=g.lm, lnsh=ctx.cfg.lnsh, lnsv=ctx.cfg.lnsv)
+        dims = dict(PARENT_DIMS, im=g.im, jm=slab.rows(ctx)[1], lm=g.lm,   # the file holds GLOBAL rows
+                    lnsh=ctx.cfg.lnsh, lnsv=ctx.cfg.lnsv)
         pend = stage_interval(ctx, boco_dir, int(ctx.ntimestep), float(ctx.dt), dims,
                               dict_destinations(ctx))
         for name in CLASSES:

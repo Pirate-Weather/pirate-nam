@@ -130,6 +130,10 @@ def run(ctx):
             kern3 = kernels.get(UNIT, "dfi_phy_restore_3d")
             kern3(kernels.grid_2d(im, jm, n3 * lm), kernels.BLOCK_2D,
                   (save3, ptr3, ldim3, np.int32(im), np.int32(jm), np.int32(lm), np.int32(n3)))
+        # Several cards: HALO_EXCH of the restored hold_2d / hold_3d fields (module_DIGITAL_FILTER_NMM.F90:882, 914).
+        # One card: no-op.
+        from namgpu.steps import drv_halo_exch as _hx
+        _hx.exchange_names(ctx, list(names2) + list(names3), "DFI_PHY")
         # The filter's precipitation does not count toward the forecast. The table restores the Fortran's
         # buckets ACPREC and CUPREC to their pre-filter values; the run totals ACPREC_TOT and CUPREC_TOT,
         # which history RAINNC/RAINC are drawn from, are not in the table (CUPREC_TOT is a port addition and

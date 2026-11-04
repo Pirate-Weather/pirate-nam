@@ -146,7 +146,7 @@ def run(ctx):
     sfc_gate = (ntsd == 1) or (ntsd % nphs == 0)   # Fortran: NTSD==1 .OR. MOD(NTSD,NPHS)==0
     ntsd0 = 1 if ntsd == 0 else 0                  # Fortran: IF(NTSD==0)
     pcpflg = 0                                     # parm/nam_configfile pcpflg off
-    gwdflg = True                                  # parm/nam_configfile gwdflg true
+    gwdflg = bool(ctx.cfg.gwdflg)                  # configfile gwdflg (12 km true; CONUS nest false)
     one_from_mavail = 1                            # LAND_SURFACE noah (not 'nmm')
 
     s2, s3, sp = (jm, im), (lm, jm, im), (lm + 1, jm, im)

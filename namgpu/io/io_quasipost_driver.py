@@ -43,7 +43,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "io_quasipost_driver"
 
@@ -103,7 +103,8 @@ def run(ctx) -> None:
             s["anyflag"].fill(0)
             kern["qp_level_set"](grid2, block2, (
                 np.int32(im), np.int32(jm), np.int32(ipres0),
-                s["ground_mask"], s["relaxmask"], s["running"], s["anyflag"]))
+                s["ground_mask"], s["relaxmask"], s["running"], s["anyflag"], *slab.kargs(ctx)))
+            slab.allreduce(ctx, s["anyflag"], "max")   # row slab: need_to_relax is domain-wide
             kern["qp_level_decide"](grid1, block1, (s["running"], s["anyflag"]))
             kern["qp_copy_work"](grid2, block2, (
                 np.int32(im), np.int32(jm), np.int32(ipres0),
@@ -113,7 +114,8 @@ def run(ctx) -> None:
             for _ in range(NRELAX):
                 kern["qp_relax_sweep"](grid2, block2, (
                     np.int32(im), np.int32(jm), np.float32(RELAX_COEFF),
-                    s["relaxmask"], src, dst, s["running"]))
+                    s["relaxmask"], src, dst, s["running"], *slab.kargs(ctx)))
+                slab.halo_exchange(ctx, dst, "qp_relax")   # row slab: the next sweep reads dst's neighbours
                 src, dst = dst, src
             kern["qp_finalize_level"](grid2, block2, (
                 np.int32(im), np.int32(jm), np.int32(ipres0),

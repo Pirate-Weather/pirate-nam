@@ -204,6 +204,9 @@ def run(ctx):
     import cupy as cp
 
     cfg = ctx.cfg
+    if not bool(getattr(cfg, "gwdflg", True)):
+        print("init-gwd-orog: gwdflg false (gwd_read IF(GWDFLG), SOLVER_RUN 10202): not built", flush=True)
+        return None
     im, jm = int(ctx.grid.im), int(ctx.grid.jm)
     st = ctx.st
 

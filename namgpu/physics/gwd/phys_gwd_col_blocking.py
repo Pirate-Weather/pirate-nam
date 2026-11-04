@@ -153,5 +153,12 @@ def run(ctx=None, *, inputs: dict | None = None, outputs: dict | None = None):
     if outputs is None:
         outputs = _outputs(jm, im, lm)
     gwd_col_blocking(inputs, outputs, im=im, jm=jm, lm=lm)
+    # Several cards: KBPS/KMPS are domain max/min of kref (diagnostics; the per-column loop does not read them).
+    # Integer allreduce, so every rank holds the one-card values (MULTICARD-PLAN.md section 5). One card: no-op.
+    from namgpu import parallel as _par
+    _comm = _par.get(ctx) if ctx is not None else None
+    if _comm is not None:
+        _comm.allreduce(outputs["KBPS"], outputs["KBPS"], "max", ctx.stream)
+        _comm.allreduce(outputs["KMPS"], outputs["KMPS"], "min", ctx.stream)
     outputs["OC"][...] = inputs["OC"]   # pass-through for phys-gwd-col-wave (Fortran OC, line 971)
     return outputs

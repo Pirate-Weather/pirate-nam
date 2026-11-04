@@ -26,6 +26,7 @@ product and frame.
 """
 from __future__ import annotations
 
+import re
 import argparse
 import json
 import os
@@ -100,8 +101,17 @@ def _parse(argv):
     ap.add_argument("--width", type=int, default=1200, help="image width in pixels (default 1200)")
     ap.add_argument("--height", type=int, default=900, help="image height in pixels (default 900)")
     ap.add_argument("--mrms", type=Path, default=None, help="folder of mrms_refc_YYYYmmddHH.grib2 (overlay)")
-    ap.add_argument("--label", default="WOOF-NAM 12 km", help="model name in the map titles")
-    return ap.parse_args(argv)
+    ap.add_argument("--label", default=None, help="model name in the map titles (default: WOOF-NAM and the configured grid, e.g. WOOF-NAM 12 km)")
+    a = ap.parse_args(argv)
+    if a.label is None:
+        from namgpu import config as _config   # the domain configfile (NAMGPU_CONFIGFILE) names the panel
+        _d = _config.load().raw.get("domain_name")
+        _m = re.fullmatch(r"nam(\d+)(?:km)?(band)?", _d or "")
+        if _m:
+            a.label = f"WOOF-NAM {_m.group(1)} km" + (" band" if _m.group(2) else "")
+        else:
+            a.label = f"WOOF-NAM {_d}" if _d else "WOOF-NAM 12 km"
+    return a
 
 
 def _bridges() -> Path:

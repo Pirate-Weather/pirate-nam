@@ -71,7 +71,8 @@ archived NAM forecast of the same cycle and MRMS.
 - Halo: Fortran allocates `SOUTH(IMS:IME,1:LNSH,1:2)` and `WEST(1:LNSH,JMS:JME,1:2)`, with halo
   columns outside 1..IM (or 1..JM). The port stores only `1..IM` and `1..JM`. One card gives
   `its_h2 = max(its-2, ids) = 1` and `ite_h2 = min(ite+2, ide) = IM`, so bocoh never reads a
-  halo entry. A multi-card layout must add its halo offset explicitly and document it here.
+  halo entry. Multi-card (row slabs, section 1c): the S/N strips keep this shape and are used only on the
+  edge ranks; the W/E strips hold the rank's memory rows, `[.., jm_local, lnsh]`, Fortran jb = jms..jme.
 - Unit split of Fortran `bocoh` (module_FLTBNDS.F90): 5064-5354 working update, bnd-bocoh-update;
   5355-5962 strip blend, corners, outer PINT, bnd-bocoh-blend (reads `wh(k)`); 5963-6387 H-row
   smoothing, bnd-bocoh-smooth (dead while `nsmud = 0`). `wq(k)` is initialised and never read.
@@ -95,6 +96,38 @@ NS and NG come from radsw_param_nmmb.f:163 and 171-175 (for band 26: NS26 = 80, 
   is off, so `kind_phys = 8` (gate0/nmmb/src/atmos/phys/machine.f). The port stores these planes as
   float32. This is a declared divergence, bounded per unit (see each kernel header), not a verified
   identity with the 64-bit build.
+
+## 1c. Row slabs (multi-card; namgpu/slab.py, MULTICARD-PLAN.md; lanes E1/E2, 2026-11-04)
+
+NMMB's own decomposition with INPES = 1, JNPES = N. Rank r owns global rows jts..jte (1-based, balanced split) and the
+whole i range. It holds memory rows jms = max(jts-3, 1) .. jme = min(jte+3, JMG): JHALO = 3 halo rows on every side
+that is not a domain edge, none past a domain edge. So the first and last ranks see their domain edge exactly where
+one card does. `ctx.slab` (slab.Slab) describes it; `ctx.grid` is `slab.local_grid(g, slab)` (jm = local rows,
+per-row host arrays cut, g.joff/g.jmg set); `ctx.cfg.jm` stays GLOBAL. No ctx.slab (or one rank) = one card.
+
+- Kernel rule. A kernel with a domain test that is not a plain local `j0 >= k` / `j0 <= JM-1-k` with k <= 3 takes two
+  trailing int arguments `JOFF, JMG` (`*slab.kargs(ctx)`; JOFF = jms-1, JMG = global JM): domain tests use the global
+  row `jg = j0 + JOFF` and JMG; memory guards use j0 and the local JM; rows whose stencil of S rows would leave memory
+  at an inner halo edge are skipped with `NMMB_SLAB_EDGE(j0, JM, jg, JMG, S)`. A plain k <= 3 local test gives the
+  one-card answer on every owned row and is the right memory guard in the halo, so it stays. On one card JOFF = 0 and
+  JMG = JM: every test is the one-card test, the arithmetic and the output are unchanged.
+- Tile limits. ctx.tables["NMMB_LIMITS"] holds GLOBAL 1-based Fortran values per rank (drv-loop-limits with the
+  rank's decomp); a kernel comparing it with rows uses jg. `slab.local_limits(ctx)` is the same table with every j
+  entry shifted to local rows, for kernels written against local j (phys-jsfc).
+- Host row limits: `slab.local_lims(ctx, lo_g, hi_g, reach)` (1-based global -> 1-based local, clipped to memory and
+  pulled in by `reach` at an inner halo edge).
+- Per-row 1-D tables (FAH, FAD, DARE, DXH, DXV, WPDAR, HDAC*, F, RDXH ...) are LOCAL: cut from the global table on
+  the host, halo rows included.
+- Boundaries: S strips and S corners are applied only where `slab.edges(ctx)[0]` (rank 0), N ones only where
+  `slab.edges(ctx)[1]` (rank N-1). W/E strips are [.., jm_local, lnsh]. Boundary files hold the GLOBAL strips;
+  bnd-read-bc scatters rows jms..jme of the W/E records.
+- Init: run once over the whole domain, saved and cut per rank (namgpu/init/slab_init.py), because the chain is
+  not reproducible run to run (float atomics in init-gwd-orog and init-vcoord-recover).
+- Exchanges: drv-halo-exch rows X1-X21 (E1) at the Fortran HALO_EXCH sites; iterative units exchange inside their
+  loop (`slab.halo_exchange`: io-quasipost relax4e); domain-wide flags and sums go through `slab.allreduce` or the
+  deterministic MONO per-row partials. Only owned rows enter a sum, a history file or a map.
+- Not built for slabs (refused with the reason): nsmud >= 1 smoothing (bocoh/bocov; NAM nsmud = 0), the 4th-order
+  ADV1 uv branch (secadv false; NAM secadv true), global = true.
 
 ## 2. Step order (SOLVER_RUN, module_SOLVER_GRID_COMP.F90:2453-7168)
 

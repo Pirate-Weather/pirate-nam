@@ -886,6 +886,19 @@
       "status": "done"
     },
     {
+      "id": "drv-halo-exch",
+      "group": "driver",
+      "fortran": "nmm/module_SOLVER_GRID_COMP.F90:3415-6049 (HALO_EXCH call sites), nmm/module_DIGITAL_FILTER_NMM.F90:527,573,882,914",
+      "purpose": "Halo exchange between row slabs on several cards (MULTICARD-PLAN.md section 3): pack JHALO=3 rows, NCCL send/recv to r-1 and r+1 on ctx.stream, unpack. Plan rows X1-X21 at the Fortran HALO_EXCH sites. In: the named fields -> their halo rows. No-op on one card.",
+      "mode": "new",
+      "deps": [
+        "drv-loop-limits"
+      ],
+      "wrapper": "namgpu.steps.drv_halo_exch",
+      "kernel": "namgpu/kernels/drv_halo_exch.cu",
+      "status": "in-progress"
+    },
+    {
       "id": "drv-consts",
       "group": "driver",
       "fortran": "nmm/module_CONTROL.F90:123-345",
@@ -1366,6 +1379,19 @@
       ],
       "wrapper": "namgpu.init.init_static_missing",
       "kernel": "namgpu/kernels/init_static_missing.cu",
+      "status": "done"
+    },
+    {
+      "id": "init-static-build",
+      "group": "init",
+      "fortran": "-",
+      "purpose": "NPS geogrid + nemsinterp static step for any rotated lat-lon B grid, on the GPU (never Fortran geogrid): HGT (GMTED 30 s average_gcell + smth-desmth_special x3), LAND/VGTYP (MODIS IGBP 20-class with lakes), SOTYP (STATSGO top), SFCR (NPS VGZ0TBL_IGBP + Z0LAND), VEG/ALBDO monthly to the valid date, MXSNAL, TG, slope, EPSR, STDH. Writes the nam12_static.npz layout (gfs_start.STATIC_KEYS) for a domain configfile's static_npz. Offline builder, not an init-chain stage. Proof: the 12 km grid vs NAM's own bgrd3d00 static (tools/check_static_build.py).",
+      "mode": "new",
+      "deps": [
+        "init-grid-geo"
+      ],
+      "wrapper": "namgpu.init.static_build",
+      "kernel": "namgpu/kernels/init_static_build.cu",
       "status": "done"
     },
     {

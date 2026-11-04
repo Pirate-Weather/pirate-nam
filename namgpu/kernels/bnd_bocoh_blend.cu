@@ -62,7 +62,9 @@ extern "C" __global__ void bnd_bocoh_blend_strip(
     float* __restrict__ t,                 // [LM, JM, IM]
     float* __restrict__ q,
     float* __restrict__ cw,
-    float* __restrict__ pint)              // [LM+1, JM, IM]
+    float* __restrict__ pint,              // [LM+1, JM, IM]
+    const int JOFF, const int JMG)         // row slab: W/E domain tests on the global row (S only on
+                                           // the first rank, N only on the last; their local rows are exact)
 {
     const bool sn = (side == 0 || side == 1);
     const int nb = sn ? im : jm;                          // along-edge length
@@ -83,10 +85,10 @@ extern "C" __global__ void bnd_bocoh_blend_strip(
         ok = (i1 >= 1 - jb + lnsh) && (i1 <= im + jb - lnsh);
     } else if (side == 2) {                   // W: i = ib, j in [1+ib, JDE-ib]
         i1 = jb; j1 = bb; k = jb;
-        ok = (j1 >= 1 + jb) && (j1 <= jm - jb);
+        ok = (j1 + JOFF >= 1 + jb) && (j1 + JOFF <= JMG - jb);
     } else {                                  // E: i = IDE-lnsh+ib, j in [2+lnsh-ib, JDE-lnsh-1+ib]
         i1 = im - lnsh + jb; j1 = bb; k = lnsh + 1 - jb;
-        ok = (j1 >= 2 + lnsh - jb) && (j1 <= jm - lnsh - 1 + jb);
+        ok = (j1 + JOFF >= 2 + lnsh - jb) && (j1 + JOFF <= JMG - lnsh - 1 + jb);
     }
     if (!ok) return;
 
@@ -139,10 +141,12 @@ extern "C" __global__ void bnd_bocoh_blend_corners(
     float* __restrict__ pd,
     float* __restrict__ t,
     float* __restrict__ q,
-    float* __restrict__ cw)
+    float* __restrict__ cw,
+    const int SN_MASK)                             // row slab: bit 0 south corners here, bit 1 north (one card: 3)
 {
     const int c = threadIdx.x;
     if (c > 3 || blockIdx.x != 0) return;
+    if (!(SN_MASK & ((c & 2) ? 2 : 1))) return;
     const int x0 = ((c & 1) ? (im - 1) : 2) - 1;   // zero-based centre column
     const int y0 = ((c & 2) ? (jm - 1) : 2) - 1;   // zero-based centre row
 
@@ -171,11 +175,13 @@ extern "C" __global__ void bnd_bocoh_blend_pint_edges(
     const float* __restrict__ dsg2,
     const float* __restrict__ pdsg1,
     const float* __restrict__ pd,
-    float* __restrict__ pint)
+    float* __restrict__ pint,
+    const int JOFF, const int JMG)         // row slab: domain tests on the global row
 {
     COLUMN_IJ(im, jm)
+    const int jg = j0 + JOFF;
     // Zero-based tests: rows j0 = 0, 1 and jm-2, jm-1; columns i0 = 0, 1 and im-2, im-1.
-    if (!(j0 < 2 || j0 >= jm - 2 || i0 < 2 || i0 >= im - 2)) return;
+    if (!(jg < 2 || jg >= JMG - 2 || i0 < 2 || i0 >= im - 2)) return;
     const float pdc = pd[IDX2(i0, j0, im)];
     pint[IDX3(i0, j0, 0, im, jm)] = pt;
     for (int l = 1; l <= lm; ++l) {

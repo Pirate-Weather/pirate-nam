@@ -93,22 +93,25 @@ extern "C" __global__ void dyn_adv1_bndry_uv(
     const float* __restrict__ u,         // U    [LM,JM,IM]
     const float* __restrict__ v,         // V    [LM,JM,IM]
     float* __restrict__ tcu,             // TCU  [LM,JM,IM] inout
-    float* __restrict__ tcv)             // TCV  [LM,JM,IM] inout
+    float* __restrict__ tcv,             // TCV  [LM,JM,IM] inout
+    const int JOFF, const int JMG)       // row slab (nmmb_common.cuh): domain tests on the global row
 {
     POINT_IJL
     if (i0 >= IM || j0 >= JM) return;
     if (l0 >= LM) return;
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) return;   // reads j0-1..j0+1
 
     const int I = i0 + 1;               // Fortran 1-based indices
-    const int J = j0 + 1;
+    const int J = jg + 1;               // global Fortran j
     const float envp = -(dt * rdyv);    // envp=-dt*rdyv
 
     // Single-process limits (see header).  ids+lnsad = 1+lnsad, jds+1+lnsad = 2+lnsad, etc.
     const int jw_lo = max(1, 2 + lnsad);            // max(jts, jds+1+lnsad)
-    const int jw_hi = min(JM, JM - 2 - lnsad);      // min(jte, jde-2-lnsad)
-    const int js_hi = min(JM, 1 + lnsad);           // min(jte, jds+lnsad)
-    const int jn_lo = max(1, JM - 1 - lnsad);       // max(jts, jde-1-lnsad)
-    const int jn_hi = JM - 2;                       // jte_b2
+    const int jw_hi = min(JMG, JMG - 2 - lnsad);      // min(jte, jde-2-lnsad)
+    const int js_hi = min(JMG, 1 + lnsad);          // min(jte, jds+lnsad)
+    const int jn_lo = max(1, JMG - 1 - lnsad);       // max(jts, jde-1-lnsad)
+    const int jn_hi = JMG - 2;                     // jte_b2
     const int i_lo_b1 = 2;                          // its_b1
     const int i_hi_b2 = IM - 2;                     // ite_b2
     const int iw_hi = min(IM, 1 + lnsad);           // ids+lnsad

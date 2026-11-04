@@ -43,23 +43,26 @@ extern "C" __global__ void dyn_adv1_bndry_t(
     const float* __restrict__ v,            // V    [LM,JM,IM]    in
     const float* __restrict__ t,            // T    [LM,JM,IM]    in
     const float* __restrict__ omgalf,       // OMGALF [LM,JM,IM]  in
-    float* __restrict__ tct)                // TCT  [LM,JM,IM]    inout (in-place accumulate)
+    float* __restrict__ tct,                // TCT  [LM,JM,IM]    inout (in-place accumulate)
+    const int JOFF, const int JMG)          // row slab (nmmb_common.cuh): domain tests on the global row
 {
     POINT_IJL
     if (i0 >= IM || j0 >= JM) return;
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) return;   // reads j0-1..j0+1
 
     // 1-based Fortran indices and the single-process regional ranges (see header).
     const int i = i0 + 1;
-    const int j = j0 + 1;
-    const int jsouth_hi = (1 + lnsad < JM) ? (1 + lnsad) : JM;          // min(jte, jds+lnsad)
-    const int jnorth_lo = (JM - lnsad > 1) ? (JM - lnsad) : 1;         // max(jts, jde-lnsad)
+    const int j = jg + 1;                   // global Fortran j
+    const int jsouth_hi = (1 + lnsad < JMG) ? (1 + lnsad) : JMG;          // min(jte, jds+lnsad)
+    const int jnorth_lo = (JMG - lnsad > 1) ? (JMG - lnsad) : 1;         // max(jts, jde-lnsad)
     const int jside_lo  = (2 + lnsad > 1) ? (2 + lnsad) : 1;            // max(jts, jds+1+lnsad)
-    const int jside_hi  = (JM - 1 - lnsad < JM) ? (JM - 1 - lnsad) : JM; // min(jte, jde-1-lnsad)
+    const int jside_hi  = (JMG - 1 - lnsad < JMG) ? (JMG - 1 - lnsad) : JMG; // min(jte, jde-1-lnsad)
     const int iwest_hi  = (1 + lnsad < IM) ? (1 + lnsad) : IM;          // min(ite, ids+lnsad)
     const int ieast_lo  = (IM - lnsad > 1) ? (IM - lnsad) : 1;          // max(its, ide-lnsad)
 
     const bool south = (j >= 2 && j <= jsouth_hi) && (i >= 2 && i <= IM - 1);
-    const bool north = (j >= jnorth_lo && j <= JM - 1) && (i >= 2 && i <= IM - 1);
+    const bool north = (j >= jnorth_lo && j <= JMG - 1) && (i >= 2 && i <= IM - 1);
     const bool west  = (j >= jside_lo && j <= jside_hi) && (i >= 2 && i <= iwest_hi);
     const bool east  = (j >= jside_lo && j <= jside_hi) && (i >= ieast_lo && i <= IM - 1);
     if (!(south || north || west || east)) return;

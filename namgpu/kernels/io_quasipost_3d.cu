@@ -315,11 +315,13 @@ extern "C" __global__ void io_quasipost_3d_edge_j(
     float* __restrict__ presu,
     float* __restrict__ presv,
     float* __restrict__ preswind,
-    float* __restrict__ presrv)
+    float* __restrict__ presrv,
+    const int SN_MASK)       // row slab: bit 0 the south row here, bit 1 the north rows (one card: 3)
 {
     const int b = blockIdx.y;
     const int i = 1 + (blockIdx.x * blockDim.x + threadIdx.x);
     if (i > IM) return;
+    if (!(SN_MASK & (b == 0 ? 1 : 2))) return;
     int j, jref;
     if (b == 0) { j = 1;      jref = 2; }
     else if (b == 1) { j = JM - 1; jref = JM - 2; }

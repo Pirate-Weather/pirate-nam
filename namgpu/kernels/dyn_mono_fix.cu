@@ -52,11 +52,13 @@
 // Each thread loops over the species ks in kss..kse for its (i, j, l) point. No thread returns
 // early. On the allreduce branch every warp runs the shuffle reduction: the per-species dsp
 // contributions are reduced across the 32 lanes of a warp (a warp is one row of 32 threads in x),
-// and one atomicAdd(double) per warp per sign goes to xsums. Accumulation is in double, as the
+// and lane 0 stores the warp's partial per sign into wpart. mono_row_partials then sums each row in
+// a fixed order and mono_rows_total sums the rows 1..JMG in order (allgathered over the cards first),
+// so xsums is the same bits run to run and on any number of cards (2026-11-04: the old float64
+// atomicAdd made the order, and the answer, vary run to run). Accumulation is in double, as the
 // Fortran kdbl sums are. On the send/recv branch the warp reduction is skipped and s1 is written.
-// The order of the atomic adds differs from the Fortran serial order, so the sums are not
-// bit-identical to native. That is not required (project rule, 2026-11-04). Each term is computed in the
-// same order as the Fortran.
+// The order differs from the Fortran serial order, so the sums are not bit-identical to native.
+// That is not required (project rule, 2026-11-04). Each term is computed in the same order as the Fortran.
 //
 // Fast numerics: fmad contraction is allowed by the loader. The per-term float operations keep the
 // Fortran order; the product (sn - s1p)*dvol is formed in float and then promoted to double.
@@ -80,15 +82,21 @@ extern "C" __global__ void dyn_mono_fix(
     const float* __restrict__ dare,        // DARE [JM], grid box area per row
     const float* __restrict__ dsg2,        // DSG2 [LM]
     const float* __restrict__ pdsg1,       // PDSG1 [LM]
-    double* __restrict__ xsums)            // [2*NTR] double, zeroed by the caller before the launch
+    const int joff,                        // global row of local row 0, minus 1 (0 on one card; namgpu/slab.py)
+    const int jmg,                         // global JM (= jm on one card)
+    const int nwx,                         // warps along x = gridDim.x (blockDim.x is 32)
+    double* __restrict__ wpart)            // [kse-kss+1, 2, LM, JM, NWX] per-warp partial sums (allreduce branch)
 {
     const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     const int j0 = blockIdx.y * blockDim.y + threadIdx.y;
     const int l0 = blockIdx.z;
 
     // NMMB interior limits (1-based i, j in [2, IM-1], [2, JM-1]) -> zero-based [1, IM-2], [1, JM-2].
-    // Out-of-range threads still take part in the warp reduction (contribution 0) and never write.
-    const bool inside = (i0 >= 1) && (i0 <= im - 2) && (j0 >= 1) && (j0 <= jm - 2) && (l0 < lm);
+    // The row test is on the GLOBAL row jg = j0 + joff; j0 in [1, jm-2] is the memory guard for the 3x3 stencil
+    // (on one card both are the same test). Out-of-range threads still take part in the warp reduction.
+    const int jg = j0 + joff;
+    const bool inside = (i0 >= 1) && (i0 <= im - 2) && (jg >= 1) && (jg <= jmg - 2) && (j0 >= 1) && (j0 <= jm - 2)
+                        && (l0 < lm);
 
     // steep = 1. - 0.040*idtadt, evaluated in single precision as the Fortran does (line 4894).
     const float steep = 1.0f - 0.040f * (float)idtadt;
@@ -183,10 +191,72 @@ extern "C" __global__ void dyn_mono_fix(
                 pos += __shfl_down_sync(0xffffffffu, pos, off);
                 neg += __shfl_down_sync(0xffffffffu, neg, off);
             }
-            if ((threadIdx.x & 31) == 0 && k0 >= 0 && k0 < ntr) {
-                atomicAdd(&xsums[2 * k0],     pos);
-                atomicAdd(&xsums[2 * k0 + 1], neg);
+            // Deterministic: lane 0 stores the warp's partials (no atomics; E1 2026-11-04 defect fix, the old
+            // float64 atomicAdd made the sum order, and so the answer, vary run to run). Every warp of the grid
+            // stores, zeros included, so the buffer needs no zeroing.
+            if ((threadIdx.x & 31) == 0 && k0 >= 0 && k0 < ntr && j0 < jm) {
+                const int kk = ks - kss;
+                const size_t base = (((size_t)(kk * 2) * lm + l0) * jm + j0) * nwx + blockIdx.x;
+                wpart[base] = pos;
+                wpart[base + (size_t)lm * jm * nwx] = neg;
             }
         }
     }
+}
+
+// One block per local row j: the row's partial sums P[j][2*k0 + sign] over (l, warp) in a fixed strided order and a
+// fixed shared-memory tree. A row's value depends only on that row's points, so it is the same on any card that owns
+// the row. Entries outside kss..kse are written 0.
+extern "C" __global__ void mono_row_partials(
+    const int jm, const int lm, const int nwx, const int kss, const int kse, const int ntr,
+    const double* __restrict__ wpart,      // [kse-kss+1, 2, LM, JM, NWX]
+    double* __restrict__ rowp)             // [JM, 2*NTR]
+{
+    const int j0 = blockIdx.x;
+    const int tid = threadIdx.x;           // blockDim.x == 256
+    __shared__ double sh[256];
+    const int n = lm * nwx;
+    for (int e = 0; e < 2 * ntr; ++e) {
+        const int k0 = e >> 1, sgn = e & 1;
+        const int ks = k0 + 1;
+        if (ks < kss || ks > kse) {
+            if (tid == 0) rowp[(size_t)j0 * 2 * ntr + e] = 0.0;
+            continue;
+        }
+        const int kk = ks - kss;
+        const double* src = wpart + ((size_t)(kk * 2 + sgn) * lm) * jm * nwx;
+        double acc = 0.0;
+        for (int t = tid; t < n; t += 256) {
+            const int l0 = t / nwx, w = t - l0 * nwx;
+            acc += src[((size_t)l0 * jm + j0) * nwx + w];
+        }
+        sh[tid] = acc;
+        __syncthreads();
+        for (int s = 128; s > 0; s >>= 1) {
+            if (tid < s) sh[tid] += sh[tid + s];
+            __syncthreads();
+        }
+        if (tid == 0) rowp[(size_t)j0 * 2 * ntr + e] = sh[0];
+        __syncthreads();
+    }
+}
+
+// xsums[e] = sum over the GLOBAL rows in order j = 1..JMG of P[j][e]. growp holds the ranks' owned-row blocks
+// [nranks][nmax][2*NTR] (rank r's first nown[r] rows valid), ranks in row order, so this visits rows 1..JMG in order on
+// any number of cards. One card: nranks 1, nmax = nown[0] = JM, growp = rowp.
+extern "C" __global__ void mono_rows_total(
+    const int nranks, const int nmax, const int* __restrict__ nown, const int ntr, const int kss, const int kse,
+    const double* __restrict__ growp, double* __restrict__ xsums)
+{
+    const int e = blockIdx.x * blockDim.x + threadIdx.x;
+    if (e >= 2 * ntr) return;
+    const int ks = (e >> 1) + 1;
+    double acc = 0.0;
+    if (ks >= kss && ks <= kse) {
+        for (int r = 0; r < nranks; ++r) {
+            const double* blk = growp + (size_t)r * nmax * 2 * ntr;
+            for (int q = 0; q < nown[r]; ++q) acc += blk[(size_t)q * 2 * ntr + e];
+        }
+    }
+    xsums[e] = acc;
 }

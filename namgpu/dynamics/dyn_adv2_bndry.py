@@ -28,7 +28,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 
 UNIT = "dyn_adv2_bndry"
 KERNEL = "dyn_adv2_bndry_upstream"
@@ -75,7 +75,7 @@ def run(ctx, kss: int, kse: int, idtadt: int):
                (np.int32(im), np.int32(jm), np.int32(lm),
                 np.int32(kss), np.int32(kse), np.int32(lnsad),
                 np.float32(ctx.dt), rdyh, np.int32(idtadt),
-                rdxh, up, vp, s1, tcs))
+                rdxh, up, vp, s1, tcs, *slab.kargs(ctx)))
 
 
 def _rdxh(st, g):

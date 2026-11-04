@@ -95,12 +95,14 @@ extern "C" __global__ void qp_level_set(
     const int* __restrict__ ground_mask,  // [npres,JM,IM]
     int* __restrict__ relaxmask,          // [JM,IM]
     const int* __restrict__ running,      // [1]
-    int* __restrict__ anyflag)            // [1]
+    int* __restrict__ anyflag,            // [1]
+    const int JOFF, const int JMG)        // row slab: domain test on the global row
 {
     if (running[0] == 0) return;
     POINT_IJL
     if (i0 >= IM || j0 >= JM) return;
-    if (i0 < 1 || i0 > IM - 2 || j0 < 1 || j0 > JM - 2) return;
+    const int jg = j0 + JOFF;
+    if (i0 < 1 || i0 > IM - 2 || jg < 1 || jg > JMG - 2) return;
     const int gm = ground_mask[IDX3(i0, j0, ipres0, IM, JM)];
     relaxmask[IDX2(i0, j0, IM)] = gm;
     if (gm != 0) atomicOr(anyflag, 1);
@@ -140,7 +142,8 @@ extern "C" __global__ void qp_relax_sweep(
     const int* __restrict__ mask,         // [JM,IM] relaxmask (intent(in) in relax4e)
     const float* __restrict__ src,        // [JM,IM] work at sweep start
     float* __restrict__ dst,              // [JM,IM] next
-    const int* __restrict__ running)      // [1]
+    const int* __restrict__ running,      // [1]
+    const int JOFF, const int JMG)        // row slab: domain tests on the global row
 {
     if (running[0] == 0) return;
     POINT_IJL
@@ -149,9 +152,11 @@ extern "C" __global__ void qp_relax_sweep(
     const size_t p = IDX2(i0, j0, IM);
     const float w = src[p];
     float out = w;
+    const int jg = j0 + JOFF;
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) { dst[p] = out; return; }   // inner halo edge: exchanged
     if (mask[p] != 0) {
         const bool iin = (i0 >= 1 && i0 <= IM - 2);
-        const bool jin = (j0 >= 1 && j0 <= JM - 2);
+        const bool jin = (jg >= 1 && jg <= JMG - 2);
         // Neighbour reads are guarded: each one is only evaluated on the branch that uses it.
         if (iin && jin) {
             const float W = src[IDX2(i0 - 1, j0, IM)];
@@ -159,12 +164,12 @@ extern "C" __global__ void qp_relax_sweep(
             const float E = src[IDX2(i0 + 1, j0, IM)];
             const float N = src[IDX2(i0, j0 + 1, IM)];
             out = r1 * w + r * (W + S + E + N) / 4.0f;
-        } else if (iin && j0 == 0) {                 // SOUTH
+        } else if (iin && jg == 0) {                 // SOUTH
             const float W = src[IDX2(i0 - 1, j0, IM)];
             const float E = src[IDX2(i0 + 1, j0, IM)];
             const float N = src[IDX2(i0, j0 + 1, IM)];
             out = r1 * w + r * (W + E + N) / 3.0f;
-        } else if (iin && j0 == JM - 1) {            // NORTH
+        } else if (iin && jg == JMG - 1) {           // NORTH
             const float W = src[IDX2(i0 - 1, j0, IM)];
             const float E = src[IDX2(i0 + 1, j0, IM)];
             const float S = src[IDX2(i0, j0 - 1, IM)];
@@ -179,19 +184,19 @@ extern "C" __global__ void qp_relax_sweep(
             const float S = src[IDX2(i0, j0 - 1, IM)];
             const float N = src[IDX2(i0, j0 + 1, IM)];
             out = r1 * w + r * (W + S + N) / 3.0f;
-        } else if (i0 == 0 && j0 == 0) {             // SOUTHWEST
+        } else if (i0 == 0 && jg == 0) {             // SOUTHWEST
             const float E = src[IDX2(i0 + 1, j0, IM)];
             const float N = src[IDX2(i0, j0 + 1, IM)];
             out = r1 * w + r * (E + N) / 2.0f;
-        } else if (i0 == IM - 1 && j0 == 0) {        // SOUTHEAST
+        } else if (i0 == IM - 1 && jg == 0) {        // SOUTHEAST
             const float W = src[IDX2(i0 - 1, j0, IM)];
             const float N = src[IDX2(i0, j0 + 1, IM)];
             out = r1 * w + r * (W + N) / 2.0f;
-        } else if (i0 == 0 && j0 == JM - 1) {        // NORTHWEST
+        } else if (i0 == 0 && jg == JMG - 1) {       // NORTHWEST
             const float E = src[IDX2(i0 + 1, j0, IM)];
             const float S = src[IDX2(i0, j0 - 1, IM)];
             out = r1 * w + r * (E + S) / 2.0f;
-        } else if (i0 == IM - 1 && j0 == JM - 1) {   // NORTHEAST
+        } else if (i0 == IM - 1 && jg == JMG - 1) {  // NORTHEAST
             const float W = src[IDX2(i0 - 1, j0, IM)];
             const float S = src[IDX2(i0, j0 - 1, IM)];
             out = r1 * w + r * (W + S) / 2.0f;

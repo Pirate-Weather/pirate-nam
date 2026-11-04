@@ -151,18 +151,21 @@ extern "C" __global__ void dht_div(
     const float* __restrict__ pfnw,
     float* __restrict__ div,               // DIV [LM,JM,IM]   inout
     float* __restrict__ tdiv,              // TDIV [LM,JM,IM]  out
-    float* __restrict__ omgalf)            // OMGALF [LM,JM,IM] out (interior only, as Fortran)
+    float* __restrict__ omgalf,            // OMGALF [LM,JM,IM] out (interior only, as Fortran)
+    const int JOFF, const int JMG)         // row slab (nmmb_common.cuh): domain tests on the global row
 {
     POINT_IJL
     if (i0 >= IM || j0 >= JM || l0 >= LM) return;
     const size_t c = IDX3(i0, j0, l0, IM, JM);
+    const int jg = j0 + JOFF;
 
     // regional boundary ring (global = .false., s/n/w/e_bdy all true): div = tdiv = 0
-    if (i0 == 0 || i0 == IM - 1 || j0 == 0 || j0 == JM - 1) {
+    if (i0 == 0 || i0 == IM - 1 || jg == 0 || jg == JMG - 1) {
         div[c] = 0.0f;
         tdiv[c] = 0.0f;
         return;
     }
+    if (NMMB_SLAB_EDGE(j0, JM, jg, JMG, 1)) return;   // interior reads j0-1..j0+1
 
     // interior: i = 2..IM-1, j = 2..JM-1 (1-based)
     const int i = i0 + 1, j = j0 + 1, l = l0 + 1;

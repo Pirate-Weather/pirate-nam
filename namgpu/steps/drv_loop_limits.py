@@ -102,10 +102,7 @@ def run(ctx):
     global_flag = 1 if bool(ctx.cfg.raw.get("global", False)) else 0
     mype, inpes, jnpes = _decomp(ctx)
     if inpes * jnpes != 1:
-        raise RuntimeError(
-            f"drv-loop-limits: ntasks={inpes * jnpes} refused. The multi-task tile is the ESMF "
-            "computationalCount from DECOMP (module_DOMAIN_GRID_COMP.F90 ~4815), which is not "
-            "ported; looplimits() is not that rule. Single card only until it is.")
+        return _run_slab(ctx, cp, im, global_flag, mype, inpes, jnpes)
     if TABLE_KEY not in ctx.tables:
         ctx.tables[TABLE_KEY] = cp.zeros((NLIM,), dtype=cp.int32)
     table = ctx.tables[TABLE_KEY]
@@ -116,6 +113,34 @@ def run(ctx):
            (np.int32(im), np.int32(jm), np.int32(global_flag),
             np.int32(mype), np.int32(inpes), np.int32(jnpes), table))
     return table
+
+
+def _run_slab(ctx, cp, im, global_flag, mype, inpes, jnpes):
+    """Several cards (row slabs, INPES = 1, JNPES = N; MULTICARD-PLAN.md section 1). The table keeps GLOBAL 1-based
+    Fortran values for this rank's tile: jts/jte from looplimits (the same balanced split as namgpu/slab.py), and
+    jms/jme the slab's clipped memory rows (max(jts-3, 1), min(jte+3, JMG): no phantom rows past the domain edge; the
+    E2 interface, MULTICARD-PLAN.md 17:35Z). Kernels compare jg = j0 + JOFF with it and index memory with j0.
+    Any balanced row split gives the one-card answer once the halo exchanges are right, so the ESMF DECOMP rule is
+    not needed (MULTICARD-PLAN.md section 1). Built on the host once at init (a 42-int upload)."""
+    s = getattr(ctx, "slab", None)
+    if s is None:
+        raise RuntimeError("drv-loop-limits: ctx.decomp names several tasks but ctx.slab is not set "
+                           "(tools/run_forecast.py --cards N sets both)")
+    if inpes != 1 or jnpes != s.nranks or mype != s.rank:
+        raise RuntimeError(f"drv-loop-limits: decomp {(mype, inpes, jnpes)} is not the row-slab layout "
+                           f"(rank {s.rank}, 1, {s.nranks})")
+    if global_flag:
+        raise RuntimeError("drv-loop-limits: global domains on several cards are refused (the global SWAP/POLE "
+                           "exchanges are not ported; the NAM parent is regional)")
+    v = host_limits(im, s.jmg, False, mype=mype, inpes=1, jnpes=jnpes)
+    if (v["jts"], v["jte"]) != (s.jts, s.jte):
+        raise RuntimeError(f"drv-loop-limits: looplimits rows {(v['jts'], v['jte'])} != slab rows "
+                           f"{(s.jts, s.jte)}")
+    v["jms"], v["jme"] = s.jms, s.jme
+    host = np.array([v[k] for k in NAMES], dtype=np.int32)
+    ctx.tables[TABLE_KEY] = cp.asarray(host)
+    ctx.tables[TABLE_KEY + "_HOST"] = v
+    return ctx.tables[TABLE_KEY]
 
 
 def table(ctx):

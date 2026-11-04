@@ -18,7 +18,7 @@ import contextlib
 
 import numpy as np
 
-from namgpu import kernels
+from namgpu import kernels, slab
 from namgpu.steps import drv_loop_limits as dll
 
 UNIT = "dyn_pgforce_divcor"
@@ -39,7 +39,8 @@ def _check_limits(ctx, limits, im, jm):
             "(module_DM_PARALLEL.F90:662-664 ghost-line convention) but the state arrays are %d x %d "
             "and this port does not allocate ghost lines (NAM runs global = .false., CONTRACT.md)"
             % (v["ide"], v["jde"], im, jm))
-    if (v["ids"], v["jds"], v["ide"], v["jde"]) != (1, 1, im, jm):
+    _, jmg = slab.rows(ctx)
+    if (v["ids"], v["jds"], v["ide"], v["jde"]) != (1, 1, im, jmg):
         raise RuntimeError(
             "dyn-pgforce-divcor: tile bounds ids=%d jds=%d ide=%d jde=%d do not match the state "
             "arrays %d x %d" % (v["ids"], v["jds"], v["ide"], v["jde"], im, jm))
@@ -74,7 +75,7 @@ def run(ctx):
         limits,
         st["PGX_3D"], st["PGY_3D"], st["PGNE_3D"], st["PGNW_3D"],
         wpdar, st["DIV"],
-        np.int32(im), np.int32(jm), np.int32(lm), np.int32(global_flag),
+        np.int32(im), np.int32(jm), np.int32(lm), np.int32(global_flag), *slab.kargs(ctx),
     )
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
