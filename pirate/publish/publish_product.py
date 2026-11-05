@@ -59,13 +59,23 @@ def grid_lat_lon():
     lon = TLM0 + np.rad2deg(np.arctan2(np.cos(phi) * np.sin(lam), np.cos(tp) * np.cos(phi) * np.cos(lam) - np.sin(tp) * np.sin(phi)))
     return np.rad2deg(lat), (lon + 180.0) % 360.0 - 180.0
 
+def array_meta(shape, chunks, data_type, fill_value, dims, attributes):
+    """Zarr v3 array metadata: little-endian values, then gzip, in nested c/<i>/<j> chunk keys."""
+    return {"zarr_format": 3, "node_type": "array", "shape": list(shape), "data_type": data_type,
+            "chunk_grid": {"name": "regular", "configuration": {"chunk_shape": list(chunks)}},
+            "chunk_key_encoding": {"name": "default", "configuration": {"separator": "/"}}, "fill_value": fill_value,
+            "codecs": [{"name": "bytes", "configuration": {"endian": "little"}}, {"name": "gzip", "configuration": {"level": 6}}],
+            "dimension_names": dims, "attributes": attributes}
+
+def write_chunk(zdir, name, index, data):
+    path = "/".join([zdir, name, "c", *map(str, index)]); os.makedirs(os.path.dirname(path), exist_ok=True)
+    with gzip.open(path, "wb", compresslevel=6) as g: g.write(data)
+
 def write_coord(zdir, meta, name, values, dims, units, long_name):
     """Coordinates, so xr.open_zarr shows real positions and forecast hours instead of bare indices."""
-    os.makedirs(f"{zdir}/{name}", exist_ok=True); a = np.asarray(values, "<f4")
-    za = {"zarr_format": 2, "shape": list(a.shape), "chunks": list(a.shape), "dtype": "<f4", "compressor": {"id": "gzip", "level": 6}, "fill_value": None, "filters": None, "order": "C", "dimension_separator": "."}
-    at = {"_ARRAY_DIMENSIONS": dims, "units": units, "long_name": long_name}
-    with gzip.open(f"{zdir}/{name}/" + ".".join("0" * a.ndim), "wb", compresslevel=6) as g: g.write(a.tobytes())
-    json.dump(za, open(f"{zdir}/{name}/.zarray", "w")); json.dump(at, open(f"{zdir}/{name}/.zattrs", "w")); meta[f"{name}/.zarray"] = za; meta[f"{name}/.zattrs"] = at
+    a = np.asarray(values, "<f4"); write_chunk(zdir, name, [0] * a.ndim, a.tobytes())
+    meta[name] = array_meta(a.shape, a.shape, "float32", "NaN", dims, {"units": units, "long_name": long_name})
+    json.dump(meta[name], open(f"{zdir}/{name}/zarr.json", "w"))
 
 def template():
     # The eccodes sample says centre 98, ECMWF. This product is nobody's but ours, so the centre has to be set to missing.
@@ -111,17 +121,20 @@ for fh, path in zip(hours, files):
         # Fail rather than clip: a saturated field looks like plausible data on the map. z500 did this once.
         if ok.any() and np.abs(a[ok]).max() / sf > 32767: raise SystemExit(f"{key} f{fh} overflows int16 at scale {sf}: max {np.abs(a[ok]).max()}")
         i = np.full(a.size, FILL, "<i2"); i[ok] = np.clip(np.rint(a[ok] / sf), -32767, 32767).astype("<i2")
-        with gzip.open(f"{zdir}/{key}/{fh}.0.0", "wb", compresslevel=6) as g: g.write(i.tobytes())
+        write_chunk(zdir, key, [fh, 0, 0], i.tobytes())
         lo, hi = float(np.nanmin(a)), float(np.nanmax(a)); old = rng.get(key, (lo, hi)); rng[key] = (min(lo, old[0]), max(hi, old[1]))
     print("hour", fh, flush=True)
-meta = {".zgroup": {"zarr_format": 2}}
+meta = {}
 for key, title, units, _, sf in VIEW:
-    za = {"zarr_format": 2, "shape": [len(hours), NY, NX], "chunks": [1, NY, NX], "dtype": "<i2", "compressor": {"id": "gzip", "level": 6}, "fill_value": FILL, "filters": None, "order": "C", "dimension_separator": "."}
-    at = {"_ARRAY_DIMENSIONS": ["fhr", "y", "x"], "scale_factor": sf, "units": units, "long_name": title, "stagger_v": 0, "min": rng[key][0], "max": rng[key][1], "coordinates": "latitude longitude"}
-    json.dump(za, open(f"{zdir}/{key}/.zarray", "w")); json.dump(at, open(f"{zdir}/{key}/.zattrs", "w")); meta[f"{key}/.zarray"] = za; meta[f"{key}/.zattrs"] = at
+    # Zarr v3 readers don't treat the array's fill_value as "missing", so xarray needs _FillValue said explicitly: t850 below ground.
+    at = {"_FillValue": FILL, "scale_factor": sf, "units": units, "long_name": title, "stagger_v": 0, "min": rng[key][0], "max": rng[key][1], "coordinates": "latitude longitude"}
+    meta[key] = array_meta([len(hours), NY, NX], [1, NY, NX], "int16", FILL, ["fhr", "y", "x"], at)
+    json.dump(meta[key], open(f"{zdir}/{key}/zarr.json", "w"))
 lat2d, lon2d = grid_lat_lon()
 write_coord(zdir, meta, "latitude", lat2d, ["y", "x"], "degrees_north", "latitude"); write_coord(zdir, meta, "longitude", lon2d, ["y", "x"], "degrees_east", "longitude")
 write_coord(zdir, meta, "fhr", hours, ["fhr"], "hours", "forecast hour")
-meta[".zattrs"] = {"cycle": CYCLE, "domain": "woof", "fhrs": hours, "nx": NX, "ny": NY, "wbd": WBD, "sbd": SBD, "dlon": DLON, "dlat": DLAT, "tph0": TPH0, "tlm0": TLM0, "source": SOURCE}
-json.dump({"zarr_consolidated_format": 1, "metadata": meta}, open(f"{zdir}/.zmetadata", "w")); json.dump({"zarr_format": 2}, open(f"{zdir}/.zgroup", "w")); json.dump(meta[".zattrs"], open(f"{zdir}/.zattrs", "w"))
+# Consolidated metadata in the root document, so readers (and the viewer) need one request to learn the whole store.
+root = {"zarr_format": 3, "node_type": "group", "attributes": {"cycle": CYCLE, "domain": "woof", "fhrs": hours, "nx": NX, "ny": NY, "wbd": WBD, "sbd": SBD, "dlon": DLON, "dlat": DLAT, "tph0": TPH0, "tlm0": TLM0, "source": SOURCE},
+        "consolidated_metadata": {"kind": "inline", "must_understand": False, "metadata": meta}}
+json.dump(root, open(f"{zdir}/zarr.json", "w"))
 print("built", len(hours), "hours", OUT, flush=True)

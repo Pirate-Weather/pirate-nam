@@ -21,8 +21,7 @@ def nearest_key(km, c):
     if best is None: raise SystemExit(f"no MRMS volume near {c} for {prod}")
     return best[1]
 
-# Written to .off so runs in progress cannot find it; variant.sh renames it for tests that want radar.
-c = sys.argv[1]; d = f"{OUT}/radar.{c[:8]}.off"; os.makedirs(d, exist_ok=True); out = f"{d}/refd3d.t{c[8:]}z.grb2f00"
+c = sys.argv[1]; d = f"{OUT}/radar.{c[:8]}"; os.makedirs(d, exist_ok=True); out = f"{d}/refd3d.t{c[8:]}z.grb2f00"
 tmp = tempfile.mkdtemp(dir="/nam/ens_tmp"); part = out + ".part"; open(part, "wb").close()
 for km in LEVELS_KM:
     k = nearest_key(km, c); gz = f"{tmp}/a.gz"; raw = f"{tmp}/a.grib2"; g = f"{tmp}/b.grib2"

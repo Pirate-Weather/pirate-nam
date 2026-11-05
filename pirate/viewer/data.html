@@ -13,7 +13,7 @@ pre { background:var(--code); padding:12px; overflow-x:auto; font-size:14px; } c
 <h2>GRIB2</h2><p>One file per forecast hour, about 41 MB, on the rotated latitude-longitude grid:</p>
 <pre>https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/&lt;YYYYMMDDHH&gt;/woof/grib/woofnam.t&lt;HH&gt;z.f&lt;FFF&gt;.grib2</pre>
 <p>Contents: temperature, wind, height and relative humidity at 1000, 925, 850, 700, 500, 300 and 250 mb; 2 m temperature and dew point; 10 m wind; surface and mean sea level pressure; composite reflectivity; precipitable water; total and hourly precipitation.</p>
-<h2>xarray</h2><p>A Zarr v2 store with a smaller set of fields, on the same grid, with <code>latitude</code> and <code>longitude</code> as 2D coordinates:</p>
+<h2>xarray</h2><p>A Zarr v3 store with a smaller set of fields, on the same grid, with <code>latitude</code> and <code>longitude</code> as 2D coordinates:</p>
 <pre>import xarray as xr
 ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110500/woof/zarr", consolidated=True)
 ds.t2m.sel(fhr=24)</pre>

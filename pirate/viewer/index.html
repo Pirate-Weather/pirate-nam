@@ -135,7 +135,7 @@ async function loadFrame(v, h) {
   const key = `${state.run}/${state.domain}/${v}/${h}`;
   if (state.frames.has(key)) return state.frames.get(key);
   const p = (async () => {
-    const r = await fetch(`${BASE}/${state.run}/${state.domain}/zarr/${v}/${h}.0.0`);
+    const r = await fetch(`${BASE}/${state.run}/${state.domain}/zarr/${v}/c/${h}/0/0`);
     if (!r.ok) throw new Error(`frame ${v} f${h}: HTTP ${r.status}`);
     const stream = r.body.pipeThrough(new DecompressionStream("gzip"));
     return new Int16Array(await new Response(stream).arrayBuffer());
@@ -287,9 +287,9 @@ async function tick() {
 }
 async function selectDomain() {
   state.domain = $("domain").value;
-  const z = await json(`${state.run}/${state.domain}/zarr/.zmetadata`), md = z.metadata;
-  const m = { ...md[".zattrs"], vars: {} };
-  for (const k of Object.keys(md)) if (k.endsWith("/.zattrs")) m.vars[k.split("/")[0]] = md[k];
+  const z = await json(`${state.run}/${state.domain}/zarr/zarr.json`), md = z.consolidated_metadata.metadata;
+  const m = { ...z.attributes, vars: {} };
+  for (const k of Object.keys(md)) m.vars[k] = md[k].attributes;
   state.meta = m; curData = null;
   const sel = $("variable"), keep = sel.value || state.variable;
   sel.innerHTML = Object.keys(SCALES).filter(k => m.vars[k]).map(k => `<option value="${k}">${m.vars[k].long_name}</option>`).join("");
