@@ -71,7 +71,7 @@ def _usage() -> str:
     from namgpu import __version__
     w = max(len(n) for n in COMMANDS)
     lines = [f"usage: woof-nam <command> [options]      (woof-nam {__version__})", "",
-             "WOOF-NAM: the NAM 12 km (NMMB) model on the GPU: one NVIDIA card with 32 GB or more, or several",
+             "WOOF-NAM: the NAM 12 km (NMMB) model on the GPU: one NVIDIA card with 24 GB or more, or several",
              "cards of one machine (woof-nam run --cards N). Run every command from one working folder:",
              "cases/, static/ and runs/ are made there (or set NAMGPU_ROOT).", "", "commands:"]
     lines += [f"  {n:<{w}}  {s}" for n, (_, s) in COMMANDS.items()]

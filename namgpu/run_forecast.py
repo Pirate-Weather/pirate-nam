@@ -96,7 +96,7 @@ def main(argv=None):
         description="Run one WOOF-NAM forecast on the NAM 12 km CONUS grid (954 x 835 x 60, all physics) on "
                     "one NVIDIA card, or on several cards of one machine with --cards N. Writes hourly history "
                     "(wrfout_d01_<valid time>), maps in <out>/maps/ and <out>/forecast-receipt.json. Memory: one "
-                    "card with 32 GB or more. On a card under 64 GB the run takes the 32 GB fit by itself (every "
+                    "card with 24 GB or more. On a card under 64 GB the run takes the 32 GB fit by itself (every "
                     "physics scheme stays on; NAMGPU_MEMORY_PATH=full or fit picks one); the log and the receipt "
                     "name the path that ran.",
         epilog="example (after woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z):\n"
