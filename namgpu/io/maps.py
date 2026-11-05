@@ -466,10 +466,12 @@ def fields_for(prevs, cur, products):
             first = TABLE[prod][1]["scale"]["levels"][0] * 25.4
             q = np.where(q >= first, q, np.nan)                          # below the first edge: blank
             if not np.isfinite(q).any():
-                # a dry window (no point at the first edge): zeros, which the scale's mask_below leaves blank, not an
-                # all-NaN field the renderer refuses ("selected CF field has no finite values"), which failed the
-                # run and skipped every sheet
-                q = np.zeros_like(q)
+                # a dry window (no point at the first edge): a skip, not a map. An all-NaN field is refused by the
+                # renderer ("selected CF field has no finite values"), which failed the run; zeros are blanked only
+                # by the tree's patched renderer (the row's mask_below), while gpuwm's own renderers (2.9.11 and
+                # 2.9.12, what a pip install draws with) paint them domain-wide in the first colour
+                skipped.append((prod, f"{cur[3].name}: dry window, no point at {first / 25.4:g} in in {n} h"))
+                continue
             out[var] = (q, "kg m-2")
     return out, skipped
 
@@ -524,14 +526,6 @@ def _prep_frame(job):
     if lat is None or lon is None:
         raise RuntimeError(f"woof-nam maps: {path.name} has no XLAT/XLONG")
     if old_call:
-        for prod in [p for p in products if p in WINDOW_H]:
-            var = TABLE[prod][0]
-            if var in flds and not np.any(flds[var][0]):
-                # a dry window: fields_for's zeros are blanked by the row's mask_below, which only the tree's patched
-                # renderer reads; gpuwm's own renderer (what the 0.1.0 caller draws with) paints them domain-wide in
-                # the first colour, so this call skips the map, as 0.1.0 had no map for a dry hour
-                del flds[var]
-                sk.append((prod, f"{path.name}: dry window, no point at the first edge of the scale"))
         if not flds:
             return None, valid, start, [], sk
         lon = (lon + 180.0) % 360.0 - 180.0
