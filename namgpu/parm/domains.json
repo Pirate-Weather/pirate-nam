@@ -1,0 +1,32 @@
+{
+ "schema": "woof-nam-domains.v1",
+ "about": "WOOF-NAM domains: woof-nam run --domain <name>. Each row names a configfile in this folder and how its static surface is made. A new domain is a configfile and a row here, never new code (namgpu/domains.py reads this table).",
+ "default": "conus12",
+ "domains": {
+  "conus12": {
+   "title": "NAM 12 km CONUS parent (954 x 835 x 60)",
+   "configfile": "nam_configfile",
+   "sources": ["native", "gfs"],
+   "static": "nam-analysis",
+   "managed_init": false
+  },
+  "conus4": {
+   "title": "4 km CONUS (1371 x 1101 x 60, no parameterized convection)",
+   "configfile": "nam_configfile_4km",
+   "sources": ["gfs"],
+   "static": "geog",
+   "managed_init": true
+  },
+  "conus5": {
+   "title": "5 km CONUS (1097 x 881 x 60, no parameterized convection)",
+   "configfile": "nam_configfile_5km",
+   "sources": ["gfs"],
+   "static": "geog",
+   "managed_init": true
+  }
+ },
+ "static_kinds": {
+  "nam-analysis": "terrain, land, soil and vegetation from an archived NAM native analysis: the case own bgrd3d00 when it has one, else static/nam12_static.npz, else built once from the archived analysis of the same month and day (latest archived year)",
+  "geog": "built on the GPU from WPS_GEOG (NAMGPU_GEOG, WPS_GEOG or ~/WPS_GEOG) by init-static-build with the permissive soil set (SoilGrids texture, ERA5 deep-soil temperature; NAMGPU_GEOG_SOIL=wrf opts into the held WPS STATSGO/FAO set); rebuilt when the start month or the soil set changes (greenness and albedo are monthly)"
+ }
+}

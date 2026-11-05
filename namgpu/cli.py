@@ -33,6 +33,8 @@ COMMANDS = {
             "run one forecast: hourly history, maps and a timing receipt"),
     "maps": ("namgpu.io.maps",
              "draw maps from history files"),
+    "columns": ("namgpu.io.columns",
+                "write the any-point sounding column store (.wcol per hour) from history files"),
     "side-by-side": ("namgpu.io.io_referee_panels",
                      "draw MRMS | WOOF-NAM | archived NAM panels, then compose comparison sheets"),
     "products": ("namgpu.io.products",
@@ -80,7 +82,10 @@ def _usage() -> str:
               "  woof-nam side-by-side --help",
               "On several cards of one machine, the same run with --cards N (same history, bit for bit):",
               "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z-2c --cards 2",
-              "  woof-nam compare runs/2025-03-14_12z runs/2025-03-14_12z-2c"]
+              "  woof-nam compare runs/2025-03-14_12z runs/2025-03-14_12z-2c",
+              "Other grids are rows of parm/domains.json (woof-nam run --domain NAME), e.g. 4 km CONUS from GFS:",
+              "  woof-nam fetch --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only --inputs-only",
+              "  woof-nam run --case 2026-11-04_12z --source gfs --hours 24 --domain conus4 --cards 4 --out runs/4km"]
     return "\n".join(lines)
 
 

@@ -19,6 +19,8 @@ ArWen/HRRR prep set):
            if no land soil pixel; land ice (IGBP 15) 16, as STATSGO/FAO carry it (SoilGrids has no texture
            under ice); water 0 (bgrd3d00 convention). NMMB's Noah reads one soil type, so the
            bottom layer (texture_bot) is not read.
+           Soil set: NAMGPU_GEOG_SOIL (or --soil) "permissive" (the default, above); "wrf" is the WPS
+           FAO-UNESCO/STATSGO soiltype_top_30s, an explicit opt-in that prints and records its licence hold.
   SFCR     NPS module_assorted_definitions.F90:47-52, 757-768: VGZ0TBL_IGBP(VGTYP) + Z0LAND 0.10 on land
            (no Z0LAND for snow/ice 15); water 0 as in bgrd3d00
   VEG      greenfrac_fpar_modis, monthly, mid-month linear to the valid date, percent; average_gcell(4.0)
@@ -33,7 +35,8 @@ ArWen/HRRR prep set):
            +search, masked water; NPS: TG = SOILTEMP, water with TG < 180 K -> 273.15
            (module_assorted_definitions.F90:120-124)
 Licence: only permissive datasets are read (DATASETS below, source and licence lines copied from gpuwm
-2.9.12); WPS's FAO-based soiltype_*_30s and ISLSCP-I soiltemp_1deg are refused by name (HELD). Every
+2.9.12); WPS's FAO-based soiltype_*_30s and ISLSCP-I soiltemp_1deg are refused by name (HELD) unless the
+"wrf" soil set is selected explicitly (opt-in, never a default; its hold is recorded with the build). Every
 written npz carries the table in META["datasets"] and in <static>.PROVENANCE.json beside it.
   SLOPE    slope type 1 on land, 0 on water (NPS fill_missing 0; NAM's islope data set is not in GEOG)
   EPSR     0.97 water / 1.0 land, STDH -1.E6: the init-static-missing rules, written here so the file
@@ -151,12 +154,19 @@ class LicenceHold(ValueError):
     """A held WPS_GEOG dataset was named for a static build."""
 
 
-def resolve_datasets(root: Path, overrides=None) -> dict:
+def resolve_datasets(root, overrides=None, soil: str = "permissive") -> dict:
     """Role -> licence-table row (with the resolved path) for this build. THE BREAKAGE A HELD NAME WOULD
     CAUSE: a static (and every forecast from it) built on FAO-UNESCO DSMW soil, which may not be reproduced
     for third parties, or on ISLSCP-I soil temperature, whose licence nobody states. Refused by name."""
     import json
     rows = {k: dict(v) for k, v in DATASETS.items()}
+    roots = list(root) if isinstance(root, (list, tuple)) else [Path(root)]
+    if soil != "permissive":
+        # an explicit opt-in soil set (NAMGPU_GEOG_SOIL / --soil, never a default): its hold is the licence line
+        for role, key in (("soil_top", "soil"), ("soiltemp", "soiltemp")):
+            name = SOIL_SETS[soil][key]
+            rows[role] = {"dataset": name, "contents": rows[role]["contents"], "opt_in": soil,
+                          "source_and_licence": f"opt-in soil set {soil}: " + HELD.get(name, "WPS_GEOG " + name)}
     for role, name in (overrides or {}).items():
         if role not in rows:
             raise ValueError(f"{UNIT}: unknown dataset role {role!r} (roles: {sorted(rows)})")
@@ -168,13 +178,15 @@ def resolve_datasets(root: Path, overrides=None) -> dict:
             raise ValueError(f"{UNIT}: {role}={name} has no licence row here; the {role} dataset is "
                              f"{rows[role]['dataset']} ({rows[role]['source_and_licence']})")
     for role, row in rows.items():
-        if row["dataset"] in HELD:
+        if row["dataset"] in HELD and not row.get("opt_in"):
             raise LicenceHold(f"{UNIT}: {row['dataset']} is held out of the static build: {HELD[row['dataset']]}")
-        path = root / row["dataset"]
-        if not (path / "index").is_file():
+        # each dataset is looked up across the roots (geog_roots: a partial NAMGPU_GEOG that links its terrain
+        # into the full WPS_GEOG still finds the rest)
+        path = next((r / row["dataset"] for r in roots if (r / row["dataset"] / "index").is_file()), None)
+        if path is None:
             fix = row.get("missing_remedy", "gpuwm fetch-geog")
-            raise FileNotFoundError(f"{UNIT}: {path}/index missing ({role}: {row['source_and_licence']}); "
-                                    f"fetch it with {fix}")
+            raise FileNotFoundError(f"{UNIT}: {row['dataset']}/index missing under {[str(r) for r in roots]} "
+                                    f"({role}: {row['source_and_licence']}); fetch it with {fix}")
         row["role"] = role
         row["path"] = str(path)
         prov = path / "PROVENANCE.json"
@@ -190,10 +202,58 @@ OUT_KEYS = ("HGT_SFC", "LAND", "VGTYP", "SOTYP", "SFCR", "VEG", "ALBDO",
             "ALBASE", "MXSNAL", "TG", "SLOPE", "EPSR", "STDH", "GLAT", "GLON")
 
 
+#: Soil sets (NAMGPU_GEOG_SOIL selects one; default "permissive"). "permissive" is the soil set gpuwm 2.9.4 made
+#: its default: SoilGrids 16-class texture (WPS 4.4+ SOILCTOP rel_path soilgrids/texture_top, the same STATSGO
+#: category numbering, 14 = water) and the ERA5 1990-2019 deep-soil temperature (Copernicus; attribution in its
+#: PROVENANCE.json). "wrf" is the WPS FAO-UNESCO/STATSGO soiltype_top_30s and ISLSCP-I soiltemp_1deg, whose
+#: licences are held: opt-in only, never a default.
+SOIL_SETS = {
+    "permissive": {"soil": "soilgrids/texture_top", "soiltemp": "soiltemp_era5_1deg"},
+    "wrf": {"soil": "soiltype_top_30s", "soiltemp": "soiltemp_1deg"},
+}
+
+
+def soil_set(name=None) -> str:
+    name = (name or os.environ.get("NAMGPU_GEOG_SOIL") or "permissive").strip().lower()
+    if name not in SOIL_SETS:
+        raise SystemExit(f"{UNIT}: NAMGPU_GEOG_SOIL={name!r}: not one of {sorted(SOIL_SETS)}")
+    return name
+
+
+def geog_roots(arg=None) -> list:
+    """Folders searched for each WPS_GEOG dataset, in order: --geog, NAMGPU_GEOG, the tree a link in NAMGPU_GEOG
+    points into (a partial root, such as a geography folder that links topo_gmted2010_30s from the full WPS_GEOG),
+    WPS_GEOG, ~/WPS_GEOG."""
+    out = []
+    for r in ([arg] if arg else []) + [os.environ.get("NAMGPU_GEOG")]:
+        if r and Path(r).is_dir():
+            out.append(Path(r))
+            topo = Path(r) / "topo_gmted2010_30s"
+            if topo.is_symlink():
+                out.append(topo.resolve().parent)
+    for r in (os.environ.get("WPS_GEOG"), str(Path.home() / "WPS_GEOG")):
+        if r and Path(r).is_dir():
+            out.append(Path(r))
+    seen, roots = set(), []
+    for r in out:
+        if str(r) not in seen:
+            seen.add(str(r))
+            roots.append(r)
+    return roots
+
+
+def dataset(roots, rel: str) -> Path:
+    for r in roots:
+        if (r / rel / "index").is_file():
+            return r / rel
+    raise FileNotFoundError(f"{UNIT}: WPS_GEOG dataset {rel} not found under {[str(r) for r in roots]} "
+                            "(NAMGPU_GEOG, WPS_GEOG or ~/WPS_GEOG)")
+
+
 def geog_root(arg=None) -> Path:
-    for r in ([arg] if arg else []) + [os.environ.get("NAMGPU_GEOG"), str(Path.home() / "WPS_GEOG")]:
-        if r and Path(r, "topo_gmted2010_30s").is_dir():
-            return Path(r)
+    for r in geog_roots(arg):
+        if (r / "topo_gmted2010_30s").is_dir():
+            return r
     raise FileNotFoundError(f"{UNIT}: no WPS_GEOG tree (NAMGPU_GEOG or ~/WPS_GEOG)")
 
 
@@ -437,15 +497,22 @@ def month_weights(valid: datetime):
     return (a.month - 1, b.month - 1, float(w))
 
 
-def build(cfg, valid: datetime, geog=None, log=print, datasets=None):
+def build(cfg, valid: datetime, geog=None, log=print, datasets=None, soil=None):
     import cupy as cp
-    root = geog_root(geog)
-    ds = resolve_datasets(root, datasets)
+    roots = geog_roots(geog)
+    if not roots:
+        raise FileNotFoundError(f"{UNIT}: no WPS_GEOG tree (--geog, NAMGPU_GEOG, WPS_GEOG or ~/WPS_GEOG)")
+    sset = soil_set(soil)
+    ds = resolve_datasets(roots, datasets, soil=sset)
     dom = Domain(cfg)
     t0 = time.perf_counter()
-    rec = {"grid": [dom.im, dom.jm], "geog": str(root), "valid": valid.isoformat(), "stages": {},
+    rec = {"grid": [dom.im, dom.jm], "geog": str(Path(ds["terrain"]["path"]).parent), "valid": valid.isoformat(),
+           "soil_set": sset, "stages": {},
            "datasets": [{k: v for k, v in r.items() if k != "missing_remedy"} for r in ds.values()],
            "licence_copied_from": LICENCE_COPIED_FROM, "empty_cells": {}}
+    log(f"{UNIT}: soil set {sset}: {ds['soil_top']['path']}, {ds['soiltemp']['path']}")
+    if sset != "permissive":
+        log(f"{UNIT}: opt-in soil set {sset}: {HELD.get(ds['soil_top']['dataset'], '')}")
     src = lambda role, **kw: Source(Path(ds[role]["path"]), **kw)   # noqa: E731
     H = dom.halo
     crop = (slice(H, H + dom.jm), slice(H, H + dom.im))
@@ -594,11 +661,13 @@ def main(argv=None):
     ap.add_argument("--geog", default=None)
     ap.add_argument("--dataset", action="append", default=[], metavar="ROLE=NAME",
                     help=f"name a role's dataset (roles {sorted(DATASETS)}); a held dataset is refused")
+    ap.add_argument("--soil", default=None, choices=sorted(SOIL_SETS),
+                    help="soil set (default NAMGPU_GEOG_SOIL, else permissive)")
     a = ap.parse_args(argv)
     over = dict(x.split("=", 1) for x in a.dataset)
     cfg = config.load(a.config)
     valid = datetime.fromisoformat(a.date)
-    res, rec = build(cfg, valid, a.geog, datasets=over)
+    res, rec = build(cfg, valid, a.geog, datasets=over, soil=a.soil)
     out = write(res, rec, a.out if a.out.is_absolute() else __import__("namgpu.paths", fromlist=["x"]).work_root() / a.out, cfg)
     print(f"{UNIT}: wrote {out} ({rec['grid'][0]}x{rec['grid'][1]}, land {rec['land_frac']}, {rec['total_s']} s)")
     return 0

@@ -389,12 +389,12 @@ receipt; the wall includes loading the saved init.
 So the full 12 km grid runs on one 32 GB card (the fit, 339 ms per step), on one 96 GB card (178 ms per step),
 or faster on several cards.
 
-**Other grids.** `tools/run_nam_domain.sh <domain> <hours> <cards>` runs a domain from its own configfile
-(`namgpu/parm/nam_configfile_<domain>`: `4km` is 1371 x 1101 x 60 over NAM's CONUS-nest footprint, `5km` is
-1097 x 881, `band12` is the 954 x 279 band) with its own static fields (`python -m namgpu.init.static_build`)
-and GFS boundaries. The 4 km grid ran 24 h on 8 RTX 5090 cards (42.9 ms per step, 522 s wall, 25-26 GB per
-card); the 5 km grid on several cards is not measured yet. The domain static builder reads the WPS_GEOG land
-sets, and `run_nam_domain.sh` lives in a checkout (`tools/`), not in the wheel.
+**Other grids.** A grid is a row of `namgpu/parm/domains.json` and a configfile in `namgpu/parm/`; `woof-nam run
+--domain NAME` (also `init`) selects it. `conus12` is the NAM 12 km parent (the default). `conus4` is 1371 x 1101 x 60
+over NAM's CONUS-nest footprint, GFS start only: its static surface is built on the GPU from the WPS_GEOG land sets
+(`NAMGPU_GEOG`, else `~/WPS_GEOG`) on the first run and again when the start month changes, and with `--cards N` its
+initial state is built in CUDA managed memory. The 4 km grid ran 24 h on 8 RTX 5090 cards (42.9 ms per step, 522 s
+wall, 25-26 GB per card; from a checkout through `tools/run_nam_domain.sh`, which takes the same configfile).
 
 Needs: one machine with N NVIDIA cards and the NCCL 2 library (`libnccl.so.2`) where CuPy can load it; about
 14 GB of disk for the saved 12 km init; room in `/dev/shm` for one or two hours of history in flight.
@@ -492,8 +492,8 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 - **Nests:** the NAM's own fixed nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
   ported as such; `woof-nam nest` ("3 km nests anywhere" above) runs a 3 km domain of your choice instead.
   Its `--cards N` path and its sheets on several cards have not run on two physical cards yet.
-- **Multi-card:** one machine only (no multi-node runs). Other grids (4 km, 5 km) run from a checkout
-  (`tools/run_nam_domain.sh`), not from `woof-nam`; the 5 km grid is not measured yet.
+- **Multi-card:** one machine only (no multi-node runs). The 5 km and band configfiles are not rows of
+  `domains.json` (not measured as a whole run); they run from a checkout through `tools/run_nam_domain.sh`.
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full
   12 km grid on several cards is measured on the full memory path only.
 - **Restarts:** one card ("Restarts" above); the NAM's own restart files are not read.

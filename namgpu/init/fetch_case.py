@@ -309,7 +309,9 @@ def _leads(row, hours: int, age: int, interval: int):
     if spec == "f000":
         return [0]
     if spec == "boco":
-        return list(range(age, hours + age + 1, interval))
+        # exactly the boundary times a run of `hours` reads (domains.bc_hours: at least 6 h, in 3-hourly steps)
+        from namgpu.domains import bc_hours
+        return list(range(age, bc_hours(hours) + age + 1, interval))
     if spec == "every3":
         return list(range(0, hours + 1, 3))
     if spec == "hourly36":
@@ -486,7 +488,9 @@ def plan_source(name: str, cycle: datetime, hours: int, raw: Path):
         raise ValueError(f"fetch_case: source {name!r} publishes 3-hourly leads to {last} h, not {hours} h")
     b = row["boundary"]
     jobs = []
-    for lead in range(0, hours + 1, int(b["interval_h"])):
+    from namgpu.domains import bc_hours
+    # the boundary times a run of `hours` reads (boco.NNNN every 3 h needs the lead 3 h after it)
+    for lead in range(0, min(bc_hours(hours), last) + 1, int(b["interval_h"])):
         dest = raw.parent / b["file"].format(bcyc=cycle.hour, lead=lead)
         dest.parent.mkdir(parents=True, exist_ok=True)
         jobs.append((_jsonl_lead, fetch, cycle, lead, dest))

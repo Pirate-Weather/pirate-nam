@@ -31,11 +31,16 @@ def main(argv=None):
                     help="the case folder woof-nam fetch wrote, or its bare name under <work root>/cases/")
     ap.add_argument("--source", default="native", help="native | gfs | hrrr | rrfs (init source row)")
     ap.add_argument("--out", type=Path, required=True, help="output folder")
+    ap.add_argument("--domain", default=None, help="the grid, a row of parm/domains.json (default conus12)")
     ap.add_argument("--only", nargs="*", default=None, help="run only these init units (default: the whole chain)")
     ap.add_argument("--no-maps", action="store_true", help="write the 0 h history only, no maps")
     ap.add_argument("--steps", type=int, default=0, help="model steps after init (all physics)")
     a = ap.parse_args(argv)
 
+    from namgpu import domains
+    domains.select(a.domain, a.source)
+    rs = domains.ensure_static(paths.case_dir(a.case), domains.start_of(paths.case_dir(a.case)), a.source)
+    print(f"static: {rs['action']} {rs['file']} ({rs['seconds']} s)", flush=True)
     import cupy as cp
     from namgpu import config, grid as gridmod, state as statemod
     from namgpu.driver import Ctx, Driver
@@ -48,6 +53,7 @@ def main(argv=None):
     ctx.start = datetime.strptime(ctx.case_dir.name[:14], "%Y-%m-%d_%Hz")
     ctx.out_dir = a.out
     ctx.init_source = a.source
+    ctx.forecast_hours = 6          # the shortest boundary window (init-fetch-case and init-gfs-bocos read it)
     a.out.mkdir(parents=True, exist_ok=True)
     from namgpu.init import init_case_driver  # noqa: PLC0415
     t0 = time.perf_counter()

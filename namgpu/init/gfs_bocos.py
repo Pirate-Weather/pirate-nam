@@ -229,6 +229,8 @@ def run(ctx, hours: int | None = None):
             parent_bocos.build(ctx, hours, out_dir)
         ctx.boco_dir = str(out_dir)
         return out_dir
+    from namgpu.domains import bc_hours
+    hours = bc_hours(hours)      # 3-hourly GFS steps: a 7 h run reads boco.0006, so it needs GFS to +9 h
     out_dir = boco_dir(ctx)
     want = [out_dir / f"boco.{fh:04d}" for fh in range(0, hours, 3)]
     import json

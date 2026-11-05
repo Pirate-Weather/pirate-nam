@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -678,7 +679,10 @@ def _finish_hour(h: _Hour, keep_work: bool = False) -> dict:
         omitted = [{"shortname": f["shortname"], "name": f["pname"], "reason": f["reason"]}
                    for f in frame_rec.get("fields", []) if f.get("written", 0) < f.get("messages", 1)]
         recs = scan(out / name)
-        (out / (name + ".idx")).write_text("\n".join(idx_lines(recs)) + "\n")
+        # the .idx goes into place whole and last: a follower (the WOOF publisher) takes a file once its .idx exists
+        tmp_idx = out / (name + ".idx.part")
+        tmp_idx.write_text("\n".join(idx_lines(recs)) + "\n")
+        os.replace(tmp_idx, out / (name + ".idx"))
         return {"file": name, "history": h.history.name, "valid": f"{when['valid']:%Y-%m-%dT%H:%M:%SZ}",
                 "fhr": fhr, "bytes": (out / name).stat().st_size, "records": len(recs),
                 "frame_s": round(h.t_frame, 2), "writer_s": round(float(frame_rec.get("seconds") or 0.0), 2),
@@ -715,7 +719,7 @@ def _xtime_hour(path: Path) -> int:
 
 def run(run_dir: Path, out: Path | None = None, hours=None, workers: int = 2, threads: int = 8,
         device: str = "auto", bits: int = DEFAULT_BITS, table: Path | None = None, follow: bool = False,
-        poll_s: float = 5.0, idle_timeout_s: float = 1800.0) -> dict:
+        poll_s: float = 5.0, idle_timeout_s: float = 1800.0, until: Path | None = None) -> dict:
     """Every history hour of a run (or `hours`) -> one awphys file each, plus <out>/index.json.
 
     follow: keep watching the run folder while the forecast runs and write each hour as soon as its history file
@@ -749,7 +753,7 @@ def run(run_dir: Path, out: Path | None = None, hours=None, workers: int = 2, th
             print("FAILED", errors[-1], flush=True)
 
     def ready_files() -> tuple[list[Path], bool]:
-        receipt = (run_dir / "forecast-receipt.json").is_file()
+        receipt = (run_dir / "forecast-receipt.json").is_file() or (until is not None and Path(until).exists())
         files = sorted(run_dir.glob("wrfout_d01_*"))
         ready = []
         for i, f in enumerate(files):
@@ -824,6 +828,10 @@ def run(run_dir: Path, out: Path | None = None, hours=None, workers: int = 2, th
     return {"files": rows, "errors": errors}
 
 
+def _undated(inventory_line: str) -> str:
+    return re.sub(r"^d=\d{8,10}:", "", inventory_line)
+
+
 def compare_table(reference: Path, ours: Path, table: Path | None = None) -> int:
     """The grid section, and every table record with a source, against NOAA's file: the same inventory identity
     (parameter, surfaces, template, statistic and time), in NOAA's order. Exit 1 on any difference."""
@@ -876,7 +884,9 @@ def compare_table(reference: Path, ours: Path, table: Path | None = None) -> int
             print(f"  MISSING      rec {t['rec']:>5}  NOAA {a[0] + 1}:{line(a[1])}")
             bad += 1
             continue
-        same = line(a[1]) == line(b[1]) and a[1].get("pdt") == b[1].get("pdt") and \
+        # the reference time (d=) is not part of a record identity: a run is compared with an archived NOAA cycle
+        # of another date (NOAA retired the NAM on 2026-11-03 12Z, so every live cycle has a different date)
+        same = _undated(line(a[1])) == _undated(line(b[1])) and a[1].get("pdt") == b[1].get("pdt") and \
             a[1].get("range_len") == b[1].get("range_len")
         order = b[0] > last
         last = b[0]
@@ -914,6 +924,7 @@ def compare(reference: Path, ours: Path) -> int:
 
 
 def main(argv=None) -> int:
+    global FILE_NAME
     from namgpu.cli import HelpFormatter
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0] + " " + __doc__.split("\n\n")[1],
                                  formatter_class=HelpFormatter,
@@ -932,6 +943,12 @@ def main(argv=None) -> int:
     ap.add_argument("--follow", action="store_true",
                     help="watch a running forecast: write each hour as its history file completes, stop when the "
                          "run's forecast-receipt.json is written (woof-nam run --products starts this)")
+    ap.add_argument("--until", type=Path, default=None,
+                    help="with --follow: also stop once this file exists (a caller that knows the forecast ended)")
+    ap.add_argument("--prefix", default=FILE_NAME.split(".t{HH}z")[0],
+                    help="file name before .tHHz (default %(default)s)")
+    ap.add_argument("--packing", default="complex", choices=("complex",),
+                    help="GRIB2 packing: complex (NCEP complex packing with spatial differencing, as NOAA's files)")
     ap.add_argument("--post-device", default="auto", choices=("auto", "gpu", "cpu"),
                     help="where the exporter computes the products: auto (a GPU with room, else the CPU; default)")
     ap.add_argument("--compare", nargs=2, type=Path, metavar=("REFERENCE", "OURS"),
@@ -947,8 +964,12 @@ def main(argv=None) -> int:
     if a.run is None:
         ap.error("--run is required (or --compare)")
     from namgpu import paths
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,39}", a.prefix):
+        ap.error(f"--prefix {a.prefix!r}: letters, digits, '.', '_' and '-' only")
+    FILE_NAME = a.prefix + FILE_NAME[FILE_NAME.index(".t{HH}z"):]
     rd = a.run if a.run.is_absolute() else paths.work_root() / a.run
-    res = run(rd, a.out, a.hours, a.workers, a.threads, a.post_device, a.bits, a.table, follow=a.follow)
+    res = run(rd, a.out, a.hours, a.workers, a.threads, a.post_device, a.bits, a.table, follow=a.follow,
+              until=a.until)
     return 1 if res["errors"] else 0
 
 

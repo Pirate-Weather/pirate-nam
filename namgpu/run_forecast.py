@@ -63,6 +63,18 @@ def release_card(ctx) -> dict:
     return {"card_used_gib_after": used, "locks_dropped": dropped}
 
 
+def _domain_names():
+    from namgpu import domains
+    return domains.names()
+
+
+def _stage(rec, name, seconds, parallelism):
+    """One row of the receipt's stage table: wall seconds and how the stage runs (GPU, N cards, threads)."""
+    rows = [r for r in rec.get("stages", []) if r["stage"] != name]      # a rerun tail replaces its own row
+    rec["stages"] = rows + [{"stage": name, "s": None if seconds is None else round(seconds, 2),
+                             "parallelism": parallelism}]
+
+
 def main(argv=None):
     from namgpu.cli import HelpFormatter
     ap = argparse.ArgumentParser(
@@ -90,6 +102,10 @@ def main(argv=None):
                          "cache on a data disk shared by every domain of that cycle")
     ap.add_argument("--parent-run", type=Path, default=None,
                     help="--source parent: the parent run directory (its hourly wrfout with the hand-off set)")
+    ap.add_argument("--domain", default=None,
+                    help="the grid, a row of parm/domains.json: %s (default: NAMGPU_CONFIGFILE if set, else conus12, "
+                         "the NAM 12 km parent). conus4 and conus5 start from GFS and build their static surface from "
+                         "WPS_GEOG (permissive soil set) on the first run of each month" % ", ".join(_domain_names()))
     ap.add_argument("--hours", type=float, default=None, help="forecast length in hours (default 1)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (relative paths are under the work root)")
     ap.add_argument("--skip-init", default="init-fetch-case",
@@ -100,6 +116,8 @@ def main(argv=None):
                     help="also write NOAA's NAM awphys GRIB2 (nam.tHHz.awphysFF.tm00.grib2 on grid 218, "
                          "<out>/products/) while the forecast runs: a `woof-nam products --follow` process writes "
                          "each hour as its history file lands (log <out>/products.log, <out>/products/DONE at the end)")
+    ap.add_argument("--no-columns", action="store_true",
+                    help="no sounding column store after the run (<out>/columns/d01/*.wcol; woof-nam columns)")
     ap.add_argument("--maps-only", action="store_true", help=argparse.SUPPRESS)   # internal: the post-run maps tail (no CUDA)
     ap.add_argument("--cards", type=int, default=1,
                     help="number of cards (default 1). N > 1 runs one process per card, each owning a band of whole "
@@ -170,11 +188,25 @@ def main(argv=None):
                          "would write its own rows and the resume would have to load them on the same N cards, "
                          "which is not written yet")
     if a.maps_only:
-        return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out, a.case_dir)
+        return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out, a.case_dir,
+                         not a.no_columns)
     if a.products and "NAMGPU_RANK" not in os.environ:
         _start_products(a.out if a.out.is_absolute() else paths.work_root() / a.out)
+    from namgpu import domains
+    domains.select(a.domain, a.source)
+    static_rec = None
+    if "NAMGPU_RANK" not in os.environ:
+        # once per run, before the init (and before any rank): in a child pinned to the first card
+        cards0 = [c.strip() for c in a.card_list.split(",") if c.strip()]
+        first = cards0[0] if cards0 else (None if a.cards == 1 else "0")
+        cdir0 = a.case_dir.resolve() if a.case_dir is not None else paths.case_dir(a.case)
+        static_rec = domains.ensure_static(cdir0, domains.start_of(Path(a.case) if a.case_dir is not None else cdir0),
+                                           a.source, card=first)
+        print(f"static: {static_rec['action']} {static_rec['file']} ({static_rec['seconds']} s)", flush=True)
     if a.cards > 1 and "NAMGPU_RANK" not in os.environ:
-        return launch(a, list(argv) if argv is not None else sys.argv[1:])
+        if domains.current().get("managed_init") and not a.managed_init and a.init_from is None:
+            a.managed_init = True       # the domain row: its initial state is bigger than one card
+        return launch(a, list(argv) if argv is not None else sys.argv[1:], static_rec)
     if "NAMGPU_RANK" in os.environ:
         # kill -USR1 <rank pid> prints every thread stack to the rank log (no debugger needed)
         import faulthandler
@@ -225,10 +257,16 @@ def main(argv=None):
     drv.check_ready()
     skip = [s for s in a.skip_init.split(",") if s]
     chain = [u for u in init_case_driver.CHAIN if u not in skip]
-    rec = {"case": a.case, "source": a.source, "hours": a.hours, "dt": cfg.dt, "skipped_init": skip}
+    rec = {"case": a.case, "source": a.source, "hours": a.hours, "dt": cfg.dt, "skipped_init": skip,
+           "domain": domains.current()["name"], "grid": [int(cfg.im), int(cfg.jm), int(cfg.lm)],
+           "cards": int(os.environ.get("NAMGPU_NRANKS", "1")), "woof_nam": _version()}
+    if static_rec is not None:
+        rec["static"] = static_rec
+        _stage(rec, "static", static_rec["seconds"], "GPU, 1 card" if static_rec["action"] == "built" else "none (cached)")
     mp = statemod.memory_path()
     rec["memory_path"] = mp
-    print(f"memory path: {mp['path']} ({mp['how']}: {mp['reason']})", flush=True)
+    # the stdout line names the path only; the card size that chose it stays in the receipt
+    print(f"memory path: {mp['path']} ({mp['how']})", flush=True)
     t0 = time.perf_counter()
     if a.resume is not None:
         from namgpu import restart as rstmod
@@ -273,6 +311,7 @@ def main(argv=None):
     rec["init_s"] = round(time.perf_counter() - t0, 2)
     # the start source row as staged (file, static, levels, attribution and licence: ECMWF open data is CC BY 4.0)
     rec["init_source"] = ctx.tables.get("grid_source")
+    _stage(rec, "init" if a.init_from is None else "init load", rec["init_s"], "GPU, 1 card")
     print(f"init done {rec['init_s']} s, state {st.nbytes() / 2**30:.2f} GiB", flush=True)
     # Init temporaries (GWD terrain, table builds) stay cached in the CuPy pool and showed up as 40-55 GB on
     # card 3 for a forecast whose step loop needs ~17 GB. Return them.
@@ -354,7 +393,11 @@ def main(argv=None):
     n0 = int(rec.get("resumed_at_fhr", 0) * 3600.0 / cfg.dt + 0.5) if a.resume is not None else 0
     rec["steps_done"] = int(ctx.ntimestep)
     rec["run_s"] = round(wall, 2)
-    rec["ms_per_step"] = round(wall / max(1, ctx.ntimestep - n0) * 1e3, 1)
+    # per forecast step: the filter's 300 half-steps are timed apart (tdfi_s), not spread over the forecast steps
+    rec["ms_per_step"] = round((wall - (rec.get("tdfi_s") or 0.0)) / max(1, ctx.ntimestep - n0) * 1e3, 1)
+    if rec.get("tdfi_s") is not None:
+        _stage(rec, "tdfi", rec["tdfi_s"], "GPU, 1 card")
+    _stage(rec, "forecast", wall - (rec.get("tdfi_s") or 0.0), "GPU, 1 card; history on a writer thread")
     rec["hour_lines"] = hours_log
     bad = init_case_driver.census(ctx)
     if multi is not None:
@@ -395,7 +438,8 @@ def main(argv=None):
                                   "sys.exit(main(sys.argv[1:]))" % PKG_PARENT,
                                   "--maps-only", "--case", a.case if a.case_dir is not None else str(ctx.case_dir),
                                   "--out", str(out)]
-                 + (["--case-dir", str(ctx.case_dir)] if a.case_dir is not None else []))
+                 + (["--case-dir", str(ctx.case_dir)] if a.case_dir is not None else [])
+                 + (["--no-columns"] if a.no_columns else []))
     rp = out / "forecast-receipt.json" if multi is None else out / f"forecast-receipt.r{ctx.slab.rank}.json"
     if multi is not None:
         rec["rank"] = {"rank": ctx.slab.rank, "nranks": ctx.slab.nranks, "jts": ctx.slab.jts, "jte": ctx.slab.jte,
@@ -468,7 +512,12 @@ def _drop_opt(argv: list, opt: str) -> list:
     return [x for x in argv if x != opt]
 
 
-def launch(a, argv) -> int:
+def _version():
+    from namgpu import __version__
+    return __version__
+
+
+def launch(a, argv, static_rec=None) -> int:
     """--cards N: one process per card (CUDA_VISIBLE_DEVICES pinned; one Python thread driving N cards would be a
     single-core stage on the step path), plus the history writer pool. Every rank runs this same module with
     NAMGPU_RANK set. If one rank fails the others are stopped (NCCL would wait forever). Without --init-from the
@@ -485,7 +534,12 @@ def launch(a, argv) -> int:
     cards = cards[:a.cards]
     t0 = time.perf_counter()
     child_argv = _drop_opt(_drop_opt(list(argv), "--keep-init"), "--managed-init")
-    rec = {"cards": cards}
+    from namgpu import domains
+    rec = {"cards": cards, "ncards": len(cards), "case": a.case, "source": a.source, "hours": a.hours,
+           "domain": domains.current()["name"], "woof_nam": _version()}
+    if static_rec is not None:
+        rec["static"] = static_rec
+        _stage(rec, "static", static_rec["seconds"], "GPU, 1 card" if static_rec["action"] == "built" else "none (cached)")
     made_init = None
     if a.init_from is None:
         made_init = out / "init"
@@ -497,6 +551,7 @@ def launch(a, argv) -> int:
             rc = subprocess.call(cmd, env=dict(os.environ, CUDA_VISIBLE_DEVICES=cards[0]), stdout=logf,
                                  stderr=subprocess.STDOUT)
         rec["init_save_s"] = round(time.perf_counter() - t0, 1)
+        _stage(rec, "init save", rec["init_save_s"], "GPU, 1 card" + (" (managed memory)" if a.managed_init else ""))
         if rc != 0:
             rec["exit_code"] = 1
             rec["error"] = f"initial state save failed (exit {rc}); see {out / 'init.log'}"
@@ -545,6 +600,8 @@ def launch(a, argv) -> int:
                 "wall_s": round(time.perf_counter() - t0, 1),
                 "ranks": [json.loads(p.read_text()) if p.exists() else None
                           for p in (out / f"forecast-receipt.r{r}.json" for r in range(a.cards))]})
+    _stage(rec, "init load + tdfi + forecast", rec["run_wall_s"],
+           f"GPU, {a.cards} cards (one process each); history on a {a.hist_workers}-process writer pool")
     # integer counters read at the end (nonfinite census per rank on the owned rows): one list, no step-path work
     rec["nonfinite_end_by_rank"] = [(r or {}).get("nonfinite_end") for r in rec["ranks"]]
     rec["ms_per_step_by_rank"] = [(r or {}).get("ms_per_step") for r in rec["ranks"]]
@@ -558,11 +615,11 @@ def launch(a, argv) -> int:
     print(f"ranks exit {codes}, history pool {wcode}, wall {rec['wall_s']} s -> {out / 'forecast-receipt.json'}",
           flush=True)
     if ok and not a.no_maps:
-        return maps_only(str(a.case), out, a.case_dir)
+        return maps_only(str(a.case), out, a.case_dir, not a.no_columns)
     return 0 if ok else 1
 
 
-def maps_only(case: str, out: Path, case_dir: Path | None = None) -> int:
+def maps_only(case: str, out: Path, case_dir: Path | None = None, columns: bool = True) -> int:
     """Post-run maps in a process with no CUDA context: render every history frame of <out> not yet drawn
     (frames an hourly watcher rendered are skipped) across all cores, then finish the receipt."""
     from types import SimpleNamespace
@@ -582,10 +639,24 @@ def maps_only(case: str, out: Path, case_dir: Path | None = None) -> int:
         rec["maps_error"] = f"{type(e).__name__}: {e}"
         print("MAPS ERROR", rec["maps_error"], flush=True)
     rec["maps_s"] = round(time.perf_counter() - t2, 2)
+    _stage(rec, "maps", rec["maps_s"], "all cores (rw_wrfbatch)")
+    if columns:
+        from namgpu.io import columns as colmod
+        try:
+            res = colmod.write(colmod.frames_of([out]), out / "columns")
+            rec["columns"] = {"files": len(res["files"]) - res["failed"], "failed": res["failed"],
+                              "seconds": res["seconds"], "dir": str(out / "columns"),
+                              "errors": [r.get("error") for r in res["files"] if r["rc"]][:3]}
+            _stage(rec, "columns", res["seconds"], res["parallelism"])
+            print(f"columns {rec['columns']['files']} files in {res['seconds']} s -> {out / 'columns'}", flush=True)
+        except Exception as e:  # noqa: BLE001
+            rec["columns_error"] = f"{type(e).__name__}: {e}"
+            print("COLUMNS ERROR", rec["columns_error"], flush=True)
     print(f"maps {rec.get('maps', '')} in {rec['maps_s']} s", flush=True)
     rp.write_text(json.dumps(rec, indent=1, default=str))
     print(f"receipt {rp}", flush=True)
-    return int(rec.get("exit_code", 0)) or (1 if "maps_error" in rec else 0)
+    return int(rec.get("exit_code", 0)) or (1 if ("maps_error" in rec or "columns_error" in rec
+                                                  or (rec.get("columns") or {}).get("failed")) else 0)
 
 
 if __name__ == "__main__":
