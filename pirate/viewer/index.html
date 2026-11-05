@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="logo.svg" type="image/svg+xml"><title>Pirate NAM</title>
+<style>
+:root {
+  color-scheme: dark;
+  --surface-0: #111110; --surface-1: #1a1a19; --surface-2: #262624; --border: #3a3a37;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8d8c82; --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--surface-0); color: var(--text-primary);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+header { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 10px 14px; background: var(--surface-1); border-bottom: 1px solid var(--border); }
+h1 { margin: 0 8px 0 0; font-size: 16px; font-weight: 600; align-self: center; }
+label { display: grid; gap: 2px; font-size: 12px; color: var(--text-secondary); }
+select, button { font: inherit; color: var(--text-primary); background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; min-height: 32px; }
+button { cursor: pointer; min-width: 40px; }
+button:hover, select:hover { border-color: var(--text-muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#mapwrap { position: relative; min-height: 0; overflow: hidden; background: var(--surface-0); cursor: grab; touch-action: none; }
+#mapwrap.dragging { cursor: grabbing; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#tip { position: absolute; pointer-events: none; display: none; padding: 6px 9px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 2; }
+#tip b { font-size: 14px; font-weight: 600; }
+#tip span { color: var(--text-secondary); }
+#status { position: absolute; left: 12px; top: 10px; padding: 3px 8px; background: var(--surface-1); border-radius: 6px; font-size: 12px; color: var(--text-secondary); z-index: 1; }
+#status:empty { display: none; }
+footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 14px; background: var(--surface-1); border-top: 1px solid var(--border); }
+#hour { flex: 1 1 260px; accent-color: var(--accent); min-height: 32px; }
+#stamp { min-width: 215px; font-variant-numeric: tabular-nums; }
+#stamp small { color: var(--text-secondary); font-size: 12px; }
+#legend { display: grid; gap: 2px; font-size: 12px; color: var(--text-secondary); min-width: 280px; }
+#legend canvas { width: 280px; height: 12px; border-radius: 3px; display: block; }
+#ticks { display: flex; justify-content: space-between; width: 280px; font-variant-numeric: tabular-nums; }
+.note { font-size: 12px; color: var(--text-muted); margin-left: auto; align-self: center; max-width: 340px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <img src="logo.svg" alt="" width="34" height="34" style="align-self:center"><h1>Pirate NAM</h1>
+    <label>Run <select id="run"></select></label>
+    <label>Domain <select id="domain"></select></label>
+    <label>Variable <select id="variable"></select></label>
+    <label>Area <select id="area"></select></label>
+    <span class="note">Experimental revival of the retired NAM on GPU, using WOOF-NAM. Started from GFS data, without data assimilation. Not an official forecast and not a NOAA or NCEP product. <a href="https://github.com/Pirate-Weather/pirate-nam">About</a> · <a href="data.html">Data access</a></span>
+  </header>
+  <div id="mapwrap"><canvas id="map"></canvas><div id="status"></div><div id="tip"></div></div>
+  <footer>
+    <button id="prev" aria-label="Previous hour">‹</button>
+    <button id="play" aria-label="Play">▶</button>
+    <button id="next" aria-label="Next hour">›</button>
+    <label>Speed <select id="speed"><option value="1000">Slow</option><option value="400" selected>Normal</option><option value="150">Fast</option></select></label>
+    <input id="hour" type="range" min="0" max="0" value="0" aria-label="Forecast hour">
+    <div id="stamp"></div>
+    <div id="legend"><div id="legtitle"></div><canvas id="bar" width="280" height="12"></canvas><div id="ticks"></div></div>
+  </footer>
+</div>
+<script>
+"use strict";
+// Page and data share an origin-relative layout, so the page works from the bucket or any static server.
+const BASE = new URLSearchParams(location.search).get("base") || ".";
+const $ = id => document.getElementById(id);
+
+// Sequential: one hue light to dark on a dark surface (dim to bright). Diverging: two hues around a neutral midpoint.
+const SEQ_BLUE = ["#14233a", "#1c4a80", "#2a78d6", "#7fb2ee", "#dbeafc"];
+const SEQ_VIOLET = ["#1f1a3d", "#3d2f8f", "#6250d6", "#a79cf0", "#ece9fd"];
+const SEQ_AQUA = ["#0e2a24", "#0f5f49", "#1baf7a", "#7fe0bb", "#def9ee"];
+const SEQ_GRAY = ["#1d1d1c", "#4a4a47", "#85847c", "#c3c2b7", "#f6f5f0"];
+const DIV = ["#86b6ef", "#3987e5", "#184f95", "#383835", "#8f3a1c", "#d95926", "#f2a487"];
+// Value ranges are fixed per variable so colors mean the same thing at every hour and in every run.
+const SCALES = {
+  t2m: { stops: DIV, min: -35, max: 35 }, d2m: { stops: DIV, min: -35, max: 35 }, t850: { stops: DIV, min: -30, max: 30 },
+  mslp: { stops: DIV, min: 980, max: 1040 }, z500: { stops: DIV, min: 510, max: 590 },
+  wind10: { stops: SEQ_VIOLET, min: 0, max: 25 }, gust: { stops: SEQ_VIOLET, min: 0, max: 35 }, wind250: { stops: SEQ_VIOLET, min: 0, max: 90 },
+  apcp: { stops: SEQ_AQUA, min: 0.25, max: 75, log: true, clearBelow: 0.25 }, pwat: { stops: SEQ_AQUA, min: 0, max: 60 },
+  refc: { stops: SEQ_BLUE, min: 5, max: 65, clearBelow: 5 }, cape: { stops: SEQ_VIOLET, min: 100, max: 3500, clearBelow: 100 },
+  tcdc: { stops: SEQ_GRAY, min: 0, max: 100 }, snod: { stops: SEQ_BLUE, min: 0.5, max: 100, log: true, clearBelow: 0.5 },
+};
+// Areas are geographic boxes, projected onto whichever rotated grid the selected domain uses.
+const AREAS = {
+  "Full domain": null, "Contiguous US": [-127, 23, -65, 50], "Pacific Northwest": [-126, 41, -110, 50], "California": [-126, 32, -113, 43],
+  "Southwest": [-118, 30, -102, 42], "Rockies": [-114, 36, -100, 49], "Great Plains": [-106, 30, -92, 49], "Midwest": [-98, 36, -80, 49],
+  "Northeast": [-82, 38, -66, 48], "Southeast": [-92, 24, -74, 38], "Gulf Coast": [-98, 25, -82, 34], "Southern Canada": [-130, 45, -55, 60], "Alaska": [-170, 52, -130, 72],
+};
+
+const state = { runs: [], meta: null, run: null, domain: null, variable: "t2m", hour: 0, view: null, playing: false, frames: new Map(), geo: null };
+const cv = $("map"), ctx = cv.getContext("2d"), off = document.createElement("canvas");
+
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function buildLut(sc) {
+  const lut = new Uint8ClampedArray(256 * 3), rgb = sc.stops.map(hexRgb);
+  for (let i = 0; i < 256; i++) {
+    const p = i / 255 * (rgb.length - 1), a = Math.min(Math.floor(p), rgb.length - 2), t = p - a;
+    for (let c = 0; c < 3; c++) lut[i * 3 + c] = rgb[a][c] + (rgb[a + 1][c] - rgb[a][c]) * t;
+  }
+  return lut;
+}
+const LUTS = Object.fromEntries(Object.entries(SCALES).map(([k, s]) => [k, buildLut(s)]));
+function norm(sc, v) {
+  const t = sc.log ? Math.log(Math.max(v, sc.min) / sc.min) / Math.log(sc.max / sc.min) : (v - sc.min) / (sc.max - sc.min);
+  return Math.max(0, Math.min(1, t));
+}
+
+// Rotated-pole coordinates of the NMM-B grid, matching the transform in module_INIT_READ / NPS.
+const R = Math.PI / 180;
+function toRot(lat, lon, m) {
+  const tp = m.tph0 * R, dl = (lon - m.tlm0) * R, la = lat * R;
+  const x = Math.cos(tp) * Math.cos(la) * Math.cos(dl) + Math.sin(tp) * Math.sin(la);
+  const y = Math.cos(la) * Math.sin(dl);
+  const z = Math.cos(tp) * Math.sin(la) - Math.sin(tp) * Math.cos(la) * Math.cos(dl);
+  return [Math.atan2(y, x) / R, Math.asin(Math.max(-1, Math.min(1, z))) / R];
+}
+function fromRot(rx, ry, m) {
+  const tp = m.tph0 * R, a = rx * R, b = ry * R;
+  const x = Math.cos(b) * Math.cos(a), y = Math.cos(b) * Math.sin(a), z = Math.sin(b);
+  const sinLat = Math.sin(tp) * x + Math.cos(tp) * z;
+  const lat = Math.asin(sinLat) / R;
+  const lon = m.tlm0 + Math.atan2(y, Math.cos(tp) * x - Math.sin(tp) * z) / R;
+  return [lat, ((lon + 540) % 360) - 180];
+}
+// Grid index space: i = (rx - wbd)/dlon, j = (ry - sbd)/dlat, with j growing northward.
+const toGrid = (lat, lon, m) => { const [rx, ry] = toRot(lat, lon, m); return [(rx - m.wbd) / m.dlon, (ry - m.sbd) / m.dlat]; };
+
+async function json(path) {
+  const r = await fetch(`${BASE}/${path}`);
+  if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+  return r.json();
+}
+async function loadFrame(v, h) {
+  const key = `${state.run}/${state.domain}/${v}/${h}`;
+  if (state.frames.has(key)) return state.frames.get(key);
+  const p = (async () => {
+    const r = await fetch(`${BASE}/${state.run}/${state.domain}/zarr/${v}/${h}.0.0`);
+    if (!r.ok) throw new Error(`frame ${v} f${h}: HTTP ${r.status}`);
+    const stream = r.body.pipeThrough(new DecompressionStream("gzip"));
+    return new Int16Array(await new Response(stream).arrayBuffer());
+  })();
+  state.frames.set(key, p);
+  p.catch(() => state.frames.delete(key));
+  return p;
+}
+function evict() {
+  // Frames are about 1.6 MB raw on the parent and 5 MB on the nest; keep memory bounded across variable changes.
+  const prefix = `${state.run}/${state.domain}/${state.variable}/`;
+  for (const k of state.frames.keys()) if (!k.startsWith(prefix)) state.frames.delete(k);
+}
+function preload() {
+  const v = state.variable, run = state.run, n = state.meta.fhrs.length;
+  let next = 0, done = 0;
+  const pump = async () => {
+    while (next < n && run === state.run && v === state.variable) {
+      const h = (state.hour + next++) % n;
+      try { await loadFrame(v, h); } catch (e) { /* the frame reports its own error if the user reaches it */ }
+      done++;
+      setStatus(done < n && !state.playing ? `Loading frames ${done}/${n}` : "");
+    }
+  };
+  for (let i = 0; i < 4; i++) pump();
+}
+const setStatus = t => { $("status").textContent = t; };
+
+let curData = null;
+function paintFrame(data) {
+  const m = state.meta, v = state.variable, sc = SCALES[v], at = m.vars[v], lut = LUTS[v];
+  if (off.width !== m.nx || off.height !== m.ny) { off.width = m.nx; off.height = m.ny; }
+  const octx = off.getContext("2d"), img = octx.createImageData(m.nx, m.ny), px = img.data;
+  const sf = at.scale_factor;
+  for (let j = 0; j < m.ny; j++) {
+    const row = (m.ny - 1 - j) * m.nx, src = j * m.nx; // Data rows run south to north; the image is top-down.
+    for (let i = 0; i < m.nx; i++) {
+      const raw = data[src + i], o = (row + i) * 4;
+      if (raw === -32768) continue;
+      const val = raw * sf;
+      if (sc.clearBelow !== undefined && val < sc.clearBelow) continue;
+      const c = Math.round(norm(sc, val) * 255) * 3;
+      px[o] = lut[c]; px[o + 1] = lut[c + 1]; px[o + 2] = lut[c + 2]; px[o + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  curData = data;
+  draw();
+}
+function fit() {
+  const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1;
+  cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+}
+function setArea(name) {
+  const m = state.meta, box = AREAS[name];
+  let x0 = 0, x1 = m.nx, y0 = 0, y1 = m.ny;
+  if (box) {
+    // Project the box edge densely: straight lat/lon lines curve on the rotated grid.
+    let a = [Infinity, -Infinity, Infinity, -Infinity];
+    for (let t = 0; t <= 40; t++) for (const [la, lo] of [[box[1], box[0] + (box[2] - box[0]) * t / 40], [box[3], box[0] + (box[2] - box[0]) * t / 40], [box[1] + (box[3] - box[1]) * t / 40, box[0]], [box[1] + (box[3] - box[1]) * t / 40, box[2]]]) {
+      const [i, j] = toGrid(la, lo, m);
+      a = [Math.min(a[0], i), Math.max(a[1], i), Math.min(a[2], j), Math.max(a[3], j)];
+    }
+    x0 = Math.max(0, a[0]); x1 = Math.min(m.nx, a[1]); y0 = Math.max(0, a[2]); y1 = Math.min(m.ny, a[3]);
+    if (x1 - x0 < 5 || y1 - y0 < 5) { x0 = 0; x1 = m.nx; y0 = 0; y1 = m.ny; } // Area lies outside this domain.
+  }
+  state.view = { x0, x1, y0, y1 };
+  draw();
+}
+// Uniform scale, centered: returns the transform from grid index to canvas pixels for the current view.
+function tf() {
+  const v = state.view, s = Math.min(cv.width / (v.x1 - v.x0), cv.height / (v.y1 - v.y0));
+  const ox = (cv.width - (v.x1 - v.x0) * s) / 2 - v.x0 * s, oy = (cv.height + (v.y1 - v.y0) * s) / 2 + v.y0 * s;
+  return { s, ox, oy, x: i => ox + i * s, y: j => oy - j * s, i: px => (px - ox) / s, j: py => (oy - py) / s };
+}
+function draw() {
+  if (!state.view || !state.meta) return;
+  const m = state.meta, t = tf(), at = m.vars[state.variable];
+  ctx.fillStyle = "#111110"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.imageSmoothingEnabled = t.s < 6;
+  // Wind speed lives on V points, half a cell north-east of the H points the image is anchored to.
+  const off5 = at.stagger_v ? 0.5 : 0;
+  if (curData) ctx.drawImage(off, t.x(off5 - 0.5), t.y(m.ny - 0.5 + off5), m.nx * t.s, m.ny * t.s);
+  drawGeo(t);
+}
+function drawGeo(t) {
+  if (!state.geo) return;
+  const d = devicePixelRatio || 1;
+  ctx.lineJoin = "round";
+  for (const [lines, color, width] of [[state.geo.states, "rgba(240,239,236,.30)", 0.6], [state.geo.borders, "rgba(240,239,236,.70)", 0.9], [state.geo.coast, "rgba(240,239,236,.85)", 1]]) {
+    ctx.strokeStyle = color; ctx.lineWidth = width * d; ctx.beginPath();
+    for (const seg of lines) {
+      let pen = false, prev = 0;
+      for (let k = 0; k < seg.length; k += 2) {
+        const [gi, gj] = toGrid(seg[k + 1], seg[k], state.meta);
+        const out = gi < -60 || gj < -60 || gi > state.meta.nx + 60 || gj > state.meta.ny + 60;
+        if (out || (pen && Math.abs(gi - prev) > state.meta.nx / 2)) { pen = false; prev = gi; if (out) continue; }
+        const X = t.x(gi), Y = t.y(gj);
+        pen ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); pen = true; prev = gi;
+      }
+    }
+    ctx.stroke();
+  }
+}
+function drawLegend() {
+  const sc = SCALES[state.variable], at = state.meta.vars[state.variable], b = $("bar"), c = b.getContext("2d"), lut = LUTS[state.variable];
+  for (let x = 0; x < b.width; x++) {
+    const i = Math.round(x / (b.width - 1) * 255) * 3;
+    c.fillStyle = `rgb(${lut[i]},${lut[i + 1]},${lut[i + 2]})`; c.fillRect(x, 0, 1, b.height);
+  }
+  $("legtitle").textContent = `${at.long_name} (${at.units})`;
+  const fmt = v => (Math.abs(v) >= 100 || Number.isInteger(v) ? Math.round(v) : +v.toFixed(1));
+  const ticks = [0, .25, .5, .75, 1].map(t => sc.log ? sc.min * Math.pow(sc.max / sc.min, t) : sc.min + (sc.max - sc.min) * t);
+  $("ticks").innerHTML = ticks.map(v => `<span>${fmt(v)}</span>`).join("");
+}
+function stamp() {
+  const c = state.run, fh = state.meta.fhrs[state.hour];
+  const t0 = Date.UTC(+c.slice(0, 4), +c.slice(4, 6) - 1, +c.slice(6, 8), +c.slice(8, 10));
+  const v = new Date(t0 + fh * 3600e3);
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  $("stamp").innerHTML = `<b>F${String(fh).padStart(2, "0")}</b> ${days[v.getUTCDay()]} ${v.toISOString().slice(0, 13).replace("T", " ")}Z<br><small>Run ${c.slice(0, 4)}-${c.slice(4, 6)}-${c.slice(6, 8)} ${c.slice(8, 10)}Z</small>`;
+}
+let token = 0;
+async function show() {
+  const mine = ++token, h = state.hour, v = state.variable;
+  $("hour").value = h; stamp();
+  try {
+    const data = await loadFrame(v, h);
+    if (mine === token) { paintFrame(data); writeHash(); }
+  } catch (e) { if (mine === token) setStatus(String(e.message || e)); }
+}
+function writeHash() {
+  const a = $("area").value;
+  history.replaceState(null, "", `#${state.run}/${state.domain}/${state.variable}/${state.hour}/${encodeURIComponent(a)}`);
+}
+let timer = null;
+function setPlaying(p) {
+  state.playing = p; $("play").textContent = p ? "⏸" : "▶"; $("play").setAttribute("aria-label", p ? "Pause" : "Play");
+  clearTimeout(timer);
+  if (p) tick();
+}
+async function tick() {
+  if (!state.playing) return;
+  const started = performance.now();
+  state.hour = (state.hour + 1) % state.meta.fhrs.length;
+  await show();
+  // Waits for the frame so slow connections slow the animation rather than skip hours.
+  timer = setTimeout(tick, Math.max(0, +$("speed").value - (performance.now() - started)));
+}
+async function selectDomain() {
+  state.domain = $("domain").value;
+  const z = await json(`${state.run}/${state.domain}/zarr/.zmetadata`), md = z.metadata;
+  const m = { ...md[".zattrs"], vars: {} };
+  for (const k of Object.keys(md)) if (k.endsWith("/.zattrs")) m.vars[k.split("/")[0]] = md[k];
+  state.meta = m; curData = null;
+  const sel = $("variable"), keep = sel.value || state.variable;
+  sel.innerHTML = Object.keys(SCALES).filter(k => m.vars[k]).map(k => `<option value="${k}">${m.vars[k].long_name}</option>`).join("");
+  sel.value = m.vars[keep] ? keep : "t2m"; state.variable = sel.value;
+  $("hour").max = m.fhrs.length - 1;
+  state.hour = Math.min(state.hour, m.fhrs.length - 1);
+  setArea($("area").value); drawLegend(); await show(); preload();
+}
+async function selectRun() {
+  state.run = $("run").value;
+  const r = state.runs.find(x => x.cycle === state.run);
+  const d = $("domain"), keep = d.value;
+  d.innerHTML = r.domains.map(x => `<option value="${x}">${x === "parent" ? "12 km parent" : x === "conus" ? "3 km CONUS nest" : x === "woof" ? "12 km Pirate NAM" : x}</option>`).join("");
+  if (r.domains.includes(keep)) d.value = keep;
+  await selectDomain();
+}
+function bind() {
+  $("run").onchange = () => { state.frames.clear(); selectRun(); };
+  $("domain").onchange = () => { state.frames.clear(); selectDomain(); };
+  $("variable").onchange = e => { state.variable = e.target.value; evict(); drawLegend(); show(); preload(); };
+  $("area").onchange = e => { setArea(e.target.value); writeHash(); };
+  $("hour").oninput = e => { setPlaying(false); state.hour = +e.target.value; show(); };
+  $("play").onclick = () => setPlaying(!state.playing);
+  const step = s => { setPlaying(false); const n = state.meta.fhrs.length; state.hour = (state.hour + s + n) % n; show(); };
+  $("prev").onclick = () => step(-1); $("next").onclick = () => step(1);
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "SELECT") return;
+    if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
+    else if (e.key === " ") { e.preventDefault(); setPlaying(!state.playing); }
+  });
+  addEventListener("resize", () => { fit(); draw(); });
+  const wrap = $("mapwrap"); let drag = null;
+  const pos = e => { const r = cv.getBoundingClientRect(), d = devicePixelRatio || 1; return [(e.clientX - r.left) * d, (e.clientY - r.top) * d]; };
+  wrap.addEventListener("wheel", e => {
+    e.preventDefault();
+    const t = tf(), [px, py] = pos(e), i = t.i(px), j = t.j(py), k = e.deltaY > 0 ? 1.2 : 1 / 1.2, v = state.view;
+    state.view = { x0: i + (v.x0 - i) * k, x1: i + (v.x1 - i) * k, y0: j + (v.y0 - j) * k, y1: j + (v.y1 - j) * k };
+    draw();
+  }, { passive: false });
+  wrap.addEventListener("pointerdown", e => { drag = { p: pos(e), v: { ...state.view } }; wrap.classList.add("dragging"); wrap.setPointerCapture(e.pointerId); $("tip").style.display = "none"; });
+  wrap.addEventListener("pointerup", () => { drag = null; wrap.classList.remove("dragging"); });
+  wrap.addEventListener("pointerleave", () => { $("tip").style.display = "none"; });
+  wrap.addEventListener("pointermove", e => {
+    const t = tf(), [px, py] = pos(e);
+    if (drag) {
+      const dx = (px - drag.p[0]) / t.s, dy = (py - drag.p[1]) / t.s, v = drag.v;
+      state.view = { x0: v.x0 - dx, x1: v.x1 - dx, y0: v.y0 + dy, y1: v.y1 + dy }; draw(); return;
+    }
+    if (!curData) return;
+    const m = state.meta, at = m.vars[state.variable], off5 = at.stagger_v ? 0.5 : 0;
+    const i = Math.round(t.i(px) - off5), j = Math.round(t.j(py) - off5), tip = $("tip");
+    if (i < 0 || j < 0 || i >= m.nx || j >= m.ny) { tip.style.display = "none"; return; }
+    const raw = curData[j * m.nx + i], [lat, lon] = fromRot(m.wbd + (i + off5) * m.dlon, m.sbd + (j + off5) * m.dlat, m);
+    const sc = SCALES[state.variable], num = raw * at.scale_factor;
+    const val = raw === -32768 ? "no data" : sc.clearBelow !== undefined && num < sc.clearBelow ? `below ${sc.clearBelow} ${at.units}` : `${num.toFixed(at.scale_factor >= 1 ? 0 : 1)} ${at.units}`;
+    tip.innerHTML = `<b>${val}</b><br><span>${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? "E" : "W"}</span>`;
+    const r = wrap.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    tip.style.display = "block";
+    tip.style.left = `${Math.min(x + 14, r.width - tip.offsetWidth - 6)}px`;
+    tip.style.top = `${Math.max(6, y - tip.offsetHeight - 8)}px`;
+  });
+}
+async function main() {
+  fit(); bind();
+  $("area").innerHTML = Object.keys(AREAS).map(a => `<option>${a}</option>`).join("");
+  const [hRun, hDom, hVar, hHour, hArea] = location.hash.slice(1).split("/");
+  try {
+    state.runs = (await json("runs.json")).runs.sort((a, b) => b.cycle.localeCompare(a.cycle));
+    $("run").innerHTML = state.runs.map(r => `<option value="${r.cycle}">${r.cycle.slice(0, 4)}-${r.cycle.slice(4, 6)}-${r.cycle.slice(6, 8)} ${r.cycle.slice(8, 10)}Z</option>`).join("");
+    if (state.runs.some(r => r.cycle === hRun)) $("run").value = hRun;
+    if (hVar) { state.variable = hVar; $("variable").innerHTML = `<option value="${hVar}"></option>`; $("variable").value = hVar; }
+    if (hHour) state.hour = +hHour;
+    $("area").value = (hArea && AREAS[decodeURIComponent(hArea)] !== undefined) ? decodeURIComponent(hArea) : "Contiguous US";
+    const r = state.runs.find(x => x.cycle === $("run").value);
+    $("domain").innerHTML = r.domains.map(x => `<option value="${x}">${x}</option>`).join("");
+    if (r.domains.includes(hDom)) $("domain").value = hDom;
+    await selectRun();
+    state.geo = await json("geo/lines.json");
+    draw();
+  } catch (e) { setStatus(`Could not load data: ${e.message || e}`); }
+}
+main();
+</script>
+</body>
+</html>
