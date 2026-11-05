@@ -5,7 +5,7 @@ WOOF-NAM is a GPU port of NOAA/NCEP's North American Mesoscale model (NAM, nam.v
 on one NVIDIA card or on several cards of one machine. NCEP retired the NAM on 2026-11-03 12Z; this
 package keeps the model running.
 
-Distribution name `recast-woof-nam`, import name `namgpu`, version 0.1.0. Not on PyPI yet: install from GitHub (below) or from the wheel attached to the GitHub release.
+Distribution name `recast-woof-nam` (on PyPI: `pip install recast-woof-nam`), import name `namgpu`, command `woof-nam`, version 0.1.1.
 
 ## What it looks like
 
@@ -65,7 +65,7 @@ The +12 h sheets and the other maps are in [docs/evidence/](docs/evidence/).
 
 ```
 python3 -m venv woof-nam-venv && source woof-nam-venv/bin/activate
-pip install "recast-woof-nam @ git+https://github.com/recastsystems/woof-nam.git"   # or, in a clone: pip install .
+pip install recast-woof-nam          # or from GitHub: pip install "recast-woof-nam @ git+https://github.com/recastsystems/woof-nam.git"
 gpuwm fetch-geog --datasets topo_gmted2010_30s --root ~/WPS_GEOG              # GMTED2010 terrain, 174 MB download
 ```
 
@@ -361,7 +361,7 @@ One RTX PRO 6000, 96 GB (full memory path), fresh clone and wheel install, 2025-
   `woof-nam run`, start state and maps included. Every field finite at the end.
 - **Memory:** the forecast's pool ended at 74 GiB; the card peaked at 84.5 GB.
 
-The fit memory path (taken by itself on cards under 64 GB), 0.1.1.dev9, 2026-11-05. Each run starts from one saved
+The fit memory path (taken by itself on cards under 64 GB), 0.1.1, 2026-11-05. Each run starts from one saved
 initial state (`--init-from`), runs the digital filter and then the forecast with hourly history; the peak is the
 forecast process on the card (NVML, sampled every 10 ms). Every history value is the same as with 0.1.1.dev6, which
 peaked where the last column says.

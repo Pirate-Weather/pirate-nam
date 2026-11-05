@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-11-05)
+
+- On PyPI as `recast-woof-nam` (`pip install recast-woof-nam`); the command stays `woof-nam` and the import name
+  stays `namgpu`.
+- 3 km nests anywhere (`woof-nam nest`), from GFS or from a WOOF-NAM 12 km parent run.
+- GRIB2 products in the NAM awphys shape (`woof-nam products`).
+- ERA5 (`--source era5`) and ECMWF IFS (`--source ifs`, `ifs-0p25`) starts, beside GFS and the archived NAM analysis.
+- Restarts: `woof-nam run --restart-every N` and `--resume`, byte-identical to a straight run.
+- SPD10MAX is the hourly maximum 10 m speed in m/s; wind maps over 60 kt use a 0-140 kt scale.
+- Maps draw coastlines, borders and states from a bare pip install (the basemap ships in the wheel).
+- `woof-nam licence-check` finds the installed distribution that ships namgpu, whatever its name.
 
 - Less GPU memory, same output: one device memory pool per run that grows only when a request needs it (never past
   `CUPY_GPU_MEMORY_LIMIT` when that is set) and hands unused blocks back after each init stage, radiation call and
