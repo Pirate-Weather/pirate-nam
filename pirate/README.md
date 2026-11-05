@@ -1,6 +1,6 @@
 # Pirate NAM code
 
-This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unchanged, so `git merge upstream/main` stays simple.
+This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unchanged, so `git merge upstream/main` stays simple, except for the root README, which is ours and should keep our version.
 
 | Folder | What it does |
 |---|---|
@@ -13,7 +13,7 @@ This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unc
 | `infra/` | Creates and sets up an OVHcloud GPU machine |
 | `viewer/` | The static map viewer and data page |
 
-**This isn't turnkey yet.** `prod/run_cycle.sh` runs a live cycle, but it's new and assumes a machine already set up by `infra/`. Its first live run is still in progress.
+**This isn't turnkey yet.** `prod/run_cycle.sh` runs a live cycle, but it's new and assumes a machine already set up by `infra/`.
 
 **Tested against upstream commit `93d85e3`.** This fork's `main` is newer, and upstream has changed `driver.py` and `bnd_read_bc.py` since, both of which the cycle depends on. Retest before relying on a newer version.
 

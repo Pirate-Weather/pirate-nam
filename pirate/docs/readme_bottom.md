@@ -9,7 +9,7 @@
 
 | 84-hour forecast | Time | Cost (OVHcloud) | Status |
 |---|---|---|---|
-| GSI cycle, two cards (t2-90), the production setup | About 2 h | About CAD 4.60 | Estimated from measured parts; first live run in progress |
+| GSI cycle, two cards (t2-90), the production setup | About 2 h | About CAD 4.60 | Estimated from measured parts; times to be replaced with measured ones |
 | GSI cycle, one card (t2-45) | About 3.2 h | About CAD 3.70 | Estimated from measured parts |
 | WOOF-NAM from GFS, one card | About 2.2 h | About CAD 2.55 | Scaled from a measured 48-hour run |
 
@@ -17,9 +17,4 @@ Times are for the model and GSI. Fetching inputs, post-processing and upload add
 
 ## Credits
 
-The NAM, NMMB and GSI were developed by NOAA/NCEP and its collaborators. WOOF-NAM is by Recast Systems, under the Apache 2.0 licence; its `LICENSE` and `NOTICE` are unchanged here. Input data comes from NOAA's GFS, GEFS, RAP and MRMS. Pirate NAM isn't affiliated with or endorsed by NOAA, NCEP or Recast Systems.
-
----
-
-*Everything below is WOOF-NAM's own README, unchanged.*
-
+The NAM, NMMB and GSI were developed by NOAA/NCEP and its collaborators. WOOF-NAM is by Recast Systems, under the Apache 2.0 licence; its `LICENSE` and `NOTICE` are unchanged here. For how the model itself works, see [WOOF-NAM's README](https://github.com/recastsystems/woof-nam#readme). Input data comes from NOAA's GFS, GEFS, RAP and MRMS. Pirate NAM isn't affiliated with or endorsed by NOAA, NCEP or Recast Systems.

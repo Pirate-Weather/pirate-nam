@@ -8,13 +8,23 @@ Keeping the retired North American Mesoscale model sailing, on one GPU machine.
 
 **[Map viewer](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) · [Data access (GRIB2 and Zarr)](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html)**
 
+## Why it's built this way
+
+**The goal is to produce the forecast the NAM would have produced.** So Pirate NAM keeps as much of the legacy NAM pipeline as it can, and changes something only when it has to:
+
+- **Same model design:** the NMMB model and the NAM's physics, through WOOF-NAM's GPU port.
+- **Same analysis program:** NOAA's own GSI, unmodified, with the NAM's configuration.
+- **Same structure:** a 6-hour catch-up before each forecast, using a GFS cycle 6 hours older than the forecast for boundaries, on the NAM's 12 km grid, out to 84 hours.
+
+A change is made when an input no longer exists, such as the NAM's own observation files, or when testing shows it makes no measurable difference to how closely the result matches the NAM, such as running fewer analyses. Closeness to the archived NAM is the yardstick for every decision here, not accuracy against observations.
+
 ## What it is
 
-NOAA retired the NAM on 3 November 2026. Pirate NAM runs the same model design on a much smaller machine by combining two existing pieces of work: [WOOF-NAM](https://github.com/recastsystems/woof-nam), an independent GPU port of the NAM's NMMB model, and NOAA's GSI, the Fortran program that blends observations into a model state. Its goal is to stay as close as practical to what the NAM would have produced.
+NOAA retired the NAM on 3 November 2026. Pirate NAM runs it on a single two-card GPU machine by combining two existing pieces of work: [WOOF-NAM](https://github.com/recastsystems/woof-nam), an independent GPU port of the NAM's NMMB model, and NOAA's GSI, the Fortran program that blends observations into a model state.
 
-**Where this stands:** Pirate NAM is being set up to run 84-hour forecasts, the same length as the NAM's 12 km forecast, with GSI adding observations. That setup hasn't completed a live run yet. The forecast on the map viewer today is a 48-hour run of WOOF-NAM started directly from GFS, without observations.
+The GPU port makes this practical: an 84-hour forecast takes about an hour on two cards, on a machine that costs about CAD 2.32 an hour.
 
-## How the tested cycle works
+## How a cycle works
 
 Like the NAM, it runs a 6-hour catch-up before the forecast, so the model has absorbed recent observations by the time the forecast starts. For a 00Z forecast:
 
@@ -28,11 +38,56 @@ Like the NAM, it runs a 6-hour catch-up before the forecast, so the model has ab
 
 WOOF-NAM forecasts on the GPU between analyses, with the model state kept on the card. At each analysis, its fields are written into a real NMMB restart file, GSI runs on that file unchanged, and whatever GSI changed goes back onto the card.
 
+## Outputs
+
+Every forecast is published as hourly fields from 0 to 84 hours, on the NAM's 12 km rotated latitude-longitude grid (954 × 835). The newest 8 cycles are kept, and [runs.json](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/runs.json) lists what's available.
+
+| Product | What it's for | Where |
+|---|---|---|
+| **Map viewer** | Browsing a forecast in a browser | [index.html](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) |
+| **GRIB2** | Full field set, for forecast tools | `<YYYYMMDDHH>/woof/grib/woofnam.t<HH>z.f<FFF>.grib2`, 85 files of about 41 MB |
+| **Zarr** | A smaller field set for Python, with no server or download step | `<YYYYMMDDHH>/woof/zarr` |
+
+All paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`. See the [data access page](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html) for details.
+
+**GRIB2 fields**
+
+| Level | Fields |
+|---|---|
+| 1000, 925, 850, 700, 500, 300 and 250 mb | Temperature, wind, height, relative humidity |
+| 2 m | Temperature, dew point |
+| 10 m | Wind |
+| Surface | Pressure |
+| Mean sea level | Pressure |
+| Whole atmosphere | Composite reflectivity, precipitable water |
+| Accumulated | Precipitation, since the start and hourly |
+
+**Zarr variables**
+
+| Variable | Field | Units |
+|---|---|---|
+| `t2m`, `d2m` | 2 m temperature and dew point | °C |
+| `mslp` | Sea level pressure | mb |
+| `wind10`, `wind250` | 10 m and 250 mb wind speed | m/s |
+| `apcp` | Precipitation since the start | mm |
+| `refc` | Composite reflectivity | dBZ |
+| `pwat` | Precipitable water | mm |
+| `z500` | 500 mb height | dam |
+| `t850` | 850 mb temperature, missing below ground | °C |
+
+```python
+import xarray as xr
+ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110512/woof/zarr", consolidated=True)
+ds.t2m.sel(fhr=24)
+```
+
+Forecast hour is the time coordinate, and `latitude` and `longitude` are 2D. GRIB2 files have no originating centre set, because this isn't a product of any weather centre.
+
 ## Compared with NOAA's NAM and WOOF-NAM
 
-| | NOAA NAM v4.2 | WOOF-NAM as released | Pirate NAM (tested cycle) |
+| | NOAA NAM v4.2 | WOOF-NAM as released | Pirate NAM |
 |---|---|---|---|
-| **Status** | Retired 3 Nov 2026 | Open source | Experimental; GFS-start version live |
+| **Status** | Retired 3 Nov 2026 | Open source | Experimental, running |
 | **Model** | NMMB, Fortran | Same design, ported to GPU | WOOF-NAM, unchanged |
 | **Numerics** | The reference | Single precision, not bit-identical to the NAM | Same as WOOF-NAM |
 | **Hardware** | Supercomputer | One or more NVIDIA cards | Two V100S cards, 30 CPUs, 90 GB. One card, 15 CPUs and 45 GB also works, more slowly |
@@ -51,5 +106,5 @@ WOOF-NAM forecasts on the GPU between analyses, with the model state kept on the
 
 All scores are RMSE against the archived NAM forecast for the 00Z 3 November 2026 cycle, on the NAM's own output grid. Lower means closer to the NAM.
 
-**These tests used the NAM's final observation files, which live runs can't.** Live runs use RAP's files instead, and scores with those are still to come. These tests were also scored only to 36 hours, so the 84-hour forecast is unverified beyond that.
+**These tests used the NAM's final observation files, which live runs can't.** Live runs use RAP's files instead, and scores with those are still to come. These tests were also scored only to 36 hours, so hours 36 to 84 are unverified.
 
