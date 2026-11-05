@@ -93,8 +93,10 @@ extern "C" __global__ void rrtm_lw_taugb10(
     const float* __restrict__ forref,       // [MFR10=4, NG10]
     const float* __restrict__ fracrefa,     // [NG10]
     const float* __restrict__ fracrefb,     // [NG10]
-    float* __restrict__ taug,               // [nlay, NGPT_LW, JM, IM]
-    float* __restrict__ fracs)              // [nlay, NGPT_LW, JM, IM]
+    float* __restrict__ taug,               // [nlay, NGPT_LW, JM, IM] (or g-first [NGPT_LW, nlay, JM, IM], see ostr_*)
+    float* __restrict__ fracs,              // same layout as taug
+    const long long ostr_k,                 // output stride of one layer: NGPT_LW*JM*IM layer first, JM*IM g first
+    const long long ostr_g)                 // output stride of one g-point: JM*IM layer first, nlay*JM*IM g first
 {
     const int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col >= im * jm) return;
@@ -108,7 +110,7 @@ extern "C" __global__ void rrtm_lw_taugb10(
     const int lay = min(max(laytrop[ij], 0), nlay);   // IDX2(i0, j0, IM)
 
     // Output index of [l0, g0, j0, i0] in the [nlay, NGPT_LW, JM, IM] arrays.
-#define OUTIDX(l0_, g0_) ((((size_t)(l0_)) * NGPT_LW + (size_t)(g0_)) * plane + ij)
+#define OUTIDX(l0_, g0_) (((size_t)(l0_)) * (size_t)ostr_k + (size_t)(g0_) * (size_t)ostr_g + ij)
     // Input index of [l0, j0, i0] in the [nlay, JM, IM] arrays.
 #define INIDX(l0_) ((size_t)(l0_) * plane + ij)
 

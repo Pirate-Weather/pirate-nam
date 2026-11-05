@@ -19,7 +19,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .steps import drv_timing_receipt as timing
+from . import devmem
 from .state import UNIT_SCRATCH as _UNIT_SCRATCH, STEP_SCRATCH_TABLE_PREFIXES as _TPFX, fit_on as _fit_on
+from .state import STEP_SCRATCH_TABLE_KEEP as _TKEEP
 
 from . import paths
 
@@ -158,6 +160,8 @@ DIAGNOSTICS = []                    # io-max-fields moved to the head of PHYSICS
 # advance (794-813). Driver.write_history() owns both; see Driver.run.
 # io-quasipost-driver gives the history its MSLP (module_QUASIPOST, the NMMB in-model post).
 HISTORY_UNITS = ("io-wind-rotate", "io-quasipost-driver", "io-history-fields", "io-history")
+# Units the TDFI sums are moved off the card for, inside the filter, on the fit path (Driver.step).
+FILTER_SPILL_UNITS = frozenset({"phys-rad-driver"})
 
 
 def restart_flag(cfg) -> bool:
@@ -304,6 +308,13 @@ class Driver:
             out.setdefault(last, []).append(n)
         return out
 
+    def _release_dyn(self, pos):
+        """Drop the dynamics locals whose last user in DYNAMICS is entry `pos` (32 GB fit path)."""
+        if self._last_use is None:
+            self._last_use = self._scratch_last_use()
+        for _n in self._last_use.get(pos, ()):
+            self.ctx.st.fields.pop(_n, None)
+
     def _wrapper(self, uid):
         if uid not in self._mods:
             self._mods[uid] = importlib.import_module(self.units[uid]["wrapper"])
@@ -406,6 +417,7 @@ class Driver:
 
     def step(self):
         ctx = self.ctx
+        devmem.forecast_start(ctx.stream)          # first step (TDFI or forecast) ends init: lift the init pool cap
         if not ctx.tables.get("filter_consts_bound"):
             # one array per int_state constant (FAH, FAD, HDACX/Y, HDACVX/Y): drv-filter-consts
             from .steps import drv_filter_consts  # noqa: PLC0415
@@ -416,22 +428,37 @@ class Driver:
         from .steps import drv_halo_exch as halo  # noqa: PLC0415
         multi = parallel.get(ctx)                  # None on one card
         _fit = _fit_on()
+        # Fit path, inside the TDFI legs: the filter's Dolph sums (1.3 GiB at 12 km) wait in pinned host memory
+        # while the units in FILTER_SPILL_UNITS run (radiation: the filter-phase high-water mark), and are
+        # copied back before the next dyn-sum. Byte copies; drv_dfi_tdfi_driver.spill_sums.
+        _spill = _fit and bool(getattr(ctx, "filter_active", False))
         for name, entries in self.groups:
             if name == "phys" and not ctx.physics_on:    # IF(INTEGER_DT>0) (SOLVER_RUN 4929)
                 continue
             for _pos, entry in enumerate(entries):
                 uid, key = entry[0], entry[1]
-                if uid == "drv-halo-exch" and multi is None:
-                    continue                           # one card: no exchange, plan as before
-                if self.units[uid]["mode"] == "skip" or not self._due(key):
-                    continue
-                if uid in CONFIG_GATES and not CONFIG_GATES[uid](ctx.cfg):
+                if ((uid == "drv-halo-exch" and multi is None)          # one card: no exchange, plan as before
+                        or self.units[uid]["mode"] == "skip" or not self._due(key)
+                        or (uid in CONFIG_GATES and not CONFIG_GATES[uid](ctx.cfg))):
+                    if _fit and name == "dyn":
+                        # A dynamics local whose last user is an entry not due this step (the not_first entries on
+                        # the first step) was last used earlier in this step: release it here too. Before, the
+                        # first-step PGFORCE/DHT locals (~2 GiB at 12 km) stayed to the end of the group and set
+                        # the card peak. Every STEP_SCRATCH name is dropped at the group end anyway, so nothing
+                        # crosses a step either way.
+                        self._release_dyn(_pos)
                     continue
                 # optional third element: kwargs (INDX_* tracer ranges, icltend, branch, bucket block, halo row)
                 kw = ({k: (v if k in ("branch", "x") else self._resolve(v)) for k, v in entry[2].items()}
                   if len(entry) > 2 else {})
                 timing.stamp(ctx, f"{uid}/{key}")      # stage start, for the run receipt
-                self._wrapper(uid).run(ctx, **kw)
+                if _spill and uid in FILTER_SPILL_UNITS:
+                    from .steps import drv_dfi_tdfi_driver as _tdfi  # noqa: PLC0415
+                    _tdfi.spill_sums(ctx)
+                    self._wrapper(uid).run(ctx, **kw)
+                    _tdfi.unspill_sums(ctx)
+                else:
+                    self._wrapper(uid).run(ctx, **kw)
                 if halo.HALO_ALL and multi is not None:
                     halo.exchange_all(ctx)
                 if halo.UNIT_HASH:
@@ -444,13 +471,10 @@ class Driver:
                     for _n in self._phys_lu.get(_pos, ()):
                         ctx.st.fields.pop(_n, None)  # last physics user of this driver-level array is done
                 if _fit and name == "dyn":
-                    if self._last_use is None:
-                        self._last_use = self._scratch_last_use()
-                    for _n in self._last_use.get(_pos, ()):
-                        ctx.st.fields.pop(_n, None)  # last dynamics user of this local is done
+                    self._release_dyn(_pos)          # last dynamics user of these locals is done
             if name == "dyn" and _fit:
                 ctx.st.release_scratch("dyn")    # dynamics locals back to the pool before physics (state.py)
-                for _k in [k for k in ctx.tables if k.startswith(_TPFX)]:
+                for _k in [k for k in ctx.tables if k.startswith(_TPFX) and not k.startswith(_TKEEP)]:
                     del ctx.tables[_k]
         ctx.first_step = False
         ctx.ntimestep += 1
@@ -459,6 +483,10 @@ class Driver:
         """One history output: io-wind-rotate, io-history-fields (sets ctx.history_fields), io-history.
         The file is labelled with ctx.ntimestep at the call, so the caller sets the count first."""
         ctx = self.ctx
+        # io-history-fields hands the 3-D derived fields over as io_history_fields.StreamField: each is computed
+        # into one shared buffer (H_STREAM) right before its copy to the host, instead of eight full 3-D arrays
+        # at once. Only this path sets it; tools that call io-history-fields directly get plain arrays.
+        ctx.history_stream = True
         for uid in HISTORY_UNITS:
             # stamped like plan units, so the receipt splits the hourly history cost by unit instead of
             # folding it into the last step stage (it showed as a 'gap after drv-tqadjust')
@@ -498,6 +526,8 @@ class Driver:
         ctx = self.ctx
         ctx.dt = ctx.cfg.dt
         ctx.start_time = ctx.start
+        from .state import release_init_leftovers  # noqa: PLC0415
+        release_init_leftovers(ctx)                  # init-only scratch (state.py); idempotent
         if ctx.out_dir is None and ctx.start is not None:
             # Run output (history, receipt) goes to <work root>/runs/<start> unless the caller names one.
             ctx.out_dir = paths.work_root() / "runs" / f"{ctx.start:%Y%m%d_%H}"
@@ -528,6 +558,7 @@ class Driver:
                 if ctx.stream is not None:
                     ctx.stream.synchronize()
                 timing.drain(ctx)                    # timing stamps, read at the sync we already pay
+                devmem.release(ctx.stream)           # unused pool blocks back to the driver once an hour
                 wall = time.perf_counter() - t0
                 log(f"fh {ctx.ntimestep * ctx.cfg.dt / 3600.0:6.2f}  step {ctx.ntimestep}"
                     f"  wall {wall:8.1f} s  {wall / max(1, ctx.ntimestep - n0) * 1e3:7.1f} ms/step")

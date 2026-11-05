@@ -22,12 +22,30 @@ Every column is independent in RRTM, so the chunked result is the whole-domain r
 from __future__ import annotations
 
 import copy
+import re
+import weakref
 
 import numpy as np
 
 # Fields created by st.add inside the chain that are read after the radiation call (driver-post
 # outputs and its old-cloud scratch): created full-domain in the parent, not chunk-local.
 PERSIST = {"CSMID", "CCMID", "COSZDG", "RRTM_CLDCFR", "RRTM_MTOP", "RRTM_MBOT"}
+
+# One flat float32 workspace per chunk context (32 GB fit path), shared in time by the two units whose
+# g-point working sets are never live together: swrad's chunk scratch (zero-filled for every SW chunk
+# before use, its values dead when swrad returns) and the LW seam's taug/fracs pair (every element written
+# by the band units before it is read, NAMGPU_LW_FILLCHECK; dead after rtrnmr). SW runs before LW in each
+# chunk. Sized max(SW scratch, LW pair) instead of their sum: the LW pair (68 KB per column) costs nothing
+# beside the SW scratch (126 KB per column). rrtm-call allocates it; the units carve views from it.
+WS_KEY = "rrtm_call:gpoint_ws"
+
+
+def workspace(ctx):
+    """The chunk context's shared g-point workspace, or None (whole-domain callers, the full path)."""
+    t = getattr(ctx, "tables", None)
+    if isinstance(t, ChunkTables) and dict.__contains__(t, WS_KEY):
+        return dict.__getitem__(t, WS_KEY)
+    return None
 
 
 def windows(jm: int, w: int):
@@ -49,7 +67,11 @@ class _Fields(dict):
 
     def __init__(self, cst):
         super().__init__()
-        self._c = cst
+        # weak: ChunkState.fields -> _Fields -> ChunkState was a reference cycle, so a dropped chunk or band
+        # state (and every chunk copy and chunk-local array it holds) waited for Python's cyclic collector
+        # instead of going back to the pool when its call ended (memory work 2026-11-05: 12.8 GiB of
+        # dead band states live at the 333x333 forecast peak, process peak 8.1 -> 22.2 GB)
+        self._c = weakref.proxy(cst)
 
     def __contains__(self, name):
         return self._c.has(name)
@@ -151,10 +173,27 @@ class ChunkState:
     def nbytes(self):
         return int(sum(x.nbytes for x in list(self.local.values()) + list(self.bufs.values())))
 
+    def release(self):
+        """The call is over: drop every chunk copy and chunk-local array now (values are dead after writeback)."""
+        self.local.clear()
+        self.bufs.clear()
+        self.live = set()
+
+
+# Constant lookup tables the RRTM units load on first use (k-tables, reference tables, the rtrnmr
+# transmittance tables): input-independent, the same bits on every call. Written by a chunk they go to the
+# PARENT ctx.tables, so they are loaded and uploaded once per process instead of once per radiation call
+# (the 32 GB fit path drops the chunk context after every call; ~1.1 MB of device tables, ~40 npz reads).
+SHARED_TABLES = re.compile(
+    r"^(rrtm_(lw|sw)_kgb\w*|rrtm_lw_taugb\d\d_tables|rrtm_sw_taumol\d\d_tables|rrtm_(lw|sw)_setcoef_tables"
+    r"|rrtm_lw_cldprlw|rrtm_sw_cldprtb|rrtm_sw_sflux_\w+|rrtm_lw_tables|rrtm_lw_totplnk"
+    r"|rrtm_lw_taugb(04|15)_refrat|rrtm_lw_ngb|lw_core:ngb)$")
+
 
 class ChunkTables(dict):
-    """ctx.tables of a chunk: writes local; reads fall back to the parent, row-sliced when the
-    entry is a (dict of) device array(s) with trailing dims (JM, IM)."""
+    """ctx.tables of a chunk: writes local (constant lookup tables, SHARED_TABLES, go to the parent);
+    reads fall back to the parent, row-sliced when the entry is a (dict of) device array(s) with trailing
+    dims (JM, IM)."""
 
     def __init__(self, parent: dict, jm_full: int, im: int, xp):
         super().__init__()
@@ -187,8 +226,22 @@ class ChunkTables(dict):
             return dict.__getitem__(self, key)
         return self._parent(key)
 
+    def __setitem__(self, key, value):
+        if isinstance(key, str) and SHARED_TABLES.match(key):
+            self._p[key] = value
+            self._slices.pop(key, None)
+            return
+        dict.__setitem__(self, key, value)
+
     def __contains__(self, key):
         return dict.__contains__(self, key) or key in self._p
+
+    def __bool__(self):
+        # The chunk/band dict is empty until a unit writes a local entry, yet every parent table reads through it.
+        # Without this an untouched view is falsy, and "ctx.tables.get(k) if ctx.tables else None" (phys-gwd-driver,
+        # the rrtm init units) reads None: the 12 km fit path stopped at the first banded TURBL call with
+        # "phys-gwd-driver needs phys-gwd-init first" (2026-11-05, a 96 GB card with 32 GB free).
+        return dict.__len__(self) > 0 or bool(self._p)
 
     def get(self, key, default=None):
         return self[key] if key in self else default
@@ -197,6 +250,11 @@ class ChunkTables(dict):
         if key not in self:
             self[key] = default
         return self[key]
+
+    def release(self):
+        """Drop the chunk's own table entries and row slices (the parent's tables are untouched)."""
+        dict.clear(self)
+        self._slices = {}
 
 
 def chunk_grid(grid, w0: int, w1: int):
@@ -228,6 +286,11 @@ class ChunkCtx:
         object.__setattr__(self, "grid", g)
         self.st.begin(w0, w1, g)
         self.tables.begin(w0, w1)
+
+    def release(self):
+        """Free the chunk working set when the context is dropped (rrtm_call fit path)."""
+        self.st.release()
+        self.tables.release()
 
     def __getattr__(self, name):
         return getattr(self._p, name)

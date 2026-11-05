@@ -120,8 +120,10 @@ def check_inputs(inp: dict, nlay: int, jm: int, im: int):
         _require(name, inp[name], (nlay, jm, im), f32)
 
 
-def taugb04(inp: dict, tab: dict, refrat: tuple, out: dict, stream=None):
-    """One launch over every (i, j, layer). inp holds the device arrays named as in the kernel."""
+def taugb04(inp: dict, tab: dict, refrat: tuple, out: dict, stream=None, gfirst: bool = False):
+    """One launch over every (i, j, layer). inp holds the device arrays named as in the kernel.
+    gfirst=True: out holds g-first [140, nlay, JM, IM] arrays (the LW seam's canonical taug/fracs), written in
+    place; same values, only the output index differs."""
     nlay, jm, im = inp["fac00"].shape
     check_inputs(inp, nlay, jm, im)
     for name, shape in (("absa", TAB_SHAPES["absa"]), ("absb", TAB_SHAPES["absb"]),
@@ -129,7 +131,8 @@ def taugb04(inp: dict, tab: dict, refrat: tuple, out: dict, stream=None):
                         ("fracrefa", TAB_SHAPES["fracrefa"]), ("fracrefb", TAB_SHAPES["fracrefb"])):
         _require(name, tab[name], shape, np.float32)
     for name in ("taug04", "fracs04"):
-        _require(name, out[name], (nlay, NGPT, jm, im), np.float32)
+        _require(name, out[name], (NGPT, nlay, jm, im) if gfirst else (nlay, NGPT, jm, im), np.float32)
+    plane = jm * im
     kern = kernels.get(UNIT, KERNEL)
     scope = stream if stream is not None else contextlib.nullcontext()
     with scope:
@@ -141,12 +144,14 @@ def taugb04(inp: dict, tab: dict, refrat: tuple, out: dict, stream=None):
             tab["absa"], tab["absb"], tab["selfref"], tab["forref"], tab["fracrefa"], tab["fracrefb"],
             np.float32(refrat[0]), np.float32(refrat[1]),
             np.int32(im), np.int32(jm), np.int32(nlay),
-            out["taug04"], out["fracs04"]))
+            out["taug04"], out["fracs04"],
+            np.int64(plane if gfirst else NGPT * plane), np.int64(nlay * plane if gfirst else plane)))
     return out
 
 
-def run(ctx):
-    """Driver entry. Reads the setcoef state from ctx.tables; returns the band-4 outputs."""
+def run(ctx, out_gfirst=None):
+    """Driver entry. Reads the setcoef state from ctx.tables; returns the band-4 outputs.
+    out_gfirst = (taug, fracs) g-first [140, nlay, JM, IM]: write band 4 straight into them (no own pair)."""
     inp_sc = ctx.tables.get(IN_KEY)
     sc = ctx.tables.get(SETCOEF_OUT_KEY)
     if inp_sc is None or sc is None:
@@ -157,6 +162,9 @@ def run(ctx):
            "fac00": sc["fac00"], "fac01": sc["fac01"], "fac10": sc["fac10"], "fac11": sc["fac11"],
            "selffac": sc["selffac"], "selffrac": sc["selffrac"], "indself": sc["indself"],
            "forfac": sc["forfac"], "forfrac": sc["forfrac"], "indfor": sc["indfor"]}
+    if out_gfirst is not None:
+        return taugb04(inp, _tables(ctx), _refrat(ctx), {"taug04": out_gfirst[0], "fracs04": out_gfirst[1]},
+                       stream=ctx.stream, gfirst=True)
     out = ctx.tables.get(OUT_KEY)
     if out is None or out["taug04"].shape != (nlay, NGPT, jm, im):
         out = alloc_outputs(nlay, jm, im)

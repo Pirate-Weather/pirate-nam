@@ -143,6 +143,32 @@ def _spec_adv_condensate(ctx, s3):
     return cw, f_ice, f_rain
 
 
+class StreamField:
+    """A history field computed on demand into the shared buffer H_STREAM (memory work,
+    2026-11-04). The writer calls compute() right before it queues the field's copy to the host, on the same
+    stream, so the next field's kernel overwrites the buffer only after that copy (stream order). Eight full 3-D
+    history arrays (1.4 GiB at 12 km) become one. Same kernels and arithmetic as the eager form."""
+
+    __slots__ = ("shape", "_fill")
+    dtype = np.dtype(np.float32)
+
+    def __init__(self, shape, fill):
+        self.shape = tuple(shape)
+        self._fill = fill
+
+    @property
+    def ndim(self):
+        return len(self.shape)
+
+    def compute(self):
+        return self._fill()
+
+
+def device_array(arr):
+    """The device (or host) array behind a history field: StreamField computed now, anything else as is."""
+    return arr.compute() if isinstance(arr, StreamField) else arr
+
+
 def run(ctx):
     st = ctx.st
     g = ctx.grid
@@ -174,36 +200,40 @@ def run(ctx):
 
     psgml1 = _vec(ctx, "hist_psgml1", g.psgml1)
     sgml2 = _vec(ctx, "hist_sgml2", g.sgml2)
-
-    p_out = st.add("H_P", s3)
-    t_out = st.add("H_T", s3)
-    qv = st.add("H_QVAPOR", s3)
-    qc = st.add("H_QCLOUD", s3)
-    qr = st.add("H_QRAIN", s3)
-    qi = st.add("H_QICE", s3)
-    qs = st.add("H_QSNOW", s3)
-    ph = st.add("H_PH", s3s)
-    psfc = st.add("H_PSFC", s2)
-    hgt = st.add("H_HGT", s2)
-    rainnc = st.add("H_RAINNC", s2)
-    rainc = st.add("H_RAINC", s2)
-
-    k_moist = kernels.get(UNIT, "hist_moist_theta")
     k_ph = kernels.get(UNIT, "hist_ph")
     k_sfc = kernels.get(UNIT, "hist_surface")
     g3 = kernels.grid_2d(im, jm, lm)
     gcol = kernels.grid_cols(im, jm)
     g2 = kernels.grid_2d(im, jm, 1)
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
+    if getattr(ctx, "history_stream", False):
+        # the eight 3-D derived fields as StreamField (one shared H_STREAM buffer, computed as each is written)
+        d3 = _stream_fields(ctx, cw, f_ice, f_rain, psgml1, sgml2)
+    else:
+        p_out = st.add("H_P", s3)
+        t_out = st.add("H_T", s3)
+        qv = st.add("H_QVAPOR", s3)
+        qc = st.add("H_QCLOUD", s3)
+        qr = st.add("H_QRAIN", s3)
+        qi = st.add("H_QICE", s3)
+        qs = st.add("H_QSNOW", s3)
+        ph = st.add("H_PH", s3s)
+        k_moist = kernels.get(UNIT, "hist_moist_theta")
+        with scope:
+            k_moist(g3, kernels.BLOCK_2D, (
+                np.int32(im), np.int32(jm), np.int32(lm),
+                st.T, st.Q, cw, f_ice, f_rain, st.PD, psgml1, sgml2,
+                p_out, t_out, qv, qc, qr, qi, qs,
+            ))
+            k_ph(gcol, kernels.BLOCK_COL, (
+                np.int32(im), np.int32(jm), np.int32(lm), st.Z, st.FIS, ph,
+            ))
+        d3 = {"T": t_out, "PRES": p_out, "PH": ph, "QVAPOR": qv, "QCLOUD": qc, "QRAIN": qr, "QICE": qi, "QSNOW": qs}
+    psfc = st.add("H_PSFC", s2)
+    hgt = st.add("H_HGT", s2)
+    rainnc = st.add("H_RAINNC", s2)
+    rainc = st.add("H_RAINC", s2)
     with scope:
-        k_moist(g3, kernels.BLOCK_2D, (
-            np.int32(im), np.int32(jm), np.int32(lm),
-            st.T, st.Q, cw, f_ice, f_rain, st.PD, psgml1, sgml2,
-            p_out, t_out, qv, qc, qr, qi, qs,
-        ))
-        k_ph(gcol, kernels.BLOCK_COL, (
-            np.int32(im), np.int32(jm), np.int32(lm), st.Z, st.FIS, ph,
-        ))
         k_sfc(g2, kernels.BLOCK_2D, (
             np.int32(im), np.int32(jm), np.int32(lm),
             st.PINT, st.FIS, st.ACPREC_TOT, cup_tot, psfc, hgt, rainnc, rainc,
@@ -218,14 +248,14 @@ def run(ctx):
     out = {
         "PSFC": (psfc, DIMS2),
         "HGT": (hgt, DIMS2),
-        "T": (t_out, DIMS3),
-        "PRES": (p_out, DIMS3),
-        "PH": (ph, DIMS3S),
-        "QVAPOR": (qv, DIMS3),
-        "QCLOUD": (qc, DIMS3),
-        "QRAIN": (qr, DIMS3),
-        "QICE": (qi, DIMS3),
-        "QSNOW": (qs, DIMS3),
+        "T": (d3["T"], DIMS3),
+        "PRES": (d3["PRES"], DIMS3),
+        "PH": (d3["PH"], DIMS3S),
+        "QVAPOR": (d3["QVAPOR"], DIMS3),
+        "QCLOUD": (d3["QCLOUD"], DIMS3),
+        "QRAIN": (d3["QRAIN"], DIMS3),
+        "QICE": (d3["QICE"], DIMS3),
+        "QSNOW": (d3["QSNOW"], DIMS3),
         "U10": (st.UE10, DIMS2),
         "V10": (st.VE10, DIMS2),
         "RAINNC": (rainnc, DIMS2),
@@ -386,3 +416,46 @@ def _start_credit(ctx) -> dict:
     if not lic:
         return {}
     return {"START_SOURCE": src, "DATA_CREDIT": credit, "DATA_LICENCES": lic}
+
+
+# hist_moist_one output selector, in the eager kernel's argument order
+MOIST = {"PRES": 0, "T": 1, "QVAPOR": 2, "QCLOUD": 3, "QRAIN": 4, "QICE": 5, "QSNOW": 6}
+
+
+def _stream_fields(ctx, cw, f_ice, f_rain, psgml1, sgml2) -> dict:
+    """The eight 3-D derived history fields as StreamField (one shared H_STREAM buffer): run() uses them in place
+    of its eager arrays, everything else in the field list is the same."""
+    st = ctx.st
+    g = ctx.grid
+    im, jm, lm = int(g.im), int(g.jm), int(g.lm)
+    s3, s3s = (lm, jm, im), (lm + 1, jm, im)
+    k_one = kernels.get(UNIT, "hist_moist_one")
+    k_ph = kernels.get(UNIT, "hist_ph")
+    g3 = kernels.grid_2d(im, jm, lm)
+    gcol = kernels.grid_cols(im, jm)
+    scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
+
+    def buf(shape):
+        b = st.add("H_STREAM", s3s)
+        return b.reshape(-1)[:int(np.prod(shape))].reshape(shape)
+
+    def moist(which):
+        def fill():
+            o = buf(s3)
+            with scope:
+                k_one(g3, kernels.BLOCK_2D, (
+                    np.int32(im), np.int32(jm), np.int32(lm), np.int32(which),
+                    st.T, st.Q, cw, f_ice, f_rain, st.PD, psgml1, sgml2, o,
+                ))
+            return o
+        return StreamField(s3, fill)
+
+    def ph():
+        o = buf(s3s)
+        with scope:
+            k_ph(gcol, kernels.BLOCK_COL, (np.int32(im), np.int32(jm), np.int32(lm), st.Z, st.FIS, o))
+        return o
+
+    return {"T": moist(MOIST["T"]), "PRES": moist(MOIST["PRES"]), "PH": StreamField(s3s, ph),
+            "QVAPOR": moist(MOIST["QVAPOR"]), "QCLOUD": moist(MOIST["QCLOUD"]), "QRAIN": moist(MOIST["QRAIN"]),
+            "QICE": moist(MOIST["QICE"]), "QSNOW": moist(MOIST["QSNOW"])}

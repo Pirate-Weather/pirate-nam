@@ -319,10 +319,12 @@ def _tables(ctx):
 
 
 def launch(tabs, *, ncol, nlay, laytrop, jp, jt, jt1, pavel, colamt, fac00, fac01, fac10, fac11,
-           selffac, selffrac, indself, forfac, forfrac, indfor, taug_lw, fracs_lw, stream=None):
+           selffac, selffrac, indself, forfac, forfrac, indfor, taug_lw, fracs_lw, stream=None,
+           gfirst: bool = False):
     """One kernel launch over ncol columns. Every per-level array is contiguous [nlay, ncol];
     laytrop is [ncol]; taug_lw and fracs_lw are contiguous [nlay, NGPTLW, ncol] (full gpoint arrays,
-    rows NS02..NS02+NG02-1 written). No host sync."""
+    rows NS02..NS02+NG02-1 written), or with gfirst=True the g-first [NGPTLW, nlay, ncol] arrays the
+    LW seam (lw_core) holds, written in place (same values, only the output index differs). No host sync."""
     k = kernels.get(UNIT, KERNEL)
     grid = ((ncol + BLOCK - 1) // BLOCK, 1, 1)
     scope = stream if stream is not None else contextlib.nullcontext()
@@ -331,11 +333,15 @@ def launch(tabs, *, ncol, nlay, laytrop, jp, jt, jt1, pavel, colamt, fac00, fac0
           (np.int32(ncol), np.int32(nlay), laytrop, jp, jt, jt1, pavel, colamt,
            fac00, fac01, fac10, fac11, selffac, selffrac, indself, forfac, forfrac, indfor,
            tabs["absa"], tabs["absb"], tabs["selfref"], tabs["forref"],
-           tabs["fracrefa"], tabs["fracrefb"], taug_lw, fracs_lw))
+           tabs["fracrefa"], tabs["fracrefb"], taug_lw, fracs_lw,
+           np.int64(ncol if gfirst else NGPTLW * ncol), np.int64(nlay * ncol if gfirst else ncol)))
 
 
-def run(ctx):
-    """Band-2 optical depths for the whole domain from ctx.st (setcoef outputs), into the full gpoint arrays."""
+def run(ctx, out_gfirst=None):
+    """Band-2 optical depths for the whole domain from ctx.st (setcoef outputs), into the full gpoint arrays.
+
+    out_gfirst = (taug, fracs), each [NGPTLW, LM, JM, IM]: write band 2 straight into these g-first arrays
+    (the LW seam's canonical taug/fracs) instead of allocating the layer-first TAUG_LW/FRACS_LW pair."""
     st = ctx.st
     im, jm, lm = int(ctx.grid.im), int(ctx.grid.jm), int(ctx.grid.lm)
     ncol = im * jm
@@ -350,16 +356,23 @@ def run(ctx):
         a = f[name]
         return a.reshape(lm, ncol)   # C-order [LM, JM, IM] -> [LM, JM*IM], a view
 
-    taug = st.add("TAUG_LW", (lm, NGPTLW, jm, im))
-    fracs = st.add("FRACS_LW", (lm, NGPTLW, jm, im))
+    if out_gfirst is not None:
+        taug, fracs = out_gfirst
+        for a in (taug, fracs):
+            if tuple(a.shape) != (NGPTLW, lm, jm, im) or not a.flags.c_contiguous:
+                raise ValueError(f"{UNIT}: out_gfirst arrays must be contiguous [{NGPTLW}, {lm}, {jm}, {im}]")
+        dst = (taug.reshape(NGPTLW, lm, ncol), fracs.reshape(NGPTLW, lm, ncol))
+    else:
+        taug = st.add("TAUG_LW", (lm, NGPTLW, jm, im))
+        fracs = st.add("FRACS_LW", (lm, NGPTLW, jm, im))
+        dst = (taug.reshape(lm, NGPTLW, ncol), fracs.reshape(lm, NGPTLW, ncol))
 
     launch(tabs, ncol=ncol, nlay=lm, laytrop=f["LAYTROP"].reshape(ncol),
            jp=flat("JP"), jt=flat("JT"), jt1=flat("JT1"), pavel=flat("PAVEL"), colamt=flat("COLAMT"),
            fac00=flat("FAC00"), fac01=flat("FAC01"), fac10=flat("FAC10"), fac11=flat("FAC11"),
            selffac=flat("SELFFAC"), selffrac=flat("SELFFRAC"), indself=flat("INDSELF"),
            forfac=flat("FORFAC"), forfrac=flat("FORFRAC"), indfor=flat("INDFOR"),
-           taug_lw=taug.reshape(lm, NGPTLW, ncol), fracs_lw=fracs.reshape(lm, NGPTLW, ncol),
-           stream=ctx.stream)
+           taug_lw=dst[0], fracs_lw=dst[1], stream=ctx.stream, gfirst=out_gfirst is not None)
     return {"TAUG_LW": taug, "FRACS_LW": fracs}
 
 

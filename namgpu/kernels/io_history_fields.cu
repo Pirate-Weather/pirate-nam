@@ -64,6 +64,50 @@ extern "C" __global__ void hist_moist_theta(
     QSNOW[n]   = qs * inv;
 }
 
+// hist_moist_theta with one output per launch (io_history_fields.StreamField): the same expressions, stored only
+// for WHICH (0 P, 1 T, 2 QVAPOR, 3 QCLOUD, 4 QRAIN, 5 QICE, 6 QSNOW), so the writer can stream one 3-D buffer.
+extern "C" __global__ void hist_moist_one(
+    int IM, int JM, int LM, int WHICH,
+    const float* __restrict__ T, const float* __restrict__ Q, const float* __restrict__ CW,
+    const float* __restrict__ F_ICE, const float* __restrict__ F_RAIN,
+    const float* __restrict__ PD,
+    const float* __restrict__ PSGML1, const float* __restrict__ SGML2,
+    float* __restrict__ OUT)
+{
+    POINT_IJL
+    if (i0 >= IM || j0 >= JM || l0 >= LM) return;
+    const size_t n = IDX3(i0, j0, l0, IM, JM);
+    const size_t n2 = IDX2(i0, j0, IM);
+
+    const float pmid = PSGML1[l0] + SGML2[l0] * PD[n2];
+    const float t = T[n];
+    const float q = Q[n];
+    const float cw = CW[n];
+    const float fi = F_ICE[n];
+    const float fr = F_RAIN[n];
+    const float inv = 1.0f / (1.0f - q);
+
+    const float theta = t * powf(NMMB_P00 / pmid, NMMB_CAPPA);
+
+    float qc = 0.0f, qr = 0.0f, qs = 0.0f;
+    if (cw > NMMB_EPSQ) {
+        const float liqw = (1.0f - fi) * cw;
+        qc = (1.0f - fr) * liqw;
+        qr = fr * liqw;
+        qs = fi * cw;
+    }
+
+    switch (WHICH) {
+        case 0: OUT[n] = pmid; break;
+        case 1: OUT[n] = theta - 300.0f; break;
+        case 2: OUT[n] = q * inv; break;
+        case 3: OUT[n] = qc * inv; break;
+        case 4: OUT[n] = qr * inv; break;
+        case 5: OUT[n] = 0.0f; break;
+        default: OUT[n] = qs * inv; break;
+    }
+}
+
 // Geopotential at the LM+1 interfaces, WRF PH on bottom_top_stag: PH = g * zint. The state Z is MIDLAYER
 // height (dyn-cdzdt-nonhydro, Fortran z = zlo + dz/2; init-derive-state writes the same convention), so the
 // interfaces are rebuilt from the surface: zint(LM) = FIS/g, zint(l) = 2*Z(l) - zint(l+1). One thread per column.

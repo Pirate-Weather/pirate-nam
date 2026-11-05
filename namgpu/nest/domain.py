@@ -68,7 +68,9 @@ SOURCE_BY_REGION = [
 
 # VRAM model (GiB): state + scratch per column and a fixed part, RRTM chunk scratch ROWS x IM x 0.59 MB
 # (tools/run_nam_domain.sh, MULTICARD-PLAN.md section 7), and the local-memory reservation NAMGPU_LMEM_RESERVE
-# (11 KiB) per resident thread after kernels.trim_local_memory. per_column_kb / fixed_gib from the first whole 48 h
+# (10,016 B since the VRAM program, 2026-11-05: kernels.step_frame_bytes(), the largest step-kernel frame at LM=60,
+# phys_gwd_driver; it was 11 KiB while MYJ column arrays were sized for 128 levels) per resident thread after
+# kernels.trim_local_memory. per_column_kb / fixed_gib from the first whole 48 h
 # nest (41S 174E, 286 x 334, NAMGPU_RRTM_ROWS 16, 2026-11-04): CuPy pool 14.27 GiB at the end, process peak
 # 17.36 GiB (nvidia-smi); 2.74 lmem + 2.51 RRTM + 11.4 per column + 1.0 = 17.6. The same nest on the merged tree on
 # an RTX PRO 6000 Max-Q at RRTM rows 32 peaked 21.81 GiB (3.03 lmem + 5.03 RRTM + 1.0 leaves 12.75 GiB = 140 KB per
@@ -81,7 +83,7 @@ SOURCE_BY_REGION = [
 # (CUPY_GPU_MEMORY_LIMIT = state + RRTM + pool_headroom_gib): CuPy frees its cached blocks and retries when an
 # allocation would pass the cap, so the run stays inside what the pre-flight checked instead of growing into a
 # co-tenant's memory. total = cap + lmem + fixed (context).
-VRAM = {"per_column_kb": 150.0, "fixed_gib": 1.0, "rrtm_mb_per_row_col": 0.59, "lmem_bytes_per_thread": 11264,
+VRAM = {"per_column_kb": 150.0, "fixed_gib": 1.0, "rrtm_mb_per_row_col": 0.59, "lmem_bytes_per_thread": 10016,
         "pool_headroom_gib": 1.0, "margin_gib": 0.75}
 # Per memory path (state.resolve_memory_path: the 32 GB fit below FIT_BELOW_GIB = 64 GiB of card, the full path at and
 # above it; NAMGPU_MEMORY_PATH / NAMGPU_SCRATCH_ARENA override), the pool part that does not scale with the slab.

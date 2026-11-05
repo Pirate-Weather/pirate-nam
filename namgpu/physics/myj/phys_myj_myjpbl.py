@@ -22,7 +22,7 @@ Outputs (ctx.st): Q2, EXCH_H (3-D, inout); XLEN_MIX (EL_MYJ, [LM, JM, IM]); DUDT
 Scalars: DT and NPHS from ctx.cfg.
 
 Refusals (no silent fallback):
-  - LM must be between 4 and 128 (the kernel's per-column arrays are sized for 128 levels).
+  - LM must be between 4 and 64 (the kernel's per-column arrays are sized for 64 levels, MYJ_MAXL).
   - Any named input missing from ctx.st, or any table missing from ctx.tables, raises.
 
 Launch: one kernel on ctx.stream, no host sync, no per-step allocation (HSTDV added once).
@@ -37,7 +37,7 @@ from namgpu import kernels
 
 UNIT = "phys_myj_myjpbl"
 KERNEL = "phys_myj_myjpbl_column"
-MAXL = 128
+MAXL = 64           # MYJ_MAXL in kernels/phys_myj_myjpbl.cu
 
 
 def _field(st, name: str):

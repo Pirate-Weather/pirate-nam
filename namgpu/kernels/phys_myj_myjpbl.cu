@@ -27,7 +27,9 @@
 
 #include "nmmb_common.cuh"
 
-#define MYJ_MAXL   128        // largest LM the local arrays hold; the wrapper refuses larger
+#define MYJ_MAXL   64         // largest LM the local arrays hold; the wrapper refuses larger. 64 like every other
+                               // column kernel (GWD/BMJ hold 60): at 128 this kernel set the device local-memory
+                               // reservation, 10,920 B/thread x every resident thread = 2.66 GiB on a 170-SM card
 #define MYJ_ITBL   401
 #define MYJ_JTBL   1201
 #define MYJ_THL    210.0f      // lower bound of potential temperature range (THL)

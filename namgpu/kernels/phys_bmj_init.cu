@@ -268,12 +268,16 @@ extern "C" __global__ void phys_bmj_init_ttbl(
 // One thread per kp (Fortran kp = 1..itbq). Outputs: the0q(kp), stheq(kp), ttblq(kth,kp).
 // Same arithmetic as kernel 2 with the fine grids (plq, thhq, itbq, jtbq).
 // ---------------------------------------------------------------------------------------------
+// wk: the per-thread work arrays, 7 * JTBQ words per thread (the wrapper allocates ITBQ of them). They were
+// local arrays (12,320 B/thread): a 3.0 GiB local-memory reservation on a 170-SM card for this 152-thread
+// table build (VRAM audit 2026-11-04). Same arrays, same order of operations, only where they live.
 extern "C" __global__ void phys_bmj_init_ttblq(
     float* __restrict__ ttblq,       // [ITBQ, JTBQ]  Fortran ttblq(jtbq,itbq)
     float* __restrict__ the0q,       // [ITBQ]
     float* __restrict__ stheq,       // [ITBQ]
     const float a2, const float a3, const float a4, const float cappa, const float cp,
-    const float pq0)
+    const float pq0,
+    float* __restrict__ wk)
 {
     const int kp = blockIdx.x * blockDim.x + threadIdx.x + 1;    // Fortran kp
     if (kp > BMJ_ITBQ) return;
@@ -285,8 +289,14 @@ extern "C" __global__ void phys_bmj_init_ttblq(
     float p = BMJ_PLQ - dp;
     for (int s = 0; s < kp; ++s) p = p + dp;
 
-    float toldq[BMJ_JTBQ], theoldq[BMJ_JTBQ], thenewq[BMJ_JTBQ];
-    float tnewq[BMJ_JTBQ], y2tq[BMJ_JTBQ], aptq[BMJ_JTBQ], aqtq[BMJ_JTBQ];
+    float* const w = wk + (size_t)(kp - 1) * 7 * BMJ_JTBQ;
+    float* const toldq   = w;
+    float* const theoldq = w + 1 * BMJ_JTBQ;
+    float* const thenewq = w + 2 * BMJ_JTBQ;
+    float* const tnewq   = w + 3 * BMJ_JTBQ;
+    float* const y2tq    = w + 4 * BMJ_JTBQ;
+    float* const aptq    = w + 5 * BMJ_JTBQ;
+    float* const aqtq    = w + 6 * BMJ_JTBQ;
 
     float th = BMJ_THL - dth;                                // th=thl-dth
     for (int kth = 1; kth <= BMJ_JTBQ; ++kth) {

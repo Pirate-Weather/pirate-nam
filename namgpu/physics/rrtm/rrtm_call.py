@@ -9,9 +9,11 @@ args = the Fortran RRTM argument dict built by phys_rad_driver._rrtm_args.
 
 Order (one radiation call):
   module_RA_RRTM.F90
-    98-878     phys-rrtm-driver-prep     control scalars, cloud layering, TAUTOTAL, CUTOP/CUBOT
-                                         (whole domain: it reads the J = JTE row, see its header)
+    98-878     phys-rrtm-driver-prep     control scalars and P8W/P_PHY (whole domain: they come from the
+                                         J = JTE row, see its header)
   then per row chunk (rrtm_chunk: rows in chunks of ROWS, columns independent):
+    98-878     phys-rrtm-driver-prep     cloud layering, TAUTOTAL, CUTOP/CUBOT (kernel 2, per column, on
+                                         the chunk's rows: no whole-domain scratch)
     879-881    phys-rrtm-dayparts        COSZMN over the SW interval, sunlit runs per row
     879-1112   phys-rrtm-driver-call     grrad inputs per column (prsi, prsl, gt, gq, gr1, surface)
   grrad_nmmb.f
@@ -98,8 +100,20 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
         if stamp is not None:
             stamp(name)
 
+    from namgpu.state import fit_on as _fit_on  # noqa: PLC0415
+    if _fit_on():
+        # 32 GB fit: hand the pool's cached free blocks back before the radiation working set is allocated.
+        # They are what the 47 steps since the last call left cached (dynamics and physics temporaries, in
+        # their sizes); the chunk working set's large blocks cannot be cut from them, so without this they
+        # sit reserved beside it at the radiation peak (333x333: 0.66 GiB reserved over the 2.88 GiB used).
+        # The call already frees everything at its end; values do not depend on placement.
+        import cupy as _cpf
+        if ctx.stream is not None:
+            ctx.stream.synchronize()
+        _cpf.get_default_memory_pool().free_all_blocks()
     _s("driver-prep")
-    driver_prep.run(ctx, ntimestep=nts, jdat=args["JDAT"], dt=dt, nrads=nrads, nradl=nradl)
+    driver_prep.run(ctx, ntimestep=nts, jdat=args["JDAT"], dt=dt, nrads=nrads, nradl=nradl, columns=False)
+    prep = ctx.tables[driver_prep.PRE_KEY]
 
     # P_PHY (layer pressure) for this call, full domain, before the chunk loop: driver-call reads it
     # ahead of grrad-setup in each chunk (module_RA_RRTM.F90:486-487 sets it before the column work).
@@ -121,9 +135,20 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
         rows = ROWS if ("NAMGPU_RRTM_ROWS" in os.environ or not _fit) else FIT_RRTM_ROWS
     rows = min(int(rows), jm)
     cc = _chunk_ctx(ctx, rows)
+    if _fit and rrtm_chunk.workspace(cc) is None:
+        # one g-point workspace shared in time by swrad's chunk scratch and the LW taug/fracs pair (see
+        # rrtm_chunk.WS_KEY): max of the two, not their sum
+        import numpy as _np
+        from namgpu.physics.rrtm import lw_core as _lwc
+        from namgpu.physics.rrtm import phys_rrtm_sw_swrad as _swr
+        _nlay = _lm + _swr.LTP
+        _need = max(_lwc.pair_floats(_nlay, rows, _im),
+                    _swr.chunk_scratch_floats(_swr.sw_ncap(rows * _im), _nlay, _nlay + 1))
+        cc.tables[rrtm_chunk.WS_KEY] = _cp.empty(_need, dtype=_np.float32)
     _s("grrad-chunks")
     for (w0, w1, a, b) in rrtm_chunk.windows(jm, rows):
         cc.begin(w0, w1)
+        driver_prep.run_columns(cc, prep)
         dayparts.run(cc)
         dc = driver_call.run(cc, ntoz=ntoz, nrads=nrads, nradl=nradl, dt=dt)
         # The GRRAD actual arguments (module_RA_RRTM.F90:1013-1046: XLON, XLAT, SLMSK, TSEA, ...) are the
@@ -148,15 +173,15 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
         # scratch and tables: swrad chunk_scratch alone is 2 x 0.9 GB). Held between radiation calls it sat
         # idle through 47 of every 48 steps and pushed the step peak past a 32 GB card. Drop it; the next
         # call rebuilds it exactly as the first call does (zero-filled, one shape).
-        ctx.tables.pop(KEY_CHUNK, None)
-        # driver-prep's full-domain scratch (KTOP, KBTM, CAMT, CSMID, CCMID, TAUTOTAL, ...: ~1.1 GiB) is
-        # rebuilt by driver-prep at the start of every call; the small rrtm_prep:vec:* vectors stay
+        _cc = ctx.tables.pop(KEY_CHUNK, None)
+        if _cc is not None:
+            _cc.release()                    # its arrays back to the pool now, before devmem.release below
+        # driver-prep's per-call P8W/P_PHY and record are rebuilt at the start of every call (its column
+        # scratch is chunk-local and went with the chunk context); the small rrtm_prep:vec:* vectors stay
         for _k in [k for k in ctx.tables if k.startswith("rrtm_prep:") and not k.startswith("rrtm_prep:vec:")]:
             del ctx.tables[_k]
         # give the freed radiation working set back whole, so the next 47 steps and the next call start from
         # unsplit blocks (pool fragmentation: the 4th call OOMed at ROWS=16 with 27.7 GiB in the pool)
-        import cupy as _cp2
-        if ctx.stream is not None:
-            ctx.stream.synchronize()
-        _cp2.get_default_memory_pool().free_all_blocks()
+        from namgpu import devmem
+        devmem.release(ctx.stream)
     _s("rrtm-done")

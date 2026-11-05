@@ -101,9 +101,16 @@ def _check(inp: dict, tab: dict, nlay: int, jm: int, im: int):
             raise ValueError(f"taugb10: table {name} must be float32 {shape}")
 
 
-def taugb10(inp: dict, tab: dict, out: dict, stream=None):
-    """One launch over every (i, j) column of this chunk. All arrays are device arrays in CONTRACT layout."""
+def taugb10(inp: dict, tab: dict, out: dict, stream=None, gfirst: bool = False):
+    """One launch over every (i, j) column of this chunk. All arrays are device arrays in CONTRACT layout.
+    gfirst=True: out holds g-first [NGPTLW, nlay, JM, IM] arrays (the LW seam's canonical taug/fracs), written in
+    place; same values, only the output index differs."""
     nlay, jm, im = inp["fac00"].shape
+    want = (NGPTLW, nlay, jm, im) if gfirst else (nlay, NGPTLW, jm, im)
+    for name in ("taug", "fracs"):
+        if tuple(out[name].shape) != want or not out[name].flags.c_contiguous:
+            raise ValueError(f"taugb10: {name} must be contiguous float32 {want}")
+    plane = jm * im
     _check(inp, tab, nlay, jm, im)
     kern = kernels.get(UNIT, KERNEL)
     scope = stream if stream is not None else contextlib.nullcontext()
@@ -119,12 +126,14 @@ def taugb10(inp: dict, tab: dict, out: dict, stream=None):
             tab["absa"], tab["absb"], tab["selfref"], tab["forref"],
             tab["fracrefa"], tab["fracrefb"],
             out["taug"], out["fracs"],
+            np.int64(plane if gfirst else NGPTLW * plane), np.int64(nlay * plane if gfirst else plane),
         ))
     return out
 
 
-def run(ctx):
-    """Driver entry. The LW driver puts the inputs and tables in ctx.tables before calling this."""
+def run(ctx, out_gfirst=None):
+    """Driver entry. The LW driver puts the inputs and tables in ctx.tables before calling this.
+    out_gfirst = (taug, fracs) g-first [NGPTLW, nlay, JM, IM]: write band 10 straight into them (no own pair)."""
     inp = ctx.tables.get(IN_KEY)
     if inp is None:
         raise RuntimeError(f"phys_rrtm_lw_taugb10 needs ctx.tables[{IN_KEY!r}] from the LW driver (phys-rrtm-lw-lwrad)")
@@ -133,6 +142,9 @@ def run(ctx):
         tab = load_tables()
         ctx.tables[TAB_KEY] = tab
     nlay, jm, im = inp["fac00"].shape
+    if out_gfirst is not None:
+        return taugb10(inp, tab, {"taug": out_gfirst[0], "fracs": out_gfirst[1]},
+                       stream=getattr(ctx, "stream", None), gfirst=True)
     out = ctx.tables.get(OUT_KEY)
     if out is None or out["taug"].shape != (nlay, NGPTLW, jm, im):
         out = alloc_outputs(nlay, jm, im)

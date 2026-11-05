@@ -43,6 +43,13 @@ Fortran REAL arithmetic does, and then returned as the float32 value.
 
 Tile: kernel 1 hard-codes J = JM (Fortran JTE). run() requires the grid to be one full-domain tile.
 
+Row chunks (rrtm-call): kernel 2 is one thread per column and reads only that column (its J is an index,
+nothing else), so rrtm-call runs it per row chunk: run(ctx, columns=False) launches kernel 1 on the whole
+domain once per call and returns the per-call record, then run_columns(chunk_ctx, pre) launches kernel 2
+on the chunk's rows into chunk-sized scratch. The whole-domain scratch (KTOP, KBTM, CAMT, CSMID, CCMID,
+TAUTOTAL, ...: 1.1 GiB at 954 x 835 x 60, VRAM audit 2026-11-04) is then never allocated; the column
+loop reads the same values, from the chunk's own arrays instead of row slices of the whole-domain ones.
+
 Not ported (recorded): Fortran 430-435, the ICSDSW/ICSDLW zeroing (documented unused in the Fortran).
 """
 from __future__ import annotations
@@ -61,6 +68,7 @@ BLOCK_P8W = 128
 NXSD = 310
 CUPRATE = np.float32(24.0 * 1000.0)       # module_RA_RRTM.F90 CUPRATE = 24.*1000.
 OUT_KEY = "rrtm_prep:out"
+PRE_KEY = "rrtm_prep:pre"
 AXSD_KEY = "rrtm_axsd"
 
 
@@ -169,8 +177,11 @@ def _raw(cfg, key):
 def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | None = None,
         icmphys: int | None = None, icldflg: int | None = None, cld_fraction: int | None = None,
         oper: bool | None = None, cucld: bool | None = None, f_ni: bool | None = None,
-        jdat=None, ntimestep: int | None = None) -> dict:
+        jdat=None, ntimestep: int | None = None, columns: bool = True) -> dict:
     """Launch the two prep kernels once for the whole domain (one thread per column).
+
+    columns=False: kernel 1 only; the per-call record goes to ctx.tables[PRE_KEY] for run_columns (rrtm-call
+    runs kernel 2 per row chunk, see the module docstring).
 
     Every control value comes from ctx.cfg (the parm/nam_configfile record) unless an explicit
     keyword overrides it; see the module docstring for the key of each value. JDAT is required.
@@ -225,32 +236,11 @@ def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | 
     # Scratch (allocated once, reused). Layouts are CONTRACT section 1: [level, j, i] and [j, i].
     p8w = _scratch(ctx, "P8W", (lm + 1, im), np.float32)
     p_phy = _scratch(ctx, "P_PHY", (lm, im), np.float32)
-    csmid = _scratch(ctx, "CSMID", (lm, jm, im), np.float32)
-    ccmid = _scratch(ctx, "CCMID", (lm, jm, im), np.float32)
-    tautotal = _scratch(ctx, "TAUTOTAL", (lm, jm, im), np.float32)
-    cutop = _scratch(ctx, "CUTOP", (jm, im), np.float32)
-    cubot = _scratch(ctx, "CUBOT", (jm, im), np.float32)
-    ktop = _scratch(ctx, "KTOP", (lm + 1, jm, im), np.int32)
-    kbtm = _scratch(ctx, "KBTM", (lm + 1, jm, im), np.int32)
-    camt = _scratch(ctx, "CAMT", (lm + 1, jm, im), np.float32)
-    nclds = _scratch(ctx, "NCLDS", (jm, im), np.int32)
-    kcld = _scratch(ctx, "KCLD", (jm, im), np.int32)
-    cldcfr = _scratch(ctx, "CLDCFR", (3, jm, im), np.float32)
-    mtop = _scratch(ctx, "MTOP", (3, jm, im), np.int32)
-    mbot = _scratch(ctx, "MBOT", (3, jm, im), np.int32)
 
     pdsg1 = _vec(ctx, "PDSG1", _host(g.pdsg1))
     psgml1 = _vec(ctx, "PSGML1", _host(g.psgml1))
 
-    # FPVS(T) is only read on the non-OPER branch; oper: true in the configfile, so it is skipped.
-    if oper:
-        fpvs = st["T"]
-    else:
-        from namgpu.physics.fer_hires import phys_fer_fpvs
-        fpvs = phys_fer_fpvs.run(ctx, st["T"])[0]
-
     k8 = kernels.get(UNIT, K_P8W)
-    kc = kernels.get(UNIT, K_COLS)
     scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
     with scope:
         k8(((im + BLOCK_P8W - 1) // BLOCK_P8W, 1, 1), (BLOCK_P8W, 1, 1), (
@@ -266,6 +256,50 @@ def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | 
             _root = _comm.nranks - 1
             _comm.bcast(p8w, _root, ctx.stream)
             _comm.bcast(p_phy, _root, ctx.stream)
+
+    pre = {"ctl": ctl, "P8W": p8w, "P_PHY": p_phy, "AXSD": axsd, "oper": bool(oper),
+           "cld_fraction": int(cld_fraction)}
+    if columns:
+        run_columns(ctx, pre)
+    else:
+        ctx.tables[PRE_KEY] = pre
+    return ctl
+
+
+def run_columns(ctx, pre: dict) -> None:
+    """Kernel 2 (rrtm_prep_columns) over every column of ctx's grid, into scratch of ctx's shape, and
+    ctx.tables[OUT_KEY]. ctx is the whole domain (run) or one rrtm-call row chunk (its st/tables are the
+    chunk views: the state fields are the chunk's row copies, written back for its owned rows, and the
+    scratch and OUT_KEY are chunk-local). pre: run(..., columns=False)'s record of this call."""
+    g = ctx.grid
+    st = ctx.st
+    im, jm, lm = int(g.im), int(g.jm), int(g.lm)
+    ctl, oper, cld_fraction = pre["ctl"], pre["oper"], pre["cld_fraction"]
+    p8w, p_phy, axsd = pre["P8W"], pre["P_PHY"], pre["AXSD"]
+    csmid = _scratch(ctx, "CSMID", (lm, jm, im), np.float32)
+    ccmid = _scratch(ctx, "CCMID", (lm, jm, im), np.float32)
+    tautotal = _scratch(ctx, "TAUTOTAL", (lm, jm, im), np.float32)
+    cutop = _scratch(ctx, "CUTOP", (jm, im), np.float32)
+    cubot = _scratch(ctx, "CUBOT", (jm, im), np.float32)
+    ktop = _scratch(ctx, "KTOP", (lm + 1, jm, im), np.int32)
+    kbtm = _scratch(ctx, "KBTM", (lm + 1, jm, im), np.int32)
+    camt = _scratch(ctx, "CAMT", (lm + 1, jm, im), np.float32)
+    nclds = _scratch(ctx, "NCLDS", (jm, im), np.int32)
+    kcld = _scratch(ctx, "KCLD", (jm, im), np.int32)
+    cldcfr = _scratch(ctx, "CLDCFR", (3, jm, im), np.float32)
+    mtop = _scratch(ctx, "MTOP", (3, jm, im), np.int32)
+    mbot = _scratch(ctx, "MBOT", (3, jm, im), np.int32)
+
+    # FPVS(T) is only read on the non-OPER branch; oper: true in the configfile, so it is skipped.
+    if oper:
+        fpvs = st["T"]
+    else:
+        from namgpu.physics.fer_hires import phys_fer_fpvs
+        fpvs = phys_fer_fpvs.run(ctx, st["T"])[0]
+
+    kc = kernels.get(UNIT, K_COLS)
+    scope = ctx.stream if ctx.stream is not None else contextlib.nullcontext()
+    with scope:
         kc(kernels.grid_cols(im, jm), kernels.BLOCK_COL, (
             np.int32(im), np.int32(jm), np.int32(lm),
             np.int32(1 if ctl["ICWP"] == -1 else 0),
@@ -286,4 +320,3 @@ def run(ctx, *, dt: float | None = None, nrads: int | None = None, nradl: int | 
         "CLDCFR": cldcfr, "MTOP": mtop, "MBOT": mbot, "P8W": p8w, "P_PHY": p_phy,
         "scalars": ctl,
     }
-    return ctl

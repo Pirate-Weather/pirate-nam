@@ -136,7 +136,31 @@ def _k(name):
     return kernels.get(UNIT, name)
 
 
+def _setup(ctx):
+    """Whole-domain first-call work, before the row bands (namgpu/physics/band.py): the argument aliases and the
+    one-time MAVAIL = 1 are state writes, so they are done on the whole State, never per band."""
+    st = ctx.st
+    g = ctx.grid
+    _bind_args(st)
+    _need(st, REQUIRED_STATE)
+    if "MAVAIL_SET" not in ctx.tables:
+        _get(st, "MAVAIL", (int(g.jm), int(g.im)))
+        st["MAVAIL"].fill(1.0)                     # NMM: MAVAIL = 1 (SOLVER_GRID_COMP:1030)
+        ctx.tables["MAVAIL_SET"] = True
+
+
 def run(ctx):
+    """TURBL over row bands (band.py): every column is independent, so the work arrays (PHINT, TH, EXNER, RR,
+    PHMID, DZ, U_PHY, V_PHY, Z, the BL and GWD tendencies) exist for one band at a time. Same result bit for
+    bit; one band (the whole domain) when the domain fits the band budget."""
+    from namgpu.physics import band
+    from namgpu.state import PHYS_SCRATCH, UNIT_SCRATCH
+    return band.run(ctx, UNIT_ID, _run, setup=_setup,
+                    scratch=PHYS_SCRATCH | UNIT_SCRATCH.get(UNIT_ID, frozenset()),
+                    keep_whole=("DUDT", "DVDT"), drop=UNIT_SCRATCH.get(UNIT_ID, ()))
+
+
+def _run(ctx):
     st = ctx.st
     g = ctx.grid
     im, jm, lm = int(g.im), int(g.jm), int(g.lm)

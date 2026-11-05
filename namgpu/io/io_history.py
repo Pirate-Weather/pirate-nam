@@ -89,8 +89,10 @@ def _run_slab(ctx, fields, start, timing):
     jm = int(ctx.grid.jm)
     stream = ctx.stream
     staged, keep = [], []
+    from .io_history_fields import device_array  # noqa: PLC0415
     with stream:
         for name, (arr, dims) in fields.items():
+            arr = device_array(arr)
             if arr.shape[-2] != jm:
                 raise RuntimeError(f"io-history: {name} shape {arr.shape} has no local row axis of {jm}")
             if isinstance(arr, cp.ndarray):

@@ -127,10 +127,56 @@ def _heatfac():
     return np.float32(9.80665 * 1.0e-2 / 1.0046e3)
 
 
-def chunk_scratch(xp, nc: int, nlay: int, nlp1: int) -> dict:
-    """Chunk scratch, allocated once per shape. Per-column blocks, index [t, ...]."""
-    f = lambda *s: xp.zeros((nc,) + s, dtype=xp.float32)   # noqa: E731
-    i = lambda *s: xp.zeros((nc,) + s, dtype=xp.int32)     # noqa: E731
+_WS_ALIGN = 64      # floats: every array carved from a workspace starts on a 256-byte boundary
+
+
+def _scratch_spec(nlay: int, nlp1: int) -> list:
+    """(name, per-column shape, 'f' | 'i') of every chunk-scratch array, in chunk_scratch's order."""
+    spec = []
+    f = lambda *s: ("f", s)   # noqa: E731
+    i = lambda *s: ("i", s)   # noqa: E731
+    for name, (kind, shp) in _scratch_items(f, i, nlay, nlp1).items():
+        spec.append((name, shp, kind))
+    return spec
+
+
+def chunk_scratch_floats(nc: int, nlay: int, nlp1: int) -> int:
+    """Workspace size (4-byte words) chunk_scratch(..., ws=) carves for nc columns."""
+    n = 0
+    for _, shp, _ in _scratch_spec(nlay, nlp1):
+        n += -(-(nc * int(np.prod(shp, dtype=np.int64))) // _WS_ALIGN) * _WS_ALIGN
+    return n
+
+
+def sw_ncap(n: int, nc: int | None = None) -> int:
+    """Columns of the one fixed-size fit-path scratch block of a row chunk of n columns (see run())."""
+    return min(NC_DEFAULT if nc is None else nc, -(-n // 8) * 8)
+
+
+def chunk_scratch(xp, nc: int, nlay: int, nlp1: int, ws=None) -> dict:
+    """Chunk scratch, allocated once per shape. Per-column blocks, index [t, ...].
+
+    ws: a flat float32 workspace (rrtm_chunk.workspace) of at least chunk_scratch_floats(nc, ...) words: the
+    arrays are carved from it (int32 ones as int32 views of the same words) and hold whatever it held, so
+    the caller zero-fills them before use (run() does, for every SW chunk). Without ws: fresh zeros."""
+    if ws is None:
+        f = lambda *s: xp.zeros((nc,) + s, dtype=xp.float32)   # noqa: E731
+        i = lambda *s: xp.zeros((nc,) + s, dtype=xp.int32)     # noqa: E731
+        return _scratch_items(f, i, nlay, nlp1)
+    need = chunk_scratch_floats(nc, nlay, nlp1)
+    if ws.dtype != xp.float32 or ws.ndim != 1 or ws.size < need:
+        raise ValueError(f"phys-rrtm-sw-swrad: workspace too small ({ws.size} < {need} words)")
+    out, off = {}, 0
+    for name, shp, kind in _scratch_spec(nlay, nlp1):
+        cnt = nc * int(np.prod(shp, dtype=np.int64))
+        v = ws[off:off + cnt].reshape((nc,) + tuple(shp))
+        out[name] = v.view(xp.int32) if kind == "i" else v
+        off += -(-cnt // _WS_ALIGN) * _WS_ALIGN
+    return out
+
+
+def _scratch_items(f, i, nlay: int, nlp1: int) -> dict:
+    """The chunk-scratch table: name -> f(*per-column shape) or i(*per-column shape)."""
     return {
         # swrad_prep outputs
         "pavel": f(nlay), "tavel": f(nlay), "delp": f(nlay), "coldry": f(nlay), "colmol": f(nlay),
@@ -286,15 +332,19 @@ def run(ctx, has_htrswb: bool = False, nc: int = NC_DEFAULT):
         # allocations call to call (they fragmented the CuPy pool until a 32 GB card ran out at the 4th call).
         from namgpu.state import fit_on  # noqa: PLC0415
         _fit = fit_on()
-        ncap = min(nc, -(-n // 8) * 8)
+        ncap = sw_ncap(n, nc)
         full = None
+        from namgpu.physics.rrtm import rrtm_chunk  # noqa: PLC0415
+        ws = rrtm_chunk.workspace(ctx) if _fit else None
         sc = None if _fit else chunk_scratch(cp, nc, nlay, nlp1)
         for cstart in range(0, nday, nc):
             ncur = min(nc, nday - cstart)
             ncur = min(-(-ncur // 8) * 8, n - cstart)
             if _fit and (sc is None or ncur != nc):
                 if full is None:
-                    full = chunk_scratch(cp, ncap, nlay, nlp1)
+                    # carved from the chunk's shared g-point workspace when rrtm-call made one; every view
+                    # is zero-filled just below, as the fresh zeros were
+                    full = chunk_scratch(cp, ncap, nlay, nlp1, ws=ws)
                 sc = {k: v[:ncur] for k, v in full.items()}
                 for v in sc.values():
                     v.fill(0)

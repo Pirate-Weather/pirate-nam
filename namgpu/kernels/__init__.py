@@ -61,31 +61,54 @@ def grid_cols(im: int, jm: int):
     return ((n + BLOCK_COL[0] - 1) // BLOCK_COL[0], 1, 1)
 
 
-def trim_local_memory(reason: str = "") -> float:
-    """Give back the device local-memory (stack) reservation a high-lmem kernel left behind.
+# The step-loop kernels with the largest per-thread frames (local memory). The device local-memory reservation is
+# the largest frame launched x every resident thread (SMs x threads/SM), so the step loop needs the max of these.
+# Scan 2026-11-05 (tools/kernel_report.py, RTX 5090): phys_gwd_driver 10,016 B, phys_bmj_bmjdrv_column 9,840 B,
+# fer_hires 9,216 B, phys_rrtm_sw_mcica_subcol 5,088 B, phys_myj_myjpbl_column (10,920 B while its arrays were sized
+# for 128 levels); every other step kernel is smaller. Read from the compiled kernels, so a frame that changes moves
+# the reservation with it.
+STEP_FRAME_KERNELS = (
+    ("phys_gwd_driver", "phys_gwd_driver"),
+    ("phys_bmj_bmjdrv", "phys_bmj_bmjdrv_column"),
+    ("phys_fer_fer_hires", "fer_hires"),
+    ("phys_myj_myjpbl", "phys_myj_myjpbl_column"),
+    ("phys_rrtm_sw_mcica_subcol", "phys_rrtm_sw_mcica_subcol"),
+)
+
+
+def step_frame_bytes() -> int:
+    """Largest per-thread local-memory frame among STEP_FRAME_KERNELS (bytes, rounded up to 16)."""
+    b = max(int(get(u, k).attributes["local_size_bytes"]) for u, k in STEP_FRAME_KERNELS)
+    return (b + 15) // 16 * 16
+
+
+def trim_local_memory(reason: str = "") -> dict:
+    """Set the device local-memory (stack) reservation to exactly what the step loop needs, now.
 
     The CUDA driver keeps ONE local-memory reservation for the whole device (bytes per thread x every
     resident thread), sized to the largest per-thread stack any launched kernel needed, until the stack
-    limit is set again. phys_myj_tables:phys_myj_tablett needs 28,848 B/thread, so after init about 7 GiB
-    of a 32 GB RTX 5090 stayed reserved for the whole forecast (memory census 2026-11-04: OOM with 22.5 GiB
-    of pool on a 31.8 GiB card). Setting the limit back to 1 KiB frees it; later launches grow it again to
-    what the step kernels need. Results are unchanged (local memory is per-thread scratch).
-    Returns the GiB freed (device used delta).
+    limit is set again. Set here while the CuPy pool is still small: if the driver had to GROW the reservation
+    later, at a launch, the pool may already hold the free memory and the launch fails with
+    CUDA_ERROR_OUT_OF_MEMORY (poison run, phys_rrtm_lw_rtrnmr at 23.5 GiB of pool). Before the init-only table
+    builds moved their work arrays to global memory this also gave back ~7 GiB (phys_myj_tablett 28.8 KB/thread);
+    now it usually GROWS the reservation from the init kernels' frames to the step loop's.
+    Bytes per thread: step_frame_bytes() (the compiled step kernels); NAMGPU_LMEM_RESERVE overrides.
+    Results are unchanged (local memory is per-thread scratch).
+    Returns {bytes_per_thread, reserved_gib (bytes x resident threads), delta_gib (device used change, + = grew)}.
     """
+    import os
+
     import cupy as cp
     rt = cp.cuda.runtime
+    keep = int(os.environ.get("NAMGPU_LMEM_RESERVE", "0")) or step_frame_bytes()
     cp.cuda.Device().synchronize()
     f0, _ = rt.memGetInfo()
-    # Keep exactly what the step loop needs, reserved now while the CuPy pool is still small: if the driver
-    # has to GROW the reservation later, at a launch, the pool already holds the free memory and the launch
-    # fails with CUDA_ERROR_OUT_OF_MEMORY (poison run, phys_rrtm_lw_rtrnmr at 23.5 GiB of pool).
-    # Largest step-loop kernel frame: phys_myj_myjpbl_column 10,920 B/thread (scan 2026-11-04); 11 KiB
-    # reserves ~2.7 GiB on a 170-SM card. NAMGPU_LMEM_RESERVE overrides (bytes per thread).
-    import os
-    keep = int(os.environ.get("NAMGPU_LMEM_RESERVE", "11264"))
     rt.deviceSetLimit(getattr(rt, "cudaLimitStackSize", 0), keep)
     f1, _ = rt.memGetInfo()
-    return round((f1 - f0) / 2**30, 2)
+    props = rt.getDeviceProperties(cp.cuda.Device().id)
+    threads = int(props["multiProcessorCount"]) * int(props["maxThreadsPerMultiProcessor"])
+    return {"bytes_per_thread": keep, "reserved_gib": round(keep * threads / 2**30, 3),
+            "delta_gib": round((f0 - f1) / 2**30, 3)}
 
 
 # ---------------------------------------------------------------------------------------------------------------

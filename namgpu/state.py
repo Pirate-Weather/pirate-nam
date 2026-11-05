@@ -125,22 +125,66 @@ STEP_SCRATCH = frozenset({
     "RCMW", "CRW", "RSTU", "RSTV", "PDOP_UV", "TRACERS_SQRT", "SS1", "ADV2_RCMS", "ADV2_CRS",
     "TDIV", "APEL_3D", "FIM_3D", "DFI_3D", "PCX", "PCY", "PCNE", "PCNW",
     "PGX_3D", "PGY_3D", "PGNE_3D", "PGNW_3D", "TRACERS_TEND",
+    # 2026-11-04: HDIFF deformation and slope masks (dyn-hdiff-coef writes, dyn-hdiff-apply and
+    # dyn-cdwdt-diffusion read in the same step; cdwdt-diffusion raises if DEF3D is missing) and RTOP (dyn-pgforce-geopot
+    # writes it every step before cdzdt/vtoa/vsound read it; the init copy is dropped with INIT_ONLY).
+    # Write-before-read checked with the NAMGPU_SCRATCH_POISON=1 A/B.
+    "DEF3D", "FMLX_3D", "FMLY_3D", "RTOP",
 })
 # ctx.tables work arrays of the dynamics group (dyn-hdiff-apply diff/update buffers), dropped with STEP_SCRATCH
-STEP_SCRATCH_TABLE_PREFIXES = ("hdiff_",)
+# (+ dyn-mono-fix per-row partial sums, float64, rewritten in full on every call). hdiff_coef_* are host scalars
+# (no device memory) read once; dropping them cost a device-to-host read every step, so they stay.
+STEP_SCRATCH_TABLE_PREFIXES = ("hdiff_", "MONO_WPART_", "MONO_ROWP")
+STEP_SCRATCH_TABLE_KEEP = ("hdiff_coef_",)
 # History-only device buffers (written in full by io-wind-rotate / io-quasipost-driver / io-history-fields
 # at each output time, staged to pinned host memory by io-history on the same stream): ~2.9 GiB.
 HISTORY_SCRATCH = frozenset({
     "H_CW_SPEC", "H_FICE_SPEC", "H_FRAIN_SPEC", "H_P", "H_T", "H_QVAPOR", "H_QCLOUD", "H_QRAIN",
     "H_QICE", "H_QSNOW", "H_PH", "UEARTH", "VEARTH", "QP_PRESTV", "QP_PRESZ", "QP_GROUND_MASK",
+    # the 2-D history buffers of the same units (io-wind-rotate, io-quasipost-*, io-history-fields)
+    "UE10", "VE10", "H_PSFC", "H_HGT", "H_RAINNC", "H_RAINC", "H_T2", "H_COMPOSITE",
+    "QP_GROUND_LEVEL", "QP_PMSL", "QP_RELAXMASK", "QP_RELAXWORK", "QP_RELAX_NEXT", "RELAXWORK_NEXT", "MEMBRANE_MSLP",
+    "P850Z", "P700Z", "QP_KS850", "QP_KS700", "QP_KS500", "QP_DUMMY1", "QP_DUMMY2",
+    "P500U", "P500V", "P700WIND", "P700RV", "P700U", "P700V", "P850WIND", "P850RV", "P850U", "P850V", "M10WIND", "M10RV",
+    # the one shared 3-D history stream buffer
+    "H_STREAM",
 })
+# Init-only memory that the forecast held to the end (2026-11-04). Each name is
+# written and read only inside the init chain: the GFS start's vertical-interpolation scratch
+# (init-gfs-vinterp; the boundary builder gfs_bocos uses its own private State) and the decoded surface
+# records (ctx.tables["raw_sfc"], read only by init-native-sfc). 130 MB at 333x333 (1.2 KB per column) and
+# 70 MB at 12 km. Dropped at the end of the init chain and again where a forecast starts, because a saved init
+# (slab_init) made before this change still carries them.
+INIT_LEFTOVER_FIELDS = ("P3D_OUT", "P3DV_IN", "P3DV_OUT", "QTMP2", "CWM_TMP", "FRIMEF_LEV", "PSFC_OUTV", "PDVP")
+INIT_LEFTOVER_TABLES = ("raw_sfc",)
+
+
+def release_init_leftovers(ctx) -> int:
+    """Drop the init-only arrays above from ctx.st and ctx.tables. Idempotent. Returns the bytes released."""
+    n = 0
+    st = getattr(ctx, "st", None)
+    if st is not None:
+        for k in INIT_LEFTOVER_FIELDS:
+            a = st.fields.pop(k, None)
+            if a is not None and not any(b is a for b in st.fields.values()):
+                n += int(getattr(a, "nbytes", 0))
+    tabs = getattr(ctx, "tables", None)
+    if isinstance(tabs, dict):
+        for k in INIT_LEFTOVER_TABLES:
+            v = tabs.pop(k, None)
+            if isinstance(v, dict):
+                n += sum(int(getattr(x, "nbytes", 0)) for x in v.values())
+    return n
 # Physics locals released right after the unit that owns them (driver: after that unit's run()).
 UNIT_SCRATCH = {
     # MYJ vertical diffusion locals (VDIFH / VDIFV inside MYJPBL, called by phys-turbl-driver)
     "phys-turbl-driver": frozenset({
         "MYJ_TEST_D", "MYJ_TEST_RKM", "MYJ_TEST_RHO", "MYJ_TEST_AKMS_DENS", "MYJ_TEST_LMH", "MYJ_TEST_Z",
         "MYJ_TEST_UK", "MYJ_TEST_VK", "MYJ_TEST_DUDT", "MYJ_TEST_DVDT",
-        "THK", "QK", "CWMK", "ZHK", "RHOK", "AKHK", "AKHS_DENS"}),
+        "THK", "QK", "CWMK", "ZHK", "RHOK", "AKHK", "AKHS_DENS",
+        "DELP"}),                     # TURBL local (pressure depth), read by MYJ and GWD inside this unit only
+    # ADV1 Adams-Bashforth T (adv1_t_ab_col fills it, the same unit reads it)
+    "dyn-adv1-horiz-t": frozenset({"T1"}),
     # BMJ column scratch (CUCNVC)
     "phys-bmj-driver": frozenset({"BMJ_CT_DPRS", "BMJ_SCAL", "BMJ_FLAG"}),
     # GSMDRIVE locals (phys_fer_driver._SCRATCH3)
@@ -154,7 +198,21 @@ PHYS_SCRATCH = frozenset({
     "PHINT", "DZ", "TH", "EXNER", "RR", "PHMID", "U_PHY", "V_PHY", "DUDT", "DVDT",
 })
 # init-only arrays of init-derive-state (no step unit names them)
-INIT_ONLY = ("TOLD", "TADJ")
+INIT_ONLY = ("TOLD", "TADJ", "RTOP")     # RTOP: dyn-pgforce-geopot rewrites it before any reader (STEP_SCRATCH)
+# Init stage locals dropped right after their stage, on every memory path (holding them buys no speed):
+# {stage: (state names, ctx.tables keys)}
+INIT_STAGE_ONLY = {
+    # init-gwd-orog accumulators (namgpu/init/init_gwd_orog.py FLOAT_SCRATCH, INT_SCRATCH); no other unit names them
+    "init-gwd-orog": (("GWD_SUMTOPO", "GWD_SDX2", "GWD_SDY2", "GWD_SDXY", "GWD_TOPO", "GWD_SUM2", "GWD_SUM4",
+                       "GWD_COUNT", "GWD_NUL", "GWD_NLL", "GWD_NUR", "GWD_NLR", "GWD_NUL2", "GWD_NLL2",
+                       "GWD_NUR2", "GWD_NLR2", "GWD_CNUL", "GWD_CNLL", "GWD_CNUR", "GWD_CNLR"), ("gwd_dem",)),
+    # the decoded surface records (init-grib2-decode / gfs_start); init-native-sfc is their only reader
+    "init-native-sfc": ((), ("raw_sfc",)),
+}
+# TDFI memory, dropped when the filter ends (drv_time_loop), on every memory path: the running sums (DFI, ctx.filt),
+# the physics save (DFI_PHY_SAVE_*), the 0 h reflectivity work arrays. Nothing reads them after phy_restore.
+TDFI_STATE = ("DFI_PHY_SAVE_2D", "DFI_PHY_SAVE_3D")
+TDFI_TABLES = ("DFI", "dfi_refl_curefl", "fer_calmict_dbz", "dfi_phy_save", "dfi_phy_restore")
 import os as _os  # noqa: E402
 POISON = _os.environ.get("NAMGPU_SCRATCH_POISON", "") == "1"
 _POISON_VALUES = (float("nan"), 1.0e30, -1.0e30)
@@ -223,6 +281,9 @@ class State:
     def __init__(self, grid, xp=None, ntracers: int | None = None, names=None):
         if xp is None:
             import cupy as xp  # noqa: N813
+        if getattr(xp, "__name__", "") == "cupy":
+            from namgpu import devmem  # noqa: PLC0415
+            devmem.setup()                  # the run's allocator, before the first state array (devmem.py)
         if ntracers is None:
             ntracers = num_tracers_total()
         self.xp = xp

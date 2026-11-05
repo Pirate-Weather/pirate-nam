@@ -45,7 +45,8 @@ def release_card(ctx) -> dict:
     ctx.st.fields.clear()
     ctx.tables.clear()
     gc.collect()
-    cp.get_default_memory_pool().free_all_blocks()
+    from namgpu import devmem
+    devmem.release()
     cp.get_default_pinned_memory_pool().free_all_blocks()
     used = round((lambda m: (m[1] - m[0]) / 2**30)(cp.cuda.Device().mem_info), 1)
     want = os.environ.get("NAMGPU_CARD_LOCK", "")
@@ -73,6 +74,20 @@ def _stage(rec, name, seconds, parallelism):
     rows = [r for r in rec.get("stages", []) if r["stage"] != name]      # a rerun tail replaces its own row
     rec["stages"] = rows + [{"stage": name, "s": None if seconds is None else round(seconds, 2),
                              "parallelism": parallelism}]
+
+
+def _reserve_step_lmem(rec) -> None:
+    """Step-loop local-memory reservation, set while the pool is empty, for a run that skips the init chain (a saved init
+    or a restart). The init chain sets it at its end (init_case_driver); without this the reservation grew at a step-loop
+    launch after the pool had filled (the OOM mode kernels.trim_local_memory exists to prevent; the VRAM audit saw
+    9,216 B/thread at the peak, the fer_hires frame, not step_frame_bytes() 10,016). Fit path only, as in the chain."""
+    from namgpu import kernels as _k
+    from namgpu import state as statemod
+    if not statemod.fit_on():
+        return
+    rec["local_memory"] = lm = _k.trim_local_memory("load")
+    print(f"local-memory reservation set for the step loop: {lm['bytes_per_thread']} B/thread = "
+          f"{lm['reserved_gib']} GiB ({lm['delta_gib']:+} GiB device used)", flush=True)
 
 
 def main(argv=None):
@@ -274,6 +289,7 @@ def main(argv=None):
         from namgpu.init import slab_init
         rec["resumed_from"] = str(a.resume)
         rec["resumed_at_fhr"] = resume_meta["fhr"]
+        _reserve_step_lmem(rec)
         rec["init"] = {"resumed_from": str(a.resume), "load": slab_init.load(ctx, a.resume)}
         rec["skipped_init"] = "all (resumed)"
         ctx.slab = ctx.comm = ctx.decomp = None
@@ -285,6 +301,7 @@ def main(argv=None):
             drv_loop_limits.run(ctx)
     elif a.init_from is not None:
         from namgpu.init import slab_init
+        _reserve_step_lmem(rec)
         rec["init"] = {"loaded_from": str(a.init_from), "load": slab_init.load(ctx, a.init_from)}
         rec["skipped_init"] = "all (loaded)"
         # The saved ctx attributes are the init process's (one card: comm/slab/decomp None); this rank's win.
@@ -318,10 +335,11 @@ def main(argv=None):
     # card 3 for a forecast whose step loop needs ~17 GB. Return them.
     import gc
     gc.collect()
-    cp.get_default_memory_pool().free_all_blocks()
+    from namgpu import devmem
+    devmem.release(ctx.stream)
     cp.get_default_pinned_memory_pool().free_all_blocks()
     rec["after_init_used_gib"] = round((lambda m: (m[1] - m[0]) / 2**30)(cp.cuda.Device().mem_info), 1)
-    rec["pool_after_init_gib"] = round(cp.get_default_memory_pool().total_bytes() / 2**30, 2)
+    rec["pool_after_init_gib"] = round(devmem.pool().total_bytes() / 2**30, 2)
 
     leave = [u for u in a.leave_out.split(",") if u]
     for u in leave:
@@ -418,7 +436,8 @@ def main(argv=None):
         if v is not None:
             sx[nm] = [round(float(v.min()), 5), round(float(v.max()), 5), round(float(v.mean()), 6)]
     rec["stats_end"] = sx
-    rec["pool_end_gib"] = round(cp.get_default_memory_pool().total_bytes() / 2**30, 2)
+    rec["pool_end_gib"] = round(devmem.pool().total_bytes() / 2**30, 2)
+    rec["pool"] = devmem.stats()            # allocator, live/reserved bytes and their high-water marks
     rec["card_used_gib"] = round((lambda m: (m[1] - m[0]) / 2**30)(cp.cuda.Device().mem_info), 1)
     print("end stats", json.dumps(sx), "nonfinite", bad, flush=True)
     rd.__exit__(None, None, None)

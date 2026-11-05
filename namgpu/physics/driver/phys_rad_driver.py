@@ -119,7 +119,13 @@ def _rrtm_args(ctx, st, jdat, nts, dt, flags, solcon, mype):
     shape3 = (lm, jm, im)
 
     def zero(name):
-        return st.add(name, shape3)   # zero-filled once on first use, never written
+        # A zero field that is never written and never handed to a kernel: rrtm-call reads only the control
+        # scalars of this dict, and the chain reads ctx.st by name. One broadcast zero (4 bytes), not a
+        # [LM, JM, IM] state field per name (2 x 191 MB at 12 km for QCI and NCI, held all run; VRAM audit
+        # 2026-11-04). name is kept for the record.
+        import cupy as cp
+        del name
+        return cp.broadcast_to(cp.zeros((), dtype=cp.float32), shape3)
 
     qci = st["QI"] if flags["F_QI"] else zero("RAD_ZERO_QCI")
     qsnow = st["QS"] if flags["F_QS"] else zero("RAD_ZERO_QSNOW")

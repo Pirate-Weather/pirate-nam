@@ -238,7 +238,7 @@ def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None, host=Non
         else:
             os.environ["RAYON_NUM_THREADS"] = rayon_prev
     # Missing (bitmap) points: the sanitiser fills from present neighbours; MISSING marks them.
-    pl = cp.where(pl == MISSING, cp.float32(np.nan), pl)
+    pl[pl == MISSING] = cp.float32(np.nan)                          # in place, no second copy of the set
     if rec["pl_derive"]:
         srec.derive_pl(rec, pl, plev, PL_ORDER)
     if rec["sfc_derive"]:

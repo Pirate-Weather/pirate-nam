@@ -176,6 +176,7 @@ def run(ctx, ops: Ops | None = None) -> dict:
             ops.phy_init(ctx)                  # FIRST_FILTER one-time setup, before the first save
             ops.dyn_init(ctx, s.ndfistep)
             ops.phy_save(ctx)
+            phy_save_to_host(ctx)              # the saved copy waits in host memory until the restore
         ops.dyn_sum(ctx, 0)
         if k == s.n_bck - 1:
             ops.dyn_average(ctx)
@@ -199,10 +200,159 @@ def run(ctx, ops: Ops | None = None) -> dict:
         ops.dyn_sum(ctx, 0)
         if k == s.n_fwd - 1:
             ops.dyn_average(ctx)
+            phy_save_to_device(ctx)
             ops.phy_restore(ctx)
             # REFL_10CM is not in the restore table: recompute the 0 h reflectivity from the 0 h state
             from namgpu.steps import drv_dfi_refl_restore  # noqa: PLC0415
             drv_dfi_refl_restore.run(ctx)
 
     drv_filter_consts.filter_end(ctx)
+    release(ctx)
     return {"ndfistep": s.ndfistep, "n_bck": s.n_bck, "n_fwd": s.n_fwd, "filt_dt": s.filt_dt}
+
+
+# ---- the filter's memory (2026-11-04) ----------------------------------------------------------------------------
+# The filter's arrays are copies of the prognostic state: the physics save arrays (DFI_PHY_SAVE_2D/3D, the restore
+# fields copied at the backward start and read back once at the forward end) and the Dolph sums (DFI sum_2d/sum_3d).
+#  - The physics save arrays wait in pinned host memory between the save and the restore (0.73 GiB at 12 km that
+#    sat on the card through both legs).
+#  - Everything the filter owns is dropped when the filter ends (2.0 GiB at 12 km, held to the end of the forecast
+#    before; nothing after filter_end reads it).
+#  - Fit path: the sums wait in pinned host memory while the radiation call runs inside the forward leg
+#    (Driver.step, FILTER_SPILL_UNITS), the filter-phase high-water mark.
+# Every move is a byte copy on ctx.stream, so the filter result is unchanged.
+FILTER_TABLES = ("DFI", "dfi_phy_init", "dfi_phy_save", "dfi_phy_restore", "dfi_refl_curefl", "dfi_phy_host",
+                 "dfi_spilled")
+PHY_SAVE_NAMES = ("DFI_PHY_SAVE_2D", "DFI_PHY_SAVE_3D")
+_SUMS = (("sum_2d", "sum2d"), ("sum_3d", "sum3d"), ("sum_4d", "sum4d"))   # ctx.tables["DFI"] key, ctx.filt key
+_HOST: dict = {}    # pinned host buffers by role, reused for the run (dropped in release)
+
+
+def _pinned(key, shape, dtype):
+    import cupy as cp  # noqa: PLC0415
+    import numpy as np  # noqa: PLC0415
+    dtype = np.dtype(dtype)
+    a = _HOST.get(key)
+    if a is None or a.shape != tuple(shape) or a.dtype != dtype:
+        n = int(np.prod(shape))
+        mem = cp.cuda.alloc_pinned_memory(max(n, 1) * dtype.itemsize)
+        a = np.frombuffer(mem, dtype, n).reshape(shape)
+        _HOST[key] = a
+    return a
+
+
+def _stream(ctx):
+    import contextlib  # noqa: PLC0415
+    import cupy as cp  # noqa: PLC0415
+    s = ctx.stream if ctx.stream is not None else cp.cuda.get_current_stream()
+    return s, (ctx.stream if ctx.stream is not None else contextlib.nullcontext())
+
+
+def _down(ctx, arrays: dict) -> dict:
+    """Device -> pinned host for {key: device array}; waits for the copies. Returns {key: host array}."""
+    s, scope = _stream(ctx)
+    out = {}
+    with scope:
+        for k, a in arrays.items():
+            h = _pinned(k, a.shape, a.dtype)
+            a.get(stream=s, out=h, blocking=False)
+            out[k] = h
+    s.synchronize()          # the device arrays are freed next; their copies must be done (a few per run)
+    return out
+
+
+def _up(ctx, host: dict) -> dict:
+    """Pinned host -> fresh device arrays on ctx.stream (stream-ordered before the next kernel)."""
+    import cupy as cp  # noqa: PLC0415
+    s, scope = _stream(ctx)
+    out = {}
+    with scope:
+        for k, h in host.items():
+            a = cp.empty(h.shape, dtype=h.dtype)
+            a.set(h, stream=s)
+            out[k] = a
+    return out
+
+
+def phy_save_to_host(ctx) -> int:
+    """Move DFI_PHY_SAVE_2D/3D (just written by drv-dfi-phy-save) to pinned host memory. Returns bytes moved."""
+    st = ctx.st
+    dev = {k: st.fields[k] for k in PHY_SAVE_NAMES if k in st.fields and hasattr(st.fields[k], "device")}
+    if not dev:
+        return 0
+    n = sum(int(a.nbytes) for a in dev.values())
+    host = _down(ctx, {"phy:" + k: a for k, a in dev.items()})
+    for k in dev:
+        st.fields.pop(k, None)
+    ctx.tables.pop("dfi_phy_save", None)      # its device pointer table names the arrays just freed
+    ctx.tables["dfi_phy_host"] = {k: host["phy:" + k] for k in dev}
+    return n
+
+
+def phy_save_to_device(ctx) -> int:
+    """Put the saved physics arrays back on the card for drv-dfi-phy-restore. Returns bytes moved."""
+    host = ctx.tables.pop("dfi_phy_host", None)
+    if not host:
+        return 0
+    dev = _up(ctx, host)
+    for k, a in dev.items():
+        ctx.st.fields[k] = a
+    return sum(int(a.nbytes) for a in dev.values())
+
+
+def spill_sums(ctx) -> int:
+    """Move the Dolph sums to pinned host memory (Driver.step, around FILTER_SPILL_UNITS). Returns bytes moved."""
+    dfi = ctx.tables.get("DFI")
+    if not isinstance(dfi, dict) or "dfi_spilled" in ctx.tables:
+        return 0
+    dev = {t: dfi[t] for t, _f in _SUMS if hasattr(dfi.get(t), "device") and int(dfi[t].nbytes) > 0}
+    if not dev:
+        return 0
+    host = _down(ctx, {"sums:" + t: a for t, a in dev.items()})
+    filt = ctx.filt if isinstance(ctx.filt, dict) else {}
+    for t, f in _SUMS:
+        if t in dev:
+            del dfi[t]
+            if filt.get(f) is dev[t]:
+                del filt[f]
+    ctx.tables["dfi_spilled"] = {t: host["sums:" + t] for t in dev}
+    return sum(int(a.nbytes) for a in dev.values())
+
+
+def unspill_sums(ctx) -> int:
+    """Copy the spilled sums back to the card under both names dyn-sum and dyn-average read."""
+    host = ctx.tables.pop("dfi_spilled", None)
+    if not host:
+        return 0
+    dev = _up(ctx, host)
+    dfi = ctx.tables["DFI"]
+    filt = ctx.filt if isinstance(ctx.filt, dict) else None
+    for t, f in _SUMS:
+        if t in dev:
+            dfi[t] = dev[t]
+            if filt is not None:
+                filt[f] = dev[t]
+    return sum(int(a.nbytes) for a in dev.values())
+
+
+def release(ctx) -> int:
+    """Drop everything the filter owns once filter_end has run. Returns the device bytes released."""
+    n = 0
+    for k in FILTER_TABLES:
+        v = ctx.tables.pop(k, None)
+        vals = v.values() if isinstance(v, dict) else (v if isinstance(v, (tuple, list)) else (v,))
+        n += sum(int(x.nbytes) for x in vals if hasattr(x, "device") and hasattr(x, "nbytes"))
+    for k in PHY_SAVE_NAMES:
+        a = ctx.st.fields.pop(k, None)
+        if a is not None:
+            n += int(a.nbytes)
+    ctx.filt = None
+    s, _scope = _stream(ctx)
+    s.synchronize()          # copies from the pinned buffers below are done before they are freed (once per run)
+    _HOST.clear()
+    try:
+        import cupy as cp  # noqa: PLC0415
+        cp.get_default_pinned_memory_pool().free_all_blocks()
+    except Exception:  # noqa: BLE001  (no CUDA: CPU-only imports)
+        pass
+    return n

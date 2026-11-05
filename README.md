@@ -43,16 +43,17 @@ The +12 h sheets and the other maps are in [docs/evidence/](docs/evidence/).
 ## What you need
 
 - **Linux** (x86_64) with Python 3.12 or newer.
-- **An NVIDIA card with 32 GB (one RTX 5090) or larger; up to 85 GB on a 96 GB card without the fit.** On a
-  card with less than 64 GB the run takes the 32 GB fit by itself: arrays that live inside one step are handed
+- **An NVIDIA card with 24 GB or more for the 12 km grid; up to 85 GB on a 96 GB card without the fit.** The
+  12 km forecast peaks at 22.5 GB on an RTX 5090; a 3 km nest of 333 x 333 points at 5.8 GB (see "Speed and
+  memory"). On a card with less than 64 GB the run takes the 32 GB fit by itself: arrays that live inside one step are handed
   back after their last user, the radiation working set is dropped between calls and the radiation runs in
   8-row chunks. Every physics scheme stays on. The run log and `forecast-receipt.json` name the memory path
   that ran (`memory path: fit` or `full`); `NAMGPU_MEMORY_PATH=fit` or `full` picks one on any card.
   Fetching data, the static fields, maps and the side-by-side panels need no big card (the static-field
   build uses an NVIDIA card for a few seconds).
 - **Or two or more 32 GB cards of one machine** (`woof-nam run --cards N`, see "Running on more than one
-  card"): the 12 km grid ran on 2, 4 and 8 RTX 5090 cards at 19-31 GiB per card, with the same bits on any
-  number of cards.
+  card"): the 12 km grid ran on 2, 4 and 8 RTX 5090 cards with the same bits on any number of cards; on 2
+  cards each one peaks at about 13 GB.
 - **An NVIDIA driver for CUDA 13.** No system CUDA toolkit is needed: pip installs the CUDA runtime
   and the compiler headers (`cupy-cuda13x[ctk]`). The kernels are compiled on the card at first use
   (NVRTC) and cached.
@@ -360,14 +361,28 @@ One RTX PRO 6000, 96 GB (full memory path), fresh clone and wheel install, 2025-
   `woof-nam run`, start state and maps included. Every field finite at the end.
 - **Memory:** the forecast's pool ended at 74 GiB; the card peaked at 84.5 GB.
 
-The 32 GB fit with the digital filter: 6 h on the fit path with the memory pool capped at 31 GiB (what a 32 GB card has free), on the 96 GB card: filter 56.7 s, 299 ms per step, every field finite, card peak 30,336 MiB.
+The fit memory path (taken by itself on cards under 64 GB), 0.1.1.dev9, 2026-11-05. Each run starts from one saved
+initial state (`--init-from`), runs the digital filter and then the forecast with hourly history; the peak is the
+forecast process on the card (NVML, sampled every 10 ms). Every history value is the same as with 0.1.1.dev6, which
+peaked where the last column says.
 
-One RTX 5090, 32 GB (the 32 GB fit, chosen by itself; measured before `woof-nam run` ran the digital filter):
-- **12 h forecast:** native start, all physics, 1,728 steps in 586 s, 339 ms per step (init 50 s).
-  Every field finite at the end.
-- **Memory:** this run's peak on the card was 31,248 of 32,607 MiB, while the start was built (the forecast
-  process plus its init helpers); in the step loop the forecast process peaked at 28,482 MiB. Pool 21.6 GiB
-  at the end.
+| Grid (points) | Card | Run | Peak on the card | 0.1.1.dev6 | Forecast step |
+|---|---|---|---|---|---|
+| 12 km CONUS (954 x 835 x 60) | RTX 5090, 32 GB | 1 h, native 2025-03-14 12Z | 22,548 MiB | 28,638 MiB | 358.6 ms (362.7) |
+| 12 km CONUS (954 x 835 x 60) | RTX 5090 held to 23,963 MiB free (a 24 GB card) | 1 h, same start | 22,468 MiB | - | 343.2 ms |
+| 12 km CONUS (954 x 835 x 60) | 2 x RTX 5090, `--cards 2` | 1 h, same start | 13,094 + 12,996 MiB | - | same bits as 1 card |
+| 3 km nest (333 x 333 x 60) | RTX 5090 (shared) | 3 h, GFS 2025-03-14 12Z | 5,778 MiB | 8,654 MiB | - |
+| 3 km nest (100 x 100 x 60) | RTX 5090 (shared) | 1 h, GFS 2025-03-14 12Z | 3,322 MiB | 4,306 MiB | - |
+
+- **Smallest card each grid fits:** the 12 km grid a 24 GB card (the run above; on a 24 GB card the column physics
+  works in row bands by itself when a whole-domain call would not fit, with the same output); the 333 x 333 nest an
+  8 GB card and the 100 x 100 nest a 4 GB card, from their peaks.
+- **What the peak holds:** 2.44 GiB of it, on an RTX 5090, is the local memory the GPU reserves for the step
+  kernels (10,016 bytes per resident thread; a card with fewer multiprocessors reserves less), and about 0.3 GiB is the
+  CUDA context and modules. The rest is the run's memory pool, which grows only when a request needs it and hands
+  unused blocks back after each init stage, radiation call and history write.
+- The forecast-step column is the 1 h forecast loop after the filter, on a card running nothing else; the nest rows ran on
+  a shared card, so they give no step time.
 
 ## Running on more than one card
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Less GPU memory, same output: one device memory pool per run that grows only when a request needs it (never past
+  `CUPY_GPU_MEMORY_LIMIT` when that is set) and hands unused blocks back after each init stage, radiation call and
+  history write; the digital filter keeps its save arrays in host memory and frees everything it owns when it ends; the
+  3-D history fields are computed one at a time into one buffer as they are written; init-only scratch is dropped
+  after the init; banded column physics and radiation chunks free their arrays as soon as a call ends; the radiation
+  and MYJ/BMJ table builds keep their work arrays in global memory. The per-thread local-memory reservation the step
+  loop needs is 10,016 bytes (2.44 GiB on an RTX 5090, was 11,264), and `woof-nam run --init-from` and `--resume`
+  set it before the load, as a fresh start does. Every history value is unchanged.
 - Restart sets on the full memory path (cards of 64 GiB and more): a set leaves out the step, history, unit and
   init-only scratch, the RRTM chunk context and driver-prep tables and the init-only 30-arcsec terrain, exactly what the
   32 GB fit path has already released at the hour (`restart.transient`). Every one of them is written before it is read

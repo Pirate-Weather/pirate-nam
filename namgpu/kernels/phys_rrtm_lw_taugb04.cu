@@ -353,8 +353,10 @@ extern "C" __global__ void rrtm_lw_taugb04(
     const float refrat_planck_a,          /* chi_mls(1,11) / chi_mls(2,11) */
     const float refrat_planck_b,          /* chi_mls(3,13) / chi_mls(2,13) */
     const int IM, const int JM, const int NLAY,
-    float* __restrict__ taug04,           /* [nlay, 140, JM, IM] */
-    float* __restrict__ fracs04)          /* [nlay, 140, JM, IM] */
+    float* __restrict__ taug04,           /* [nlay, 140, JM, IM] (or the g-first [140, nlay, JM, IM], see ostr_*) */
+    float* __restrict__ fracs04,          /* same layout as taug04 */
+    const long long ostr_k,               /* output stride of one layer: 140*JM*IM layer first, JM*IM g first */
+    const long long ostr_g)               /* output stride of one g-point: JM*IM layer first, nlay*JM*IM g first */
 {
     POINT_IJL                              /* i0, j0, l0 = layer (zero-based) */
     if (i0 >= IM || j0 >= JM || l0 >= NLAY) return;
@@ -365,7 +367,7 @@ extern "C" __global__ void rrtm_lw_taugb04(
     const size_t c3 = IDX3(i0, j0, k0, IM, JM);
 #define CA(n0)     colamt[IDX4(i0, j0, k0, (n0), IM, JM, NLAY)]
 #define RF(m0, n0) rfrate[IDX4(i0, j0, k0, ((m0) * LW4_NRATES + (n0)), IM, JM, NLAY)]
-#define OUTG(ig0)  ((((size_t)k0) * LW4_NGPT + LW4_NS04 + (ig0)) * (size_t)JM * (size_t)IM + (size_t)j0 * IM + i0)
+#define OUTG(ig0)  (((size_t)k0) * (size_t)ostr_k + (size_t)(LW4_NS04 + (ig0)) * (size_t)ostr_g + (size_t)j0 * IM + i0)
 
     const int lt   = laytrop[c2];
     const int jpk  = jp[c3];

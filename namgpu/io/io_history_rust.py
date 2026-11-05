@@ -230,7 +230,9 @@ def write_history_rust(path: Path, ctx, fields: dict, start) -> Path:
         record(vid_times, NC_CHAR, stampb)
         record(vid_xlat, NC_FLOAT, np.ascontiguousarray(np.degrees(_host(g.glat_h)), dtype=np.float32).tobytes())
         record(vid_xlon, NC_FLOAT, np.ascontiguousarray(np.degrees(_host(g.glon_h)), dtype=np.float32).tobytes())
+        from .io_history_fields import device_array  # noqa: PLC0415
         for vid, name, arr in field_vars:
+            arr = device_array(arr)
             if arr.ndim == 3:
                 slab = _flip_to_host(ctx, arr, arr.shape[0], arr.shape[1], arr.shape[2])
             else:

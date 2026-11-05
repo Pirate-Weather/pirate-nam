@@ -305,8 +305,11 @@ extern "C" __global__ void rrtm_lw_taugb02(
     const float* __restrict__ forref,     /* [4, NG02] */
     const float* __restrict__ fracrefa,   /* [NG02] */
     const float* __restrict__ fracrefb,   /* [NG02] */
-    float* __restrict__ taug_lw,          /* [nlay, NGPTLW, ncol] out: taug(ngpt,k), band-2 rows written */
-    float* __restrict__ fracs_lw)         /* [nlay, NGPTLW, ncol] out: fracs(ngpt,k), band-2 rows written */
+    float* __restrict__ taug_lw,          /* [nlay, NGPTLW, ncol] out: taug(ngpt,k), band-2 rows written
+                                             (or the g-first [NGPTLW, nlay, ncol], see ostr_*) */
+    float* __restrict__ fracs_lw,         /* same layout as taug_lw: fracs(ngpt,k), band-2 rows written */
+    const long long ostr_k,               /* output stride of one layer: NGPTLW*ncol layer first, ncol g first */
+    const long long ostr_g)               /* output stride of one g-point: ncol layer first, nlay*ncol g first */
 {
     const int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (col >= ncol) return;
@@ -348,7 +351,7 @@ extern "C" __global__ void rrtm_lw_taugb02(
             const float taufor  = ff * (TAB(forref, indf, ig) + ffr * (TAB(forref, indfp, ig) - TAB(forref, indf, ig)));
 
             /* taug(ns02+ig,k) and fracs(ns02+ig,k) at zero-based row NS02_B2 + ig */
-            const size_t o = ((size_t)k0 * NGPTLW_B2 + NS02_B2 + ig) * ncol + lc;
+            const size_t o = (size_t)k0 * (size_t)ostr_k + (size_t)(NS02_B2 + ig) * (size_t)ostr_g + lc;
             taug_lw[o] = corradj * (cam * (f00 * TAB(absa, ind0, ig) + f10 * TAB(absa, ind0p, ig)
                                          + f01 * TAB(absa, ind1, ig) + f11 * TAB(absa, ind1p, ig))
                                     + tauself + taufor);
@@ -382,7 +385,7 @@ extern "C" __global__ void rrtm_lw_taugb02(
         for (int ig = 0; ig < NG02_B2; ++ig) {
             const float taufor = ff * (TAB(forref, indf, ig) + ffr * (TAB(forref, indfp, ig) - TAB(forref, indf, ig)));
 
-            const size_t o = ((size_t)k0 * NGPTLW_B2 + NS02_B2 + ig) * ncol + lc;
+            const size_t o = (size_t)k0 * (size_t)ostr_k + (size_t)(NS02_B2 + ig) * (size_t)ostr_g + lc;
             taug_lw[o] = cam * (f00 * TAB(absb, ind0, ig) + f10 * TAB(absb, ind0p, ig)
                               + f01 * TAB(absb, ind1, ig) + f11 * TAB(absb, ind1p, ig))
                          + taufor;

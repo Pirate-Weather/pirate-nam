@@ -140,9 +140,12 @@ def _check(name, arr, shape):
 
 def rtrnmr(*, semiss, secdif, delp, cldfrc, taucld, tautot, fracs, pklay, pklev,
            tables, out, nlay: int, heatfac: float, fluxfac: float,
-           lhlw0: bool, lhlwb: bool, stream=None):
+           lhlw0: bool, lhlwb: bool, stream=None, surface_first: bool = False):
     """One launch over every column. Writes the outputs dict `out` in place and returns it.
-    All arrays are in NAM slot order (see the module docstring)."""
+    All arrays are in NAM slot order (see the module docstring), or with surface_first=True in the radlw
+    internal order the LW seam holds (slot 0 = the surface layer, every layer array and output; pklay/pklev
+    [NLAY+1, NBANDS, JM, IM] as setcoef writes them): kernel phys_rrtm_lw_rtrnmr_sf, the same body with the
+    other slot map, so the values are the same and the seam makes no reversed copies."""
     import cupy as cp
 
     jm, im = int(semiss.shape[1]), int(semiss.shape[2])
@@ -157,8 +160,9 @@ def rtrnmr(*, semiss, secdif, delp, cldfrc, taucld, tautot, fracs, pklay, pklev,
     _check("taucld", taucld, (NBANDS, nlay, jm, im))
     _check("tautot", tautot, (NGPTLW, nlay, jm, im))
     _check("fracs", fracs, (NGPTLW, nlay, jm, im))
-    _check("pklay", pklay, (NBANDS, nlp1, jm, im))
-    _check("pklev", pklev, (NBANDS, nlp1, jm, im))
+    pk_shape = (nlp1, NBANDS, jm, im) if surface_first else (NBANDS, nlp1, jm, im)
+    _check("pklay", pklay, pk_shape)
+    _check("pklev", pklev, pk_shape)
     for name in ("totuflux", "totdflux", "totuclfl", "totdclfl"):
         _check(name, out[name], (nlp1, jm, im))
     _check("htr", out["htr"], (nlay, jm, im))
@@ -168,7 +172,7 @@ def rtrnmr(*, semiss, secdif, delp, cldfrc, taucld, tautot, fracs, pklay, pklev,
         if tuple(tables[k].shape) != (NTBL + 1,) or tables[k].dtype != cp.float32:
             raise ValueError(f"phys-rrtm-lw-rtrnmr: tables[{k!r}] must be float32 [{NTBL + 1}]")
 
-    kern = kernels.get(UNIT, KERNEL)
+    kern = kernels.get(UNIT, KERNEL + "_sf" if surface_first else KERNEL)
     scope = stream if stream is not None else contextlib.nullcontext()
     with scope:
         kern(kernels.grid_cols(im, jm), kernels.BLOCK_COL, (

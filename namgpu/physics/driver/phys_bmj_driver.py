@@ -120,7 +120,31 @@ def _nint(x: np.float32) -> int:
     return int(math.floor(float(x) + 0.5))
 
 
+def _setup(ctx):
+    """Whole-domain work before the row bands (namgpu/physics/band.py): DUDT/DVDT and their DUDT_PHY/DVDT_PHY
+    aliases live in the whole State (drv-h-to-v-tend reads them after this call), and BMJ_DXH [JM] is uploaded
+    whole so each band reads its own rows of it."""
+    st, g = ctx.st, ctx.grid
+    im, jm, lm = int(g.im), int(g.jm), int(g.lm)
+    st.add("DUDT", (lm, jm, im))
+    st.add("DVDT", (lm, jm, im))
+    st.fields["DUDT_PHY"] = st.fields["DUDT"]
+    st.fields["DVDT_PHY"] = st.fields["DVDT"]
+    from namgpu.physics.bmj import phys_bmj_bmjdrv
+    phys_bmj_bmjdrv._dxh_device(st, g)
+
+
 def run(ctx):
+    """CUCNVC over row bands (band.py): BMJ columns are independent, so PHINT, PHMID, EXNER, TH, RR, DZ, U_PHY,
+    V_PHY, RTHCUTEN and RQCUTEN exist for one band at a time. Same result bit for bit."""
+    from namgpu.physics import band
+    from namgpu.state import PHYS_SCRATCH, UNIT_SCRATCH
+    uid = "phys-bmj-driver"
+    return band.run(ctx, uid, _run, setup=_setup, scratch=PHYS_SCRATCH | UNIT_SCRATCH.get(uid, frozenset()),
+                    keep_whole=("DUDT", "DVDT"), drop=UNIT_SCRATCH.get(uid, ()))
+
+
+def _run(ctx):
     cfg, g, st = ctx.cfg, ctx.grid, ctx.st
     if cfg.convection != "bmj":
         raise RuntimeError(

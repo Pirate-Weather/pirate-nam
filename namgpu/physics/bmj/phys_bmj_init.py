@@ -88,9 +88,13 @@ def run(ctx, restart: bool = False):
             tables["bmj_ttbl"], tables["bmj_the0"], tables["bmj_sthe"],
             A2, A3, A4, CAPPA, CP, PQ0,
         ))
+        # per-thread work arrays in global memory (7 x JTBQ words per thread; they were a 12.3 KB local frame,
+        # which the device reserves for every resident thread: 3.0 GiB at init on a 170-SM card)
+        import cupy as cp
+        wk = cp.zeros((ITBQ * 7 * JTBQ,), dtype=cp.float32)
         k_ttblq(((ITBQ + BLOCK - 1) // BLOCK,), (BLOCK,), (
             tables["bmj_ttblq"], tables["bmj_the0q"], tables["bmj_stheq"],
-            A2, A3, A4, CAPPA, CP, PQ0,
+            A2, A3, A4, CAPPA, CP, PQ0, wk,
         ))
         n = im * jm
         k_cldefi(((n + BLOCK - 1) // BLOCK,), (BLOCK,), (

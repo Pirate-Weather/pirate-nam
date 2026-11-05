@@ -145,35 +145,43 @@ def run(ctx, only=None, log=print) -> dict:
 
     stages = []
     t_all = time.perf_counter()
-    from namgpu.state import fit_on as _fit_on  # noqa: PLC0415
+    from namgpu.state import INIT_STAGE_ONLY, fit_on as _fit_on  # noqa: PLC0415
     for uid in chain:
         mod = importlib.import_module(units[uid]["wrapper"])
         t0 = time.perf_counter()
         if uid == "drv-physics-initialize" and _fit_on():
             # 32 GB fit: the MYJ/BMJ table kernels need a large device local-memory reservation at launch;
             # hand the init temporaries cached in the CuPy pool back to the driver first
-            import cupy as _cp  # noqa: PLC0415
-            if ctx.stream is not None:
-                ctx.stream.synchronize()
-            _cp.get_default_memory_pool().free_all_blocks()
+            from namgpu import devmem  # noqa: PLC0415
+            devmem.release(ctx.stream)
         try:
             mod.run(ctx)
         except Exception as e:
             raise RuntimeError(f"{UNIT}: stage {uid} failed: {type(e).__name__}: {e}") from e
-        if uid == "init-gwd-orog" and _fit_on():
-            # the 30-arcsec terrain (gwd_dem, int16 21600 x 43200 = 1.78 GiB) is read only by init-gwd-orog
-            ctx.tables.pop("gwd_dem", None)
+        if uid in INIT_STAGE_ONLY:
+            # this stage's locals (state.INIT_STAGE_ONLY; the 30-arcsec GWD terrain gwd_dem, int16 21600 x 43200 =
+            # 1.78 GiB, is one) back to the pool on every memory path: no later unit reads them
+            _names, _keys = INIT_STAGE_ONLY[uid]
+            for _n in _names:
+                ctx.st.fields.pop(_n, None)
+            for _k in _keys:
+                ctx.tables.pop(_k, None)
         if uid == "init-vcoord-recover":
             from namgpu.init import sources  # noqa: PLC0415
             sources.release_staged(ctx, keep=())     # staged decode inputs are dead from here on
         if uid == "drv-physics-initialize":
             from namgpu.init import init_native_atm  # noqa: PLC0415
             init_native_atm.apply_parent_warm(ctx)  # one-way nest: parent Ferrier fractions over the cold fill
+        # one-off stage temporaries (GRIB decode, GFS boundary decode, table builds) back to the driver before the
+        # next stage: cached, they stack under the next stage's own use and its local-memory growth (devmem.py)
+        from namgpu import devmem  # noqa: PLC0415
+        devmem.release_slack(ctx.stream)
         dt = time.perf_counter() - t0
         stages.append({"unit": uid, "host_s": round(dt, 3), "status": "ok"})
         log(f"{UNIT}: {uid:<26} {dt:9.2f} s")
 
-    from namgpu.state import INIT_ONLY, fit_on  # noqa: PLC0415
+    from namgpu.state import INIT_ONLY, fit_on, release_init_leftovers  # noqa: PLC0415
+    release_init_leftovers(ctx)             # init-only scratch the forecast never reads (state.py)
     _fit = fit_on()
     if _fit:
         # the 30-arcsec terrain (gwd_dem, int16 21600 x 43200 = 1.78 GiB) is read only by init-gwd-orog
@@ -181,14 +189,18 @@ def run(ctx, only=None, log=print) -> dict:
         for _n in INIT_ONLY:                # init-derive-state locals (no step unit reads them)
             ctx.st.fields.pop(_n, None)
     bad = census(ctx)
-    # init-only table kernels (phys_myj_tablett 28.8 KB/thread, bmj ttblq 12.3 KB) left ~7 GiB of device
-    # local memory reserved for the whole run; give it back before the forecast (kernels.trim_local_memory)
+    # Device local-memory reservation: set it to what the step loop needs while the pool is still small
+    # (kernels.trim_local_memory). It was added to give back the ~7 GiB the init-only table builds
+    # (phys_myj_tablett 28.8 KB/thread, bmj ttblq 12.3 KB) left reserved; those builds now keep their work
+    # arrays in global memory (0 B/thread), so this makes the step-loop reservation early (it grows here).
+    lmem = None
     if _fit:
         from namgpu import kernels as _k  # noqa: PLC0415
-        freed = _k.trim_local_memory("init")
-        log(f"{UNIT}: local-memory reservation trimmed after init: {freed} GiB freed")
+        lmem = _k.trim_local_memory("init")
+        log(f"{UNIT}: local-memory reservation set for the step loop: {lmem['bytes_per_thread']} B/thread = "
+            f"{lmem['reserved_gib']} GiB ({lmem['delta_gib']:+} GiB device used)")
     total = time.perf_counter() - t_all
-    rec = {"stages": stages, "total_s": round(total, 3), "nonfinite": bad}
+    rec = {"stages": stages, "total_s": round(total, 3), "nonfinite": bad, "local_memory": lmem}
     ctx.timings["init"] = rec
     if bad:
         raise RuntimeError(f"{UNIT}: NaN/Inf after init in {bad}")

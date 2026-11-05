@@ -73,7 +73,35 @@ def _vcoord(ctx, attr: str):
     return ctx.tables[key]
 
 
+_KEEP = ("LOWLYR", "RAINNC", "RAINNCV", "MPRATES")
+
+
+def _setup(ctx):
+    """Whole-domain first-call work before the row bands (namgpu/physics/band.py): FERRIER_INIT_hr writes state
+    (F_ICE), and the one-slot MPRATES replaces the table's rank-4 row once, on the whole State."""
+    if ctx.tables.get("fer") is None:
+        phys_fer_init.run(ctx)
+    st, g = ctx.st, ctx.grid
+    mp_shape = (D_SS, int(g.lm), int(g.jm), int(g.im))
+    if "MPRATES" not in st.fields or tuple(st.fields["MPRATES"].shape) != mp_shape:
+        st.fields["MPRATES"] = st.xp.zeros(mp_shape, dtype=np.float32)
+
+
 def run(ctx, use_radar: bool = False, nprecip: int | None = None):
+    """GSMDRIVE over row bands (band.py): FER_HIRES columns are independent, so DZ8W, RHO_PHY, P_PHY, PI_PHY and
+    TH_PHY exist for one band at a time. Same result bit for bit. With bands the returned dict holds the arrays
+    that live in the State (the band-local work arrays are gone by then)."""
+    from namgpu.physics import band
+    from namgpu.state import PHYS_SCRATCH, UNIT_SCRATCH
+    uid = "phys-fer-driver"
+    out = band.run(ctx, uid, lambda c: _run(c, use_radar=use_radar, nprecip=nprecip), setup=_setup,
+                   scratch=PHYS_SCRATCH | UNIT_SCRATCH.get(uid, frozenset()), drop=UNIT_SCRATCH.get(uid, ()))
+    if out is None:
+        out = {n: ctx.st.fields[n] for n in _KEEP if n in ctx.st.fields}
+    return out
+
+
+def _run(ctx, use_radar: bool = False, nprecip: int | None = None):
     st = ctx.st
     g = ctx.grid
     cfg = ctx.cfg

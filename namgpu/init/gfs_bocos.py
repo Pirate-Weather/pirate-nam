@@ -239,7 +239,8 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     log(f"{UNIT}: {len(files) - 1} boco files from the {age_h} h old cycle "
         f"({ctx.start - timedelta(hours=age_h):%Y-%m-%d %HZ}) in {out_dir}")
     del st, bctx
-    cp.get_default_memory_pool().free_all_blocks()
+    from namgpu import devmem  # noqa: PLC0415
+    devmem.release()
     return out_dir
 
 

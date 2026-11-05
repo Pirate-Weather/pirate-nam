@@ -9,6 +9,10 @@ Kernel: namgpu/kernels/phys_myj_tables.cu
   phys_myj_tablept  one thread per kth row (JTBL = 1201 threads), block 64
   phys_myj_tablett  one thread per kp column (ITBL = 401 threads), block 64
 Three launches on ctx.stream. No host sync, no host math on the tables.
+The two spline kernels keep their per-thread work arrays in one global buffer (7 arrays per thread,
+13.5 MB each, freed when the build returns), not in local memory: the device reserves a kernel's local
+frame for every resident thread of the card, and these frames (28.8 KB and 11.3 KB per thread) made a
+7.0 GiB reservation at init for a 401-thread table build (VRAM audit 2026-11-04).
 
 Outputs (CuPy float32 device arrays, names kept in ctx.tables when a ctx is given):
   myj_herff  [KERFM=301]         HERFF (half erf table; HERF is the __device__ myj_herf in the kernel file)
@@ -73,7 +77,8 @@ def build_tables(stream=None) -> dict:
 
         k_pt = kernels.get(UNIT, "phys_myj_tablept")
         grid_pt = ((JTBL + BLOCK - 1) // BLOCK, 1, 1)
-        k_pt(grid_pt, (BLOCK, 1, 1), (ptbl, qs0, sqs, scal))
+        wk = cp.zeros((JTBL * 7 * (ITBL + 1),), dtype=cp.float32)      # MYJ_WK_TABLEPT per thread
+        k_pt(grid_pt, (BLOCK, 1, 1), (ptbl, qs0, sqs, scal, wk))
 
         k_tt = kernels.get(UNIT, "phys_myj_tablett")
         grid_tt = ((ITBL + BLOCK - 1) // BLOCK, 1, 1)

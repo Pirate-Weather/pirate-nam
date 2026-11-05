@@ -60,7 +60,7 @@ SW = ["cldprop", "mcica_subcol", "params", "rswinit", "setcoef", "spcvrtc", "swf
       "table_cldprtb", "table_sflux", "taumol"] + ["taumol%d" % b for b in range(16, 30)]
 KERNELS = (["namgpu/kernels/phys_rrtm_lw_%s.cu" % n for n in LW]
            + ["namgpu/kernels/phys_rrtm_sw_%s.cu" % n for n in SW]
-           + ["namgpu/kernels/rrtm_sw_bands.cuh"])
+           + ["namgpu/kernels/rrtm_sw_bands.cuh", "namgpu/kernels/phys_rrtm_lw_rtrnmr_body.cuh"])
 WRAPPERS = (["namgpu/physics/rrtm/phys_rrtm_lw_%s.py" % n for n in LW + ["table_avplank"]]
             + ["namgpu/physics/rrtm/phys_rrtm_sw_%s.py" % n for n in SW + ["table_ref"]]
             + ["namgpu/physics/rrtm/lw_core.py", "namgpu/physics/rrtm/sw_seam.py",

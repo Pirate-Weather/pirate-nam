@@ -20,15 +20,27 @@ hands every unit the view or copy it expects:
                pklay, pklev [nlp1, 16]
   taumol out   taug, fracs [140, nlay] (g-point major, Fortran g = NSnn + ig at plane g - 1)
                tautot = taug + tauaer(ngb(g)) (radlw_main_nmmb.f taumol, 3597-3606)
-rtrnmr takes top-first slots (slot = nlay - k), so its inputs are reversed on the layer axis and its
-outputs reversed back to the surface-first order lwrad_post reads.
+rtrnmr runs as phys_rrtm_lw_rtrnmr_sf: the same kernel body as the NAM slot-order kernel, reading and writing
+every layer array in this surface-first order and pklay/pklev in setcoef's own [nlp1, 16] layout, so no
+reversed or transposed copies are made.
+
+Memory (VRAM audit 2026-11-04): the chunk holds ONE pair of full 140-g-point arrays, taug and fracs. Every
+band unit writes its own g-point planes straight into them (the units that allocate full-g outputs of their
+own are handed the pair, in their own layout: g-first units get it as is, the layer-first units 2, 4 and 10
+get it through their out_gfirst stride argument; the band-local units 6, 13 and 15 get their plane slices).
+tautot = taug + tauaer(ngb) is formed in place in taug. Before: 18 such arrays per chunk (each unit's own
+pair, the canonical pair, the reversed rtrnmr pair), 1.56 GB at 333 x 8 columns, 4.7 GB at 954 x 8.
+Every band writes every element of its planes on every call (checked: NAMGPU_LW_FILLCHECK=1 NaN-fills the
+pair before the bands and counts NaN after), so what the pair held before the bands is never read.
 
 Called by phys-rrtm-lw-lwrad.run for one row chunk that covers the whole (chunk) domain:
   seam(ctx, s, nlay, nlp1, jc, im) -> t  (the dict lwrad_post reads)
 """
 from __future__ import annotations
 
+import os
 import types
+from functools import lru_cache
 
 import numpy as np
 
@@ -68,6 +80,16 @@ def _proxy(ctx, fields=None, lm=None, tables=None):
                                  tables=ctx.tables if tables is None else tables, cfg=ctx.cfg)
 
 
+@lru_cache(maxsize=None)
+def _tautot_kernel():
+    """taug[g, k, c] += tauaer[ngb[g], k, c], in place (radlw_main_nmmb.f 3597-3606 tautot): the same one float
+    add the out-of-place taug + tauaer[ngb] made, with no [140, nlay, ...] temporaries."""
+    import cupy as cp
+    return cp.ElementwiseKernel(
+        "raw float32 tauaer, raw int32 ngb, int64 lp", "float32 taug",
+        "taug = taug + tauaer[(long long)ngb[i / lp] * lp + i % lp]", "lw_core_tautot_inplace")
+
+
 def _scr(ctx, name, shape, dtype="float32"):
     import cupy as cp
     key = "lw_core:" + name
@@ -102,17 +124,24 @@ def _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im):
         taug[s0:s0 + NG[b - 1]] = tg
         fracs[s0:s0 + NG[b - 1]] = fr
 
-    def put_full_lfirst(b, tg, fr):   # tg, fr: [nlay, 140, ...] full-g arrays, layer first
-        s0, n = NS[b - 1], NG[b - 1]
-        taug[s0:s0 + n] = tg[:, s0:s0 + n].reshape(nlay, n, jc, im).transpose(1, 0, 2, 3)
-        fracs[s0:s0 + n] = fr[:, s0:s0 + n].reshape(nlay, n, jc, im).transpose(1, 0, 2, 3)
-
-    def put_full_gfirst(b, tg, fr):   # tg, fr: [140, nlay, ...] full-g arrays, g first
-        s0, n = NS[b - 1], NG[b - 1]
-        taug[s0:s0 + n] = tg[s0:s0 + n].reshape(n, nlay, jc, im)
-        fracs[s0:s0 + n] = fr[s0:s0 + n].reshape(n, nlay, jc, im)
+    def planes(b):                   # band b's g-point planes of the pair: contiguous [NG, nlay, JC, IM] views
+        s0 = NS[b - 1]
+        return taug[s0:s0 + NG[b - 1]], fracs[s0:s0 + NG[b - 1]]
 
     t = ctx.tables
+    gc = (NGPTLW, nlay, ncol)        # the pair as the flat-column g-first units see it
+    pair = (taug, fracs)
+    # The units that write full-g or band-local outputs of their own write into the pair instead (see the
+    # module docstring): their output slots in ctx.tables are the pair, or its band planes.
+    t["rrtm_lw_taugb08_taug"], t["rrtm_lw_taugb08_fracs"] = taug.reshape(gc), fracs.reshape(gc)
+    t["rrtm_lw_taugb09_taug"], t["rrtm_lw_taugb09_fracs"] = taug.reshape(gc), fracs.reshape(gc)
+    t[b12.OUT_KEY] = {"taug": taug, "fracs": fracs}
+    t[b14.OUT_KEY + "_taug"], t[b14.OUT_KEY + "_fracs"] = taug.reshape(gc), fracs.reshape(gc)
+    t[b16.OUT_KEY] = {"taug": taug, "fracs": fracs}
+    tg6, fr6 = planes(6)
+    t[b06.OUT_KEY] = {"taug6": tg6, "fracs6": fr6}
+    tg15, fr15 = planes(15)
+    t[b15.OUT_KEY] = {"taug15": tg15, "fracs15": fr15}
     # setcoef-keyed units read these tables entries
     t["rrtm_lw_setcoef_in"] = sin
     t["rrtm_lw_setcoef_out"] = sc
@@ -128,8 +157,7 @@ def _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im):
     up.update(LAYTROP=sc["laytrop"], PAVEL=sin["pavel"], COLAMT=cp.ascontiguousarray(colamt6[0]))
     p = _proxy(ctx, up, lm=nlay)
     b02.init_tables(p)
-    r = b02.run(p)
-    put_full_lfirst(2, r["TAUG_LW"], r["FRACS_LW"])
+    b02.run(p, out_gfirst=pair)
     # band 3: ctx.st LW_* names, kernel nlay = grid.lm + 1; rfrate = rate 1, both sides
     lw = {"LW_" + k.upper(): v for k, v in lay.items()}
     lw.update(LW_LAYTROP=sc["laytrop"], LW_COLAMT=colamt6, LW_COLDRY=sin["coldry"],
@@ -138,8 +166,7 @@ def _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im):
     io = b03.run(p)
     put(3, io["LW_TAUG_B3"], io["LW_FRACS_B3"])
     # band 4: tables keyed (setcoef in/out)
-    o = b04.run(ctx)
-    put_full_lfirst(4, o["taug04"], o["fracs04"])
+    b04.run(ctx, out_gfirst=pair)
     # band 5: ctx.st lowercase, colamt = (h2o, co2, o3), rfrate = (r11, r12, r61, r62), wx_ccl4 = wx(k,1)
     rf = sc["rfrate"]
     p = _proxy(ctx, dict(lay, laytrop=sc["laytrop"], colamt=cp.ascontiguousarray(colamt6[:3]),
@@ -147,9 +174,8 @@ def _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im):
                          wx_ccl4=cp.ascontiguousarray(wx[0])), lm=nlay)
     tg, fr = b05.run(p)
     put(5, tg, fr)
-    # band 6: tables keyed (taumol_in)
-    o = b06.run(ctx, stream=ctx.stream)
-    put(6, o["taug6"], o["fracs6"])
+    # band 6: tables keyed (taumol_in), into its planes
+    b06.run(ctx, stream=ctx.stream)
     # band 7: [ncol, nlay] column-major inputs; rfrate(k, 2, side) as [ncol, nlay, 2]
     def cl(a):
         return cp.ascontiguousarray(a.reshape(nlay, ncol).T)
@@ -163,35 +189,29 @@ def _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im):
     tg7, fr7 = b07.run(ctx, inp7, nlay)
     put(7, tg7.transpose(2, 1, 0).reshape(NG[6], nlay, jc, im),
         fr7.transpose(2, 1, 0).reshape(NG[6], nlay, jc, im))
-    # bands 8, 9, 14: input dicts, outputs [140, nlay, ncol]
-    tg, fr = b08.run(ctx, union)
-    put_full_gfirst(8, tg, fr)
-    tg, fr = b09.run(ctx, union)
-    put_full_gfirst(9, tg, fr)
-    # band 10: tables keyed, outputs [nlay, 140, ...]
-    o = b10.run(ctx)
-    put_full_lfirst(10, o["taug"], o["fracs"])
+    # bands 8, 9, 14: input dicts, outputs [140, nlay, ncol] = the pair
+    b08.run(ctx, union)
+    b09.run(ctx, union)
+    # band 10: tables keyed, into the pair (g-first strides)
+    b10.run(ctx, out_gfirst=pair)
     # band 11: writes straight into the canonical arrays at row0 = NS11
     t[b11.OUT_KEY] = {"taug": taug, "fracs": fracs, "row0": NS[10]}
     b11.run(ctx)
-    # bands 12, 16: outputs [140, nlay, ...]
-    o = b12.run(ctx)
-    put_full_gfirst(12, o["taug"], o["fracs"])
-    # band 13: no driver entry; taugb13(inp, chi_mls, tab, out) with colamt of 7 gases
+    # bands 12, 16: outputs [140, nlay, ...] = the pair
+    b12.run(ctx)
+    # band 13: no driver entry; taugb13(inp, chi_mls, tab, out) with colamt of 7 gases, into its planes
     colamt7 = sin["colamt7"]
-    out13 = t.get("lw_core:b13")
-    if out13 is None or out13["taug13"].shape[1:] != (nlay, jc, im):
-        out13 = b13.alloc_outputs(nlay, jc, im)
-        t["lw_core:b13"] = out13
+    tg13, fr13 = planes(13)
     b13.taugb13(dict(union, colamt=colamt7), t["rrtm_lw_setcoef_tables"]["chi_mls"], b13.run(ctx),
-                out13, stream=ctx.stream)
-    put(13, out13["taug13"], out13["fracs13"])
-    o = b14.run(ctx, stream=ctx.stream)
-    put_full_gfirst(14, o["taug"], o["fracs"])
-    o = b15.run(ctx, stream=ctx.stream)
-    put(15, o["taug15"], o["fracs15"])
-    o = b16.run(ctx)
-    put_full_gfirst(16, o["taug"], o["fracs"])
+                {"taug13": tg13, "fracs13": fr13}, stream=ctx.stream)
+    b14.run(ctx, stream=ctx.stream)
+    b15.run(ctx, stream=ctx.stream)
+    b16.run(ctx)
+
+
+def pair_floats(nlay: int, jc: int, im: int) -> int:
+    """Words of the taug/fracs pair of one chunk (what seam() carves from the shared workspace)."""
+    return 2 * NGPTLW * nlay * jc * im
 
 
 def seam(ctx, s, nlay: int, nlp1: int, jc: int, im: int, lhlw0=False, lhlwb=False):
@@ -226,42 +246,41 @@ def seam(ctx, s, nlay: int, nlp1: int, jc: int, im: int, lhlw0=False, lhlwb=Fals
         ctx.tables["rrtm_lw_setcoef_tables"] = tab
     ctx.tables["rrtm_lw_setcoef_in"] = sin
     sc = setcoef.run(ctx)
-    # 3. taumol
-    taug = _scr(ctx, "taug", (NGPTLW, nlay, jc, im))
-    fracs = _scr(ctx, "fracs", (NGPTLW, nlay, jc, im))
+    # 3. taumol: every band into the one pair
+    from namgpu.physics.rrtm import rrtm_chunk
+    ws = rrtm_chunk.workspace(ctx)
+    npair = NGPTLW * nlay * jc * im
+    if ws is not None and ws.size >= 2 * npair:      # the chunk's shared g-point workspace (rrtm_chunk.WS_KEY)
+        taug = ws[:npair].reshape(NGPTLW, nlay, jc, im)
+        fracs = ws[npair:2 * npair].reshape(NGPTLW, nlay, jc, im)
+    else:
+        taug = _scr(ctx, "taug", (NGPTLW, nlay, jc, im))
+        fracs = _scr(ctx, "fracs", (NGPTLW, nlay, jc, im))
+    check = os.environ.get("NAMGPU_LW_FILLCHECK", "") == "1"
+    if check:                        # proof aid, off the step path: what the pair held must not survive the bands
+        taug.fill(cp.nan)
+        fracs.fill(cp.nan)
     _bands(ctx, sin, sc, wx, taug, fracs, nlay, jc, im)
+    if check:
+        bad = int(cp.isnan(taug).sum()) + int(cp.isnan(fracs).sum())
+        if bad:
+            raise RuntimeError(f"lw-core: {bad} taug/fracs elements not written by any band unit")
     ngb = ctx.tables.get("lw_core:ngb")
     if ngb is None:
         ngb = cp.asarray(NGB)
         ctx.tables["lw_core:ngb"] = ngb
     tauaer = s["lwrad_tauaer"].reshape(NBANDS, nlay, jc, im)
-    # 4. rtrnmr inputs, top-first slots
-    rv = _scr(ctx, "rt_tautot", (NGPTLW, nlay, jc, im))
-    rv[...] = (taug + tauaer[ngb])[:, ::-1]
-    rfr = _scr(ctx, "rt_fracs", (NGPTLW, nlay, jc, im))
-    rfr[...] = fracs[:, ::-1]
-    rtc = _scr(ctx, "rt_taucld", (NBANDS, nlay, jc, im))
-    rtc[...] = taucld.reshape(NBANDS, nlay, jc, im)[:, ::-1]
-    rdp = _scr(ctx, "rt_delp", (nlay, jc, im))
-    rdp[...] = s["lwrad_delp"][::-1]
-    rcf = _scr(ctx, "rt_cldfrc", (nlay + 2, jc, im))
-    rcf[...] = s["lwrad_cldfrc"][::-1]
-    rpl = _scr(ctx, "rt_pklay", (NBANDS, nlp1, jc, im))
-    rpl[...] = sc["pklay"].transpose(1, 0, 2, 3)[:, ::-1]
-    rpv = _scr(ctx, "rt_pklev", (NBANDS, nlp1, jc, im))
-    rpv[...] = sc["pklev"].transpose(1, 0, 2, 3)[:, ::-1]
-    o = {n: _scr(ctx, "rt_" + n, (nlp1, jc, im)) for n in ("totuflux", "totdflux", "totuclfl", "totdclfl")}
-    o["htr"] = _scr(ctx, "rt_htr", (nlay, jc, im))
-    o["htrcl"] = _scr(ctx, "rt_htrcl", (nlay, jc, im))
-    o["htrb"] = _scr(ctx, "rt_htrb", (NBANDS, nlay, jc, im))
-    rtrnmr.rtrnmr(semiss=s["lwrad_semiss"], secdif=s["lwrad_secdiff"], delp=rdp, cldfrc=rcf,
-                  taucld=rtc, tautot=rv, fracs=rfr, pklay=rpl, pklev=rpv,
-                  tables=rtrnmr._device_tables(ctx), out=o, nlay=nlay,
+    # 4. tautot = taug + tauaer(ngb(g)) (radlw_main_nmmb.f 3597-3606), in place: taug is not read again
+    _tautot_kernel()(tauaer, ngb, np.int64(nlay * jc * im), taug)
+    # 5. rtrnmr in this (surface-first) order: no reversed copies in, outputs already in lwrad_post's order
+    t = {n: _scr(ctx, "pt_" + n, (nlp1, jc, im)) for n in ("totuflux", "totdflux", "totuclfl", "totdclfl")}
+    t["htr"] = _scr(ctx, "pt_htr", (nlay, jc, im))
+    t["htrcl"] = _scr(ctx, "pt_htrcl", (nlay, jc, im))
+    t["htrb"] = _scr(ctx, "pt_htrb", (NBANDS, nlay, jc, im))
+    rtrnmr.rtrnmr(semiss=s["lwrad_semiss"], secdif=s["lwrad_secdiff"], delp=s["lwrad_delp"],
+                  cldfrc=s["lwrad_cldfrc"], taucld=cp.ascontiguousarray(taucld.reshape(NBANDS, nlay, jc, im)),
+                  tautot=taug, fracs=fracs, pklay=sc["pklay"], pklev=sc["pklev"],
+                  tables=rtrnmr._device_tables(ctx), out=t, nlay=nlay,
                   heatfac=float(rtrnmr.heatfac_value()), fluxfac=float(rtrnmr.fluxfac_value()),
-                  lhlw0=lhlw0, lhlwb=lhlwb, stream=ctx.stream)
-    # 5. back to surface-first for lwrad_post
-    t = {n: _scr(ctx, "pt_" + n, o[n].shape) for n in o}
-    for n in ("totuflux", "totdflux", "totuclfl", "totdclfl", "htr", "htrcl"):
-        t[n][...] = o[n][::-1]
-    t["htrb"][...] = o["htrb"][:, ::-1]
+                  lhlw0=lhlw0, lhlwb=lhlwb, stream=ctx.stream, surface_first=True)
     return t

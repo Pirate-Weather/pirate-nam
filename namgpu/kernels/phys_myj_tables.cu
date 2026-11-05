@@ -167,10 +167,16 @@ extern "C" __global__ void phys_myj_herftbl(float* __restrict__ herff, float* __
 
 // TABLEPT: one thread per kth row (kth = 1..JTBL). ptbl[kth, kp] at IDX2(kp-1, kth-1, ITBL),
 // qs0[kth-1], sqs[kth-1]. Thread kth = 1 also writes scal[1] = RDTH and scal[2] = RDQ.
+// wk: the per-thread work arrays, MYJ_WK_TABLEPT words per thread (the wrapper allocates JTBL of them).
+// They were local arrays (11,256 B/thread); the device reserves a kernel's local frame for every resident
+// thread of the card, 2.7 GiB on a 170-SM card for this 1,201-thread table build (VRAM audit 2026-11-04).
+// Same arrays, same order of operations, only where they live.
+#define MYJ_WK_TABLEPT (7 * (MYJ_ITBL + 1))
 extern "C" __global__ void phys_myj_tablept(float* __restrict__ ptbl,
                                             float* __restrict__ qs0,
                                             float* __restrict__ sqs,
-                                            float* __restrict__ scal)
+                                            float* __restrict__ scal,
+                                            float* __restrict__ wk)
 {
     const int kth = blockIdx.x * blockDim.x + threadIdx.x + 1;
     if (kth > MYJ_JTBL) return;
@@ -183,8 +189,14 @@ extern "C" __global__ void phys_myj_tablept(float* __restrict__ ptbl,
     float th = MYJ_THL - dth;
     for (int i = 1; i <= kth; ++i) th = th + dth;
 
-    float qsold[MYJ_ITBL + 1], pold[MYJ_ITBL + 1], qsnew[MYJ_ITBL + 1];
-    float y2p[MYJ_ITBL + 1], app[MYJ_ITBL + 1], aqp[MYJ_ITBL + 1], pnew[MYJ_ITBL + 1];
+    float* const w = wk + (size_t)(kth - 1) * MYJ_WK_TABLEPT;
+    float* const qsold = w;
+    float* const pold  = w + 1 * (MYJ_ITBL + 1);
+    float* const qsnew = w + 2 * (MYJ_ITBL + 1);
+    float* const y2p   = w + 3 * (MYJ_ITBL + 1);
+    float* const app   = w + 4 * (MYJ_ITBL + 1);
+    float* const aqp   = w + 5 * (MYJ_ITBL + 1);
+    float* const pnew  = w + 6 * (MYJ_ITBL + 1);
 
     // P=PL-DP, then P=P+DP per KP.
     float p = MYJ_PL - dp;

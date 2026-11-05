@@ -69,8 +69,9 @@ def prepare_history(ctx, fields: dict, start: datetime) -> dict:
     jm, im = int(g.jm), int(g.im)
     valid = start + timedelta(seconds=ctx.ntimestep * cfg.dt)
     arrays = []
+    from .io_history_fields import device_array  # noqa: PLC0415
     for name, (arr, dims) in fields.items():
-        h = _host(arr)
+        h = _host(device_array(arr))
         if h.ndim == 3 and dims[0] in LEVEL_DIMS:
             h = h[::-1]          # NMMB l=1 top -> WRF bottom-up
         arrays.append((name, np.ascontiguousarray(h, dtype=np.float32), tuple(dims)))
@@ -121,8 +122,10 @@ def stage_history(ctx, fields: dict, start: datetime) -> dict:
     jm, im = int(g.jm), int(g.im)
     stream = ctx.stream if ctx.stream is not None else cp.cuda.get_current_stream()
     keep, staged = [], []
+    from .io_history_fields import device_array  # noqa: PLC0415
     with stream:
         for name, (arr, dims) in fields.items():
+            arr = device_array(arr)           # StreamField: computed into H_STREAM now, copied out before the next
             if isinstance(arr, cp.ndarray):
                 src = arr if (arr.dtype == cp.float32 and arr.flags.c_contiguous) else                     cp.ascontiguousarray(arr, dtype=cp.float32)
                 dst = _pinned(name, src.shape)
