@@ -1,0 +1,456 @@
+# WOOF-NAM awphys record table (namgpu/products/spec.py documents the columns). Order = NAM's.
+rec	name	dcp	level	level2	stat	window	source	bits	note
+1	PRMSL	0.3.1	101:0	-	-	-	PRMSL_ON_MEAN_SEA_LVL	-	WOOF post NMC sea-level reduction
+2	REFD	0.16.195	105:1	-	-	-	REFD_ON_HYBRID_LVL	-	REFL_10CM at the lowest mass level (NAM: DBZ at level LM); the history floors it at -20 dBZ as NAM does
+3	REFC	0.16.196	200:0	-	-	-	carrier:COMPOSITE	-	column maximum of REFL_10CM on the native grid (history COMPOSITE), then regridded, as NAM's post then interpolation; -20 dBZ floor
+4	VIS	0.19.0	1:0	-	-	-	NAM_VIS	-	UPP CALVIS hydrometeor extinction at the lowest level, at most 24,135 m (NAM's cap)
+5	VIS	0.19.0	3:0	-	-	-	-	-	left out: NAM's visibility at cloud top has no published method to port
+6	var2_0_197	2.0.197	105:1	-	-	-	-	-	left out: NAM's file holds 0 at every point; the model does not export the Blackadar mixing length
+7	HGT	0.3.5	220:0	-	-	-	NAM_HGT_PBL	-	bulk Richardson PBL height above ground relative to the lowest level (shear form), critical 0.25
+8.1	UGRD	0.2.2	220:0	-	-	-	NAM_UGRD_PBL	-	pressure-weighted mean wind below the bulk Richardson PBL height
+8.2	VGRD	0.2.3	220:0	-	-	-	NAM_VGRD_PBL	-	pressure-weighted mean wind below the bulk Richardson PBL height
+9	var0_2_224	0.2.224	220:0	-	-	-	NAM_VRATE_PBL	-	PBL mean wind speed x bulk Richardson PBL height
+10	GUST	0.2.22	1:0	-	-	-	NAM_GUST	-	UPP CALGUST: 10 m wind + (1 - min(0.5, PBLH/2000)) x (wind at the model PBL top - 10 m wind); needs PBLH
+11	var0_16_197	0.16.197	200:0	-	-	-	NAM_RETOP_ON_ENTIRE_ATMOS	-	NAM echo top (MDLFLD.f): height MSL of the highest mass level above 18.3 dBZ, no interpolation; -5000 where none. Computed on grid 218 (NAM computes on its native grid and interpolates, so its edge points blend -5000 with heights)
+12	DZDT	0.2.9	100:500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+13	DZDT	0.2.9	100:1000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+14	DZDT	0.2.9	100:2000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+15	HGT	0.3.5	100:5000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+16	TMP	0.0.0	100:5000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+17	RH	0.1.1	100:5000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+18	VVEL	0.2.8	100:5000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+19	DZDT	0.2.9	100:5000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+20.1	UGRD	0.2.2	100:5000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+20.2	VGRD	0.2.3	100:5000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+21	var0_19_11	0.19.11	100:5000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+22	HGT	0.3.5	100:7500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+23	TMP	0.0.0	100:7500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+24	RH	0.1.1	100:7500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+25	VVEL	0.2.8	100:7500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+26	DZDT	0.2.9	100:7500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+27.1	UGRD	0.2.2	100:7500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+27.2	VGRD	0.2.3	100:7500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+28	var0_19_11	0.19.11	100:7500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+29	HGT	0.3.5	100:10000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+30	TMP	0.0.0	100:10000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+31	RH	0.1.1	100:10000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+32	VVEL	0.2.8	100:10000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+33	DZDT	0.2.9	100:10000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+34.1	UGRD	0.2.2	100:10000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+34.2	VGRD	0.2.3	100:10000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+35	var0_19_11	0.19.11	100:10000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+36	HGT	0.3.5	100:12500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+37	TMP	0.0.0	100:12500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+38	RH	0.1.1	100:12500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+39	VVEL	0.2.8	100:12500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+40	DZDT	0.2.9	100:12500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+41.1	UGRD	0.2.2	100:12500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+41.2	VGRD	0.2.3	100:12500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+42	var0_19_11	0.19.11	100:12500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+43	HGT	0.3.5	100:15000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+44	TMP	0.0.0	100:15000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+45	RH	0.1.1	100:15000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+46	VVEL	0.2.8	100:15000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+47	DZDT	0.2.9	100:15000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+48.1	UGRD	0.2.2	100:15000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+48.2	VGRD	0.2.3	100:15000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+49	var0_19_11	0.19.11	100:15000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+50	HGT	0.3.5	100:17500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+51	TMP	0.0.0	100:17500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+52	RH	0.1.1	100:17500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+53	VVEL	0.2.8	100:17500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+54	DZDT	0.2.9	100:17500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+55.1	UGRD	0.2.2	100:17500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+55.2	VGRD	0.2.3	100:17500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+56	var0_19_11	0.19.11	100:17500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+57	HGT	0.3.5	100:20000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+58	TMP	0.0.0	100:20000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+59	RH	0.1.1	100:20000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+60	VVEL	0.2.8	100:20000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+61	DZDT	0.2.9	100:20000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+62.1	UGRD	0.2.2	100:20000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+62.2	VGRD	0.2.3	100:20000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+63	var0_19_11	0.19.11	100:20000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+64	HGT	0.3.5	100:22500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+65	TMP	0.0.0	100:22500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+66	RH	0.1.1	100:22500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+67	VVEL	0.2.8	100:22500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+68	DZDT	0.2.9	100:22500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+69.1	UGRD	0.2.2	100:22500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+69.2	VGRD	0.2.3	100:22500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+70	var0_19_11	0.19.11	100:22500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+71	HGT	0.3.5	100:25000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+72	TMP	0.0.0	100:25000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+73	RH	0.1.1	100:25000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+74	VVEL	0.2.8	100:25000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+75	DZDT	0.2.9	100:25000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+76.1	UGRD	0.2.2	100:25000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+76.2	VGRD	0.2.3	100:25000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+77	ABSV	0.2.10	100:25000	-	-	-	ABSV_ON_ISOBARIC_SFC	-	absolute vorticity of the MDL2P grid-relative winds on grid 218 with the Lambert map factor
+78	var0_19_11	0.19.11	100:25000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+79	HGT	0.3.5	100:27500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+80	TMP	0.0.0	100:27500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+81	RH	0.1.1	100:27500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+82	VVEL	0.2.8	100:27500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+83	DZDT	0.2.9	100:27500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+84.1	UGRD	0.2.2	100:27500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+84.2	VGRD	0.2.3	100:27500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+85	var0_19_11	0.19.11	100:27500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+86	HGT	0.3.5	100:30000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+87	TMP	0.0.0	100:30000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+88	RH	0.1.1	100:30000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+89	VVEL	0.2.8	100:30000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+90	DZDT	0.2.9	100:30000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+91.1	UGRD	0.2.2	100:30000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+91.2	VGRD	0.2.3	100:30000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+92	var0_19_11	0.19.11	100:30000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+93	HGT	0.3.5	100:32500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+94	TMP	0.0.0	100:32500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+95	RH	0.1.1	100:32500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+96	VVEL	0.2.8	100:32500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+97	DZDT	0.2.9	100:32500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+98.1	UGRD	0.2.2	100:32500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+98.2	VGRD	0.2.3	100:32500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+99	var0_19_11	0.19.11	100:32500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+100	HGT	0.3.5	100:35000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+101	TMP	0.0.0	100:35000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+102	RH	0.1.1	100:35000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+103	VVEL	0.2.8	100:35000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+104	DZDT	0.2.9	100:35000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+105.1	UGRD	0.2.2	100:35000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+105.2	VGRD	0.2.3	100:35000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+106	var0_19_11	0.19.11	100:35000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+107	HGT	0.3.5	100:37500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+108	TMP	0.0.0	100:37500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+109	RH	0.1.1	100:37500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+110	VVEL	0.2.8	100:37500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+111	DZDT	0.2.9	100:37500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+112.1	UGRD	0.2.2	100:37500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+112.2	VGRD	0.2.3	100:37500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+113	var0_19_11	0.19.11	100:37500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+114	HGT	0.3.5	100:40000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+115	TMP	0.0.0	100:40000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+116	RH	0.1.1	100:40000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+117	VVEL	0.2.8	100:40000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+118	DZDT	0.2.9	100:40000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+119.1	UGRD	0.2.2	100:40000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+119.2	VGRD	0.2.3	100:40000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+120	var0_19_11	0.19.11	100:40000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+121	HGT	0.3.5	100:42500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+122	TMP	0.0.0	100:42500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+123	RH	0.1.1	100:42500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+124	VVEL	0.2.8	100:42500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+125	DZDT	0.2.9	100:42500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+126.1	UGRD	0.2.2	100:42500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+126.2	VGRD	0.2.3	100:42500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+127	var0_19_11	0.19.11	100:42500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+128	HGT	0.3.5	100:45000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+129	TMP	0.0.0	100:45000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+130	RH	0.1.1	100:45000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+131	VVEL	0.2.8	100:45000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+132	DZDT	0.2.9	100:45000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+133.1	UGRD	0.2.2	100:45000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+133.2	VGRD	0.2.3	100:45000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+134	var0_19_11	0.19.11	100:45000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+135	HGT	0.3.5	100:47500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+136	TMP	0.0.0	100:47500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+137	RH	0.1.1	100:47500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+138	VVEL	0.2.8	100:47500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+139	DZDT	0.2.9	100:47500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+140.1	UGRD	0.2.2	100:47500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+140.2	VGRD	0.2.3	100:47500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+141	var0_19_11	0.19.11	100:47500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+142	HGT	0.3.5	100:50000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+143	TMP	0.0.0	100:50000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+144	RH	0.1.1	100:50000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+145	VVEL	0.2.8	100:50000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+146	DZDT	0.2.9	100:50000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+147.1	UGRD	0.2.2	100:50000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+147.2	VGRD	0.2.3	100:50000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+148	ABSV	0.2.10	100:50000	-	-	-	ABSV_ON_ISOBARIC_SFC	-	absolute vorticity of the MDL2P grid-relative winds on grid 218 with the Lambert map factor
+149	var0_19_11	0.19.11	100:50000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+150	HGT	0.3.5	100:52500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+151	TMP	0.0.0	100:52500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+152	RH	0.1.1	100:52500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+153	VVEL	0.2.8	100:52500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+154	DZDT	0.2.9	100:52500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+155.1	UGRD	0.2.2	100:52500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+155.2	VGRD	0.2.3	100:52500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+156	var0_19_11	0.19.11	100:52500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+157	HGT	0.3.5	100:55000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+158	TMP	0.0.0	100:55000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+159	RH	0.1.1	100:55000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+160	VVEL	0.2.8	100:55000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+161	DZDT	0.2.9	100:55000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+162.1	UGRD	0.2.2	100:55000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+162.2	VGRD	0.2.3	100:55000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+163	var0_19_11	0.19.11	100:55000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+164	HGT	0.3.5	100:57500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+165	TMP	0.0.0	100:57500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+166	RH	0.1.1	100:57500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+167	VVEL	0.2.8	100:57500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+168	DZDT	0.2.9	100:57500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+169.1	UGRD	0.2.2	100:57500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+169.2	VGRD	0.2.3	100:57500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+170	var0_19_11	0.19.11	100:57500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+171	HGT	0.3.5	100:60000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+172	TMP	0.0.0	100:60000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+173	RH	0.1.1	100:60000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+174	VVEL	0.2.8	100:60000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+175	DZDT	0.2.9	100:60000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+176.1	UGRD	0.2.2	100:60000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+176.2	VGRD	0.2.3	100:60000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+177	var0_19_11	0.19.11	100:60000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+178	HGT	0.3.5	100:62500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+179	TMP	0.0.0	100:62500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+180	RH	0.1.1	100:62500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+181	VVEL	0.2.8	100:62500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+182	DZDT	0.2.9	100:62500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+183.1	UGRD	0.2.2	100:62500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+183.2	VGRD	0.2.3	100:62500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+184	var0_19_11	0.19.11	100:62500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+185	HGT	0.3.5	100:65000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+186	TMP	0.0.0	100:65000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+187	RH	0.1.1	100:65000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+188	VVEL	0.2.8	100:65000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+189	DZDT	0.2.9	100:65000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+190.1	UGRD	0.2.2	100:65000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+190.2	VGRD	0.2.3	100:65000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+191	var0_19_11	0.19.11	100:65000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+192	HGT	0.3.5	100:67500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+193	TMP	0.0.0	100:67500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+194	RH	0.1.1	100:67500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+195	VVEL	0.2.8	100:67500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+196	DZDT	0.2.9	100:67500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+197.1	UGRD	0.2.2	100:67500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+197.2	VGRD	0.2.3	100:67500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+198	var0_19_11	0.19.11	100:67500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+199	HGT	0.3.5	100:70000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+200	TMP	0.0.0	100:70000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+201	RH	0.1.1	100:70000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+202	VVEL	0.2.8	100:70000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+203	DZDT	0.2.9	100:70000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+204.1	UGRD	0.2.2	100:70000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+204.2	VGRD	0.2.3	100:70000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+205	ABSV	0.2.10	100:70000	-	-	-	ABSV_ON_ISOBARIC_SFC	-	absolute vorticity of the MDL2P grid-relative winds on grid 218 with the Lambert map factor
+206	var0_19_11	0.19.11	100:70000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+207	HGT	0.3.5	100:72500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+208	TMP	0.0.0	100:72500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+209	RH	0.1.1	100:72500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+210	VVEL	0.2.8	100:72500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+211	DZDT	0.2.9	100:72500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+212.1	UGRD	0.2.2	100:72500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+212.2	VGRD	0.2.3	100:72500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+213	var0_19_11	0.19.11	100:72500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+214	HGT	0.3.5	100:75000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+215	TMP	0.0.0	100:75000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+216	RH	0.1.1	100:75000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+217	VVEL	0.2.8	100:75000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+218	DZDT	0.2.9	100:75000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+219.1	UGRD	0.2.2	100:75000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+219.2	VGRD	0.2.3	100:75000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+220	var0_19_11	0.19.11	100:75000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+221	HGT	0.3.5	100:77500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+222	TMP	0.0.0	100:77500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+223	RH	0.1.1	100:77500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+224	VVEL	0.2.8	100:77500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+225	DZDT	0.2.9	100:77500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+226.1	UGRD	0.2.2	100:77500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+226.2	VGRD	0.2.3	100:77500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+227	var0_19_11	0.19.11	100:77500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+228	HGT	0.3.5	100:80000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+229	TMP	0.0.0	100:80000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+230	RH	0.1.1	100:80000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+231	VVEL	0.2.8	100:80000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+232	DZDT	0.2.9	100:80000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+233.1	UGRD	0.2.2	100:80000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+233.2	VGRD	0.2.3	100:80000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+234	var0_19_11	0.19.11	100:80000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+235	HGT	0.3.5	100:82500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+236	TMP	0.0.0	100:82500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+237	RH	0.1.1	100:82500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+238	VVEL	0.2.8	100:82500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+239	DZDT	0.2.9	100:82500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+240.1	UGRD	0.2.2	100:82500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+240.2	VGRD	0.2.3	100:82500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+241	var0_19_11	0.19.11	100:82500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+242	HGT	0.3.5	100:85000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+243	TMP	0.0.0	100:85000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+244	RH	0.1.1	100:85000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+245	VVEL	0.2.8	100:85000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+246	DZDT	0.2.9	100:85000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+247.1	UGRD	0.2.2	100:85000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+247.2	VGRD	0.2.3	100:85000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+248	ABSV	0.2.10	100:85000	-	-	-	ABSV_ON_ISOBARIC_SFC	-	absolute vorticity of the MDL2P grid-relative winds on grid 218 with the Lambert map factor
+249	var0_19_11	0.19.11	100:85000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+250	HGT	0.3.5	100:87500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+251	TMP	0.0.0	100:87500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+252	RH	0.1.1	100:87500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+253	VVEL	0.2.8	100:87500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+254	DZDT	0.2.9	100:87500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+255.1	UGRD	0.2.2	100:87500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+255.2	VGRD	0.2.3	100:87500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+256	var0_19_11	0.19.11	100:87500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+257	HGT	0.3.5	100:90000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+258	TMP	0.0.0	100:90000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+259	RH	0.1.1	100:90000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+260	VVEL	0.2.8	100:90000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+261	DZDT	0.2.9	100:90000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+262.1	UGRD	0.2.2	100:90000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+262.2	VGRD	0.2.3	100:90000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+263	var0_19_11	0.19.11	100:90000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+264	HGT	0.3.5	100:92500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+265	TMP	0.0.0	100:92500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+266	RH	0.1.1	100:92500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+267	VVEL	0.2.8	100:92500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+268	DZDT	0.2.9	100:92500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+269.1	UGRD	0.2.2	100:92500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+269.2	VGRD	0.2.3	100:92500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+270	var0_19_11	0.19.11	100:92500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+271	HGT	0.3.5	100:95000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+272	TMP	0.0.0	100:95000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+273	RH	0.1.1	100:95000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+274	VVEL	0.2.8	100:95000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+275	DZDT	0.2.9	100:95000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+276.1	UGRD	0.2.2	100:95000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+276.2	VGRD	0.2.3	100:95000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+277	var0_19_11	0.19.11	100:95000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+278	var2_4_2	2.4.2	1:0	-	-	-	NAM_HINDEX_ON_SURFACE	-	NAM Haines (MDL2P.f): high 700-500 (Td 700), mid 850-700 (Td 850), low 950-850 (Td 950) where the surface is below the level, land only (LANDMASK); missing over water
+279	HGT	0.3.5	100:97500	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+280	TMP	0.0.0	100:97500	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+281	RH	0.1.1	100:97500	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+282	VVEL	0.2.8	100:97500	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+283	DZDT	0.2.9	100:97500	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+284.1	UGRD	0.2.2	100:97500	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+284.2	VGRD	0.2.3	100:97500	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+285	var0_19_11	0.19.11	100:97500	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+286	TMP	0.0.0	100:100000	-	-	-	TMP_ON_ISOBARIC_SFC	-	linear in ln p between mid layers; below ground the 6.5 K/km virtual lapse from the 2nd/3rd layers (UPP MDL2P, NMM)
+287	RH	0.1.1	100:100000	-	-	-	RH_ON_ISOBARIC_SFC	-	UPP CALRH (water saturation) of the MDL2P T and q, bounded 1e-6..1
+288	VVEL	0.2.8	100:100000	-	-	-	VVEL_ON_ISOBARIC_SFC	-	omega = -w p G/(Rd Tv) on the mid layers (UPP INITPOST_NEMS), linear in ln p; top layer held above the 2nd interface, lowest layer below ground
+289	DZDT	0.2.9	100:100000	-	-	-	DZDT_ON_ISOBARIC_SFC	-	the model w on the mid layers, linear in ln p; top layer held above the 2nd interface (5 mb sits above our 7.6 hPa top mid layer), lowest layer below ground
+290.1	UGRD	0.2.2	100:100000	-	-	-	UGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+290.2	VGRD	0.2.3	100:100000	-	-	-	VGRD_ON_ISOBARIC_SFC	-	linear in ln p, lowest layer below ground; grid-relative as NCEP writes grid 218
+291	ABSV	0.2.10	100:100000	-	-	-	ABSV_ON_ISOBARIC_SFC	-	absolute vorticity of the MDL2P grid-relative winds on grid 218 with the Lambert map factor
+292	var0_19_11	0.19.11	100:100000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
+293	MSLET	0.3.192	101:0	-	-	-	MSLET_ON_MEAN_SEA_LVL	-	the model membrane reduction (io_quasipost_mslp), the NAM post method
+294	HGT	0.3.5	100:100000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
+295	REFD	0.16.195	103:4000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	REFL_10CM at 4000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
+296	REFD	0.16.195	103:1000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	REFL_10CM at 1000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
+297	PRES	0.3.0	1:0	-	-	-	PRES_ON_SURFACE	-	PSFC
+298	HGT	0.3.5	1:0	-	-	-	HGT_ON_SURFACE	-	model terrain
+299	TMP	0.0.0	1:0	-	-	-	TMP_ON_SURFACE	-	skin temperature (TSK)
+300	TSOIL	2.0.2	106:0	106:0.1	-	-	carrier:NAM_TSOIL[0]	-	STC layer 1 (0-10 cm) as the state holds it, 273.16 K over water (SURFCE.f); nearest point
+301	SOILW	2.0.192	106:0	106:0.1	-	-	carrier:NAM_SOILW[0]	-	SMC layer 1, 1 over water and sea ice (SURFCE.f); nearest point
+302	SOILL	2.3.192	106:0	106:0.1	-	-	carrier:NAM_SOILL[0]	-	SH2O layer 1 (SURFCE.f); nearest point
+303	TSOIL	2.0.2	106:0.1	106:0.4	-	-	carrier:NAM_TSOIL[1]	-	STC layer 2 (10-40 cm)
+304	SOILW	2.0.192	106:0.1	106:0.4	-	-	carrier:NAM_SOILW[1]	-	SMC layer 2
+305	SOILL	2.3.192	106:0.1	106:0.4	-	-	carrier:NAM_SOILL[1]	-	SH2O layer 2
+306	TSOIL	2.0.2	106:0.4	106:1	-	-	carrier:NAM_TSOIL[2]	-	STC layer 3 (40-100 cm)
+307	SOILW	2.0.192	106:0.4	106:1	-	-	carrier:NAM_SOILW[2]	-	SMC layer 3
+308	SOILL	2.3.192	106:0.4	106:1	-	-	carrier:NAM_SOILL[2]	-	SH2O layer 3
+309	TSOIL	2.0.2	106:1	106:2	-	-	carrier:NAM_TSOIL[3]	-	STC layer 4 (100-200 cm)
+310	SOILW	2.0.192	106:1	106:2	-	-	carrier:NAM_SOILW[3]	-	SMC layer 4
+311	SOILL	2.3.192	106:1	106:2	-	-	carrier:NAM_SOILL[3]	-	SH2O layer 4
+312	TSOIL	2.0.2	106:3	-	-	-	carrier:NAM_TSOIL3M	-	TG, the deep soil temperature, written at 3 m (SURFCE.f bottom soil temperature)
+313	MSTAV	2.0.194	106:0	106:1	-	-	carrier:NAM_MSTAV	-	SMSTAV * 100, Noah root-zone moisture availability (SURFCE.f)
+314	SOILM	2.0.3	106:0	106:2	-	-	carrier:NAM_SOILM	-	SMSTOT (kg m-2), 1000 on open water (SURFCE.f); rebuilt from SMC when the history has no SMSTOT
+315	CNWAT	2.0.196	1:0	-	-	-	carrier:NAM_CNWAT	-	CMC * 1000 (SURFCE.f)
+316	WEASD	0.1.13	1:0	-	-	-	carrier:NAM_WEASD	-	SNO (kg m-2) (SURFCE.f)
+317	SNOWC	0.1.201	1:0	-	-	-	carrier:NAM_SNOWC	-	SNFRAC(SNO, IVGTYP) * 100 (SURFCE.f, SNFRAC.f)
+318	SNOD	0.1.11	1:0	-	-	-	carrier:NAM_SNOD	-	SI * 0.001 (SURFCE.f)
+319	SMDRY	2.3.196	1:0	-	-	-	carrier:NAM_SMDRY	-	UPP SMDRY(ISLTYP) on land with no sea ice, else 0 (ETCALC.f)
+320	POROS	2.3.197	1:0	-	-	-	carrier:NAM_POROS	-	UPP SMMAX(ISLTYP) on land with no sea ice, else 0 (ETCALC.f)
+321	TMP	0.0.0	103:2	-	-	-	TMP_ON_SPEC_HGT_LVL_ABOVE_GRND_2m	-	T2, the surface layer scheme 2 m temperature
+322	SPFH	0.1.0	103:2	-	-	-	SPFH_ON_SPEC_HGT_LVL_ABOVE_GRND_2m	-	Q2, the surface layer 2 m humidity
+323	DPT	0.0.6	103:2	-	-	-	DPT_ON_SPEC_HGT_LVL_ABOVE_GRND_2m	-	from T2, Q2, PSFC
+324	RH	0.1.1	103:2	-	-	-	RH_ON_SPEC_HGT_LVL_ABOVE_GRND_2m	-	from T2, Q2, PSFC (w.r.t. water)
+325	TMAX	0.0.4	103:2	-	max	-	carrier:T02MAX	-	io-max-fields hourly 2 m maximum (reset every hour)
+326	TMIN	0.0.5	103:2	-	min	-	carrier:T02MIN	-	io-max-fields hourly 2 m minimum
+327	var0_1_27	0.1.27	103:2	-	max	-	NAM_MAXRH_2m	-	io-max-fields RH02MAX x 100 (the carrier is a fraction capped at 0.99)
+328	var0_1_198	0.1.198	103:2	-	min	-	NAM_MINRH_2m	-	io-max-fields RH02MIN x 100
+329.1	UGRD	0.2.2	103:10	-	-	-	UGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m	-	U10, grid-relative
+329.2	VGRD	0.2.3	103:10	-	-	-	VGRD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m	-	V10, grid-relative
+330	var0_2_222	0.2.222	103:10	-	max	-	MAX_UGD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m	-	io-max-fields U10MAX (10 m u at the hour's strongest 10 m wind); needs U10MAX/V10MAX in the history
+331	var0_2_223	0.2.223	103:10	-	max	-	MAX_VGD_ON_SPEC_HGT_LVL_ABOVE_GRND_10m	-	io-max-fields V10MAX; needs U10MAX/V10MAX in the history
+332	APCP	0.1.8	1:0	-	acc	since:12h	carrier:APCP_S12	-	RAINNC+RAINC since the last 12 h reset (history differenced); NAM: 0-6 h at f06, 12-13 h at f13
+333	ACPCP	0.1.10	1:0	-	acc	since:12h	carrier:ACPCP_S12	-	RAINC since the last 12 h reset (history differenced)
+334	WEASD	0.1.13	1:0	-	acc	-	-	-	LEFT OUT (needs a run): NAM's ACSNOW (snowfall water equivalent, Noah) differenced to the 12 h bucket; the device keeps ACSNOW but resets it every 3 h and no history writes it yet
+335	HGT	0.3.5	245:0	-	-	-	NAM_HGT_WETBULB_ZERO	-	first upward 0 C crossing of the wet-bulb temperature from 2 m; at or below 0 C at 2 m: extrapolated below ground at g/cp
+336	var0_1_195	0.1.195	1:0	-	-	-	-	-	LEFT OUT: NAM's dominant precipitation type (CALWXT_DOMINANT of five algorithms, masked by the last physics step's precipitation PREC); needs PREC, SR and F_RimeF in the history and the five-algorithm port
+337	var0_1_194	0.1.194	1:0	-	-	-	-	-	LEFT OUT: as rec 336 (dominant precipitation type)
+338	var0_1_193	0.1.193	1:0	-	-	-	-	-	LEFT OUT: as rec 336 (dominant precipitation type)
+339	var0_1_192	0.1.192	1:0	-	-	-	-	-	LEFT OUT: as rec 336 (dominant precipitation type)
+340	SFCR	2.0.1	1:0	-	-	-	carrier:NAM_SFCR	-	Z0 (SURFCE.f); nearest point
+341	FRICV	0.2.197	1:0	-	-	-	carrier:NAM_FRICV	-	USTAR (SURFCE.f)
+342	CD	0.2.196	1:0	-	-	-	carrier:NAM_CD	-	USTAR^2 / B-grid lowest-layer-and-z0 mean wind squared (CALDRG.f), on the device; NAM packs this record at decimal scale -2, so its values are multiples of 100 (0 nearly everywhere)
+343	VEG	2.0.4	1:0	-	-	-	carrier:NAM_VEG	-	VEGFRC * 100 (SURFCE.f)
+344	VGTYP	2.0.198	1:0	-	-	-	carrier:NAM_VGTYP	-	IVGTYP (SURFCE.f); nearest point
+345	SOTYP	2.3.0	1:0	-	-	-	carrier:NAM_SOTYP	-	ISLTYP (SURFCE.f); nearest point
+346	RLYRS	2.3.193	1:0	-	-	-	carrier:NAM_RLYRS	-	UPP IROOT(IVGTYP), IGBP, on land, no ice, IVGTYP != 17, else 0 (CANRES.f)
+347	WILT	2.0.201	1:0	-	-	-	carrier:NAM_WILT	-	UPP SMWLT(ISLTYP), masked as RLYRS (CANRES.f)
+348	SMREF	2.3.195	1:0	-	-	-	carrier:NAM_SMREF	-	UPP SMREF(ISLTYP), masked as RLYRS (CANRES.f)
+349	var0_7_192	0.7.192	100:50000	100:100000	-	-	NAM_LFTX_ON_ISOBARIC_SFC_500-1000hpa	-	NAM surface lifted index (CLDRAD.f + OTLIFT.f): lowest mass level's parcel to 500 hPa, T500 minus parcel Tv, PLUS 273.15 as NAM posts it
+350	CAPE	0.7.6	1:0	-	-	-	NAM_CAPE_ON_SURFACE	-	NAM surface CAPE (CALCAPE type 1: largest theta-e within 10 hPa of the lowest level, LCL to EL)
+351	CIN	0.7.7	1:0	-	-	-	NAM_CIN_ON_SURFACE	-	NAM surface CIN (CALCAPE type 1: negative area between the LCL and the EL), <= 0
+352	PWAT	0.1.3	200:0	-	-	-	PWAT_ON_ENTIRE_ATMOS_SINGLE_LYR	-	precipitable water (WOOF post pwat)
+353	HGT	0.3.5	2:0	-	-	-	carrier:NAM_CLDBASE	-	cloud base: mid-layer height of the lowest grid-scale (QC+QI >= 1e-6, or snow at RH >= 98 % above the PBL top) or BMJ convective cloud base layer, -5000 with no cloud (CLDRAD.f)
+354	HLCY	0.7.8	103:3000	103:0	-	-	NAM_HLCY_ON_SPEC_HGT_LVL_ABOVE_GRND	-	NAM 0-3 km storm-relative helicity (CALHEL.f: mass-level centred differences, Bunkers storm motion from the 0-6 km mean and shear)
+355	var0_2_15	0.2.15	103:0	103:6000	-	-	NAM_VUCSH_ON_SPEC_HGT_LVL_ABOVE_GRND_0-6km	-	NAM 0-6 km u shear (CALHEL.f): mean wind 5500-6000 m minus mean below 500 m AGL, m/s, grid-relative; NAM's 0.2.15 here is VUCSH, not storm motion
+356	var0_2_16	0.2.16	103:0	103:6000	-	-	NAM_VVCSH_ON_SPEC_HGT_LVL_ABOVE_GRND_0-6km	-	NAM 0-6 km v shear (CALHEL.f), m/s, grid-relative
+357	PRES	0.3.0	7:0	-	-	-	NAM_PRES_TROP	-	WMO lapse-rate tropopause above 500 hPa
+358	TMP	0.0.0	7:0	-	-	-	NAM_TMP_TROP	-	WMO lapse-rate tropopause above 500 hPa
+359.1	UGRD	0.2.2	7:0	-	-	-	NAM_UGRD_TROP	-	WMO lapse-rate tropopause above 500 hPa
+359.2	VGRD	0.2.3	7:0	-	-	-	NAM_VGRD_TROP	-	WMO lapse-rate tropopause above 500 hPa
+360	PRES	0.3.0	6:0	-	-	-	NAM_PRES_MAXWIND	-	level of the strongest wind, 500-100 hPa
+361.1	UGRD	0.2.2	6:0	-	-	-	NAM_UGRD_MAXWIND	-	level of the strongest wind, 500-100 hPa
+361.2	VGRD	0.2.3	6:0	-	-	-	NAM_VGRD_MAXWIND	-	level of the strongest wind, 500-100 hPa
+362	TMP	0.0.0	103:80	-	-	-	NAM_TMP_AGL	-	linear in height between mass levels
+363	SPFH	0.1.0	103:80	-	-	-	NAM_SPFH_AGL	-	linear in height between mass levels
+364	PRES	0.3.0	103:80	-	-	-	NAM_PRES_AGL	-	ln p linear in height between mass levels
+365.1	UGRD	0.2.2	103:80	-	-	-	UGRD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	WOOF post 80 m wind
+365.2	VGRD	0.2.3	103:80	-	-	-	VGRD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	WOOF post 80 m wind
+366	HGT	0.3.5	4:0	-	-	-	NAM_HGT_0C	-	first upward 0 C crossing from 2 m; at or below 0 C at 2 m: 6.5 K/km below ground, floored at 0 (NAM's convention)
+367	RH	0.1.1	4:0	-	-	-	RH_ON_0C_ISOTHERM	-	RH at the freezing level (GPU column kernel)
+368	TMP	0.0.0	108:3000	108:0	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+369	RH	0.1.1	108:3000	108:0	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+370.1	UGRD	0.2.2	108:3000	108:0	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+370.2	VGRD	0.2.3	108:3000	108:0	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+371	var0_7_0	0.7.0	108:3000	108:0	-	-	NAM_PLI_ON_SPEC_PRES_ABOVE_GRND_30-0mb	-	NAM boundary-layer lifted index (MISCLN.f + OTLFT.f): mean of the lowest 30 hPa (BNDLYR.f) lifted to 500 hPa
+372	TMP	0.0.0	108:6000	108:3000	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+373	RH	0.1.1	108:6000	108:3000	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+374.1	UGRD	0.2.2	108:6000	108:3000	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+374.2	VGRD	0.2.3	108:6000	108:3000	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+375	TMP	0.0.0	108:9000	108:6000	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+376	RH	0.1.1	108:9000	108:6000	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+377.1	UGRD	0.2.2	108:9000	108:6000	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+377.2	VGRD	0.2.3	108:9000	108:6000	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+378	TMP	0.0.0	108:12000	108:9000	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+379	RH	0.1.1	108:12000	108:9000	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+380.1	UGRD	0.2.2	108:12000	108:9000	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+380.2	VGRD	0.2.3	108:12000	108:9000	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+381	TMP	0.0.0	108:15000	108:12000	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+382	RH	0.1.1	108:15000	108:12000	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+383.1	UGRD	0.2.2	108:15000	108:12000	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+383.2	VGRD	0.2.3	108:15000	108:12000	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+384	TMP	0.0.0	108:18000	108:15000	-	-	NAM_TMP_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+385	RH	0.1.1	108:18000	108:15000	-	-	NAM_RH_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR); RH from the layer means
+386.1	UGRD	0.2.2	108:18000	108:15000	-	-	NAM_UGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+386.2	VGRD	0.2.3	108:18000	108:15000	-	-	NAM_VGRD_PDIFF	-	pressure-thickness weighted layer mean (UPP BNDLYR)
+387	var0_7_193	0.7.193	108:18000	108:0	-	-	NAM_4LFTX_ON_SPEC_PRES_ABOVE_GRND_180-0mb	-	NAM best lifted index: minimum of the six 30 hPa boundary-layer parcels (OTLFT.f)
+388	CAPE	0.7.6	108:18000	108:0	-	-	NAM_CAPE_ON_SPEC_PRES_ABOVE_GRND_180-0mb	-	NAM best CAPE (CALCAPE type 2: the 30 hPa layer of largest theta-e in the lowest 180 hPa)
+389	CIN	0.7.7	108:18000	108:0	-	-	NAM_CIN_ON_SPEC_PRES_ABOVE_GRND_180-0mb	-	NAM best CIN (CALCAPE type 2), <= 0
+390	HPBL	0.3.196	1:0	-	-	-	HPBL_ON_SURFACE	-	the model's MYJ PBLH; needs PBLH in the history
+391	RH	0.1.1	104:0.33	104:1	-	-	NAM_RH_SIGMA_LYR	-	pressure-weighted mean RH, sigma 0.33-1.0
+392	var0_17_192	0.17.192	1:0	-	-	-	-	-	LEFT OUT: NAM's lightning flag (0.17.192) has no carrier in the port
+393	LAND	2.0.0	1:0	-	-	-	carrier:NAM_LAND	-	1 - SM, 0 where SICE > 0.1 (FIXED.f); nearest point
+394	ICEC	10.2.0	1:0	-	-	-	carrier:NAM_ICEC	-	SICE (FIXED.f); nearest point
+395	ALBDO	0.19.1	1:0	-	-	-	carrier:NAM_ALBDO	-	ALBEDO * 100 (FIXED.f)
+396	SHTFL	0.0.11	1:0	-	-	-	carrier:NAM_SHTFL	-	-TWBS (SURFCE.f)
+397	LHTFL	0.0.10	1:0	-	-	-	carrier:NAM_LHTFL	-	-QWBS (SURFCE.f)
+398	TCDC	0.6.1	200:0	-	-	-	carrier:NAM_TCDC	-	column maximum of CLDFRA averaged over a 3x3 box (10 mi radius), * 100 (CLDRAD.f nmmb_clds1)
+399	DSWRF	0.4.192	1:0	-	-	-	carrier:NAM_DSWRF	-	RSWIN * CZEN / CZMEAN (CLDRAD.f)
+400	DLWRF	0.5.192	1:0	-	-	-	carrier:NAM_DLWRF	-	RLWIN * sigma T_lowest^4 / SIGT4 (CLDRAD.f)
+401	USWRF	0.4.193	1:0	-	-	-	carrier:NAM_USWRF	-	RSWOUT * CZEN / CZMEAN (CLDRAD.f)
+402	ULWRF	0.5.193	1:0	-	-	-	carrier:NAM_ULWRF	-	RADOT (CLDRAD.f)
+403	APCP	0.1.8	1:0	-	acc	since:3h@3h!since:12h	carrier:APCP_S3	-	RAINNC+RAINC since the last 3 h reset; written in the 3-hourly files only, and left out where it equals the 12 h window (f03, f15), as NAM does
+404	ACPCP	0.1.10	1:0	-	acc	since:3h@3h!since:12h	carrier:ACPCP_S3	-	RAINC since the last 3 h reset; left out where it equals the 12 h window

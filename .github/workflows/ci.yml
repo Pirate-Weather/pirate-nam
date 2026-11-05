@@ -29,7 +29,8 @@ jobs:
           python -m pip install --quiet numpy
           PYTHONPATH=. python -c "import namgpu, namgpu.config, namgpu.grid; print('import ok', namgpu.__file__)"
           python tests/test_cli.py
-          python tests/test_restart.py
+          python tests/test_restart_output.py
+          python tests/test_products_spec.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist

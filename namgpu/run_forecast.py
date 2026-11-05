@@ -9,6 +9,7 @@ peak VRAM, units left out) plus the driver's timing_receipt.json, history files 
 Restarts (namgpu/restart.py): --restart-every 1h writes a restart set every hour under <out>/restart; the
 receipt's "restart_latest" is the newest complete set. `woof-nam run --resume <out>/restart` (or a set) continues
 the run to its original end; case, source, hours and output folder come from the set.
+History size (namgpu/io/history_select.py): --history-fields products|full|state|<list>, --full-every 3h.
 
 Our own box lanes source env-box.sh, which sets WOOF_NAM_BOX=1: only then does the run hand back the
 card lock it inherited (CARD3.lock / NAMGPU_CARD_LOCK) before the maps. Without it no lock is touched.
@@ -18,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -89,6 +91,10 @@ def main(argv=None):
                     help="comma list of init units to skip (default: the fetch, already done by woof-nam fetch)")
     ap.add_argument("--leave-out", default="", help="comma list of plan units set to mode skip (receipt lists them)")
     ap.add_argument("--no-maps", action="store_true", help="write history only, no maps")
+    ap.add_argument("--products", action="store_true",
+                    help="also write NOAA's NAM awphys GRIB2 (nam.tHHz.awphysFF.tm00.grib2 on grid 218, "
+                         "<out>/products/) while the forecast runs: a `woof-nam products --follow` process writes "
+                         "each hour as its history file lands (log <out>/products.log, <out>/products/DONE at the end)")
     ap.add_argument("--maps-only", action="store_true", help=argparse.SUPPRESS)   # internal: the post-run maps tail (no CUDA)
     ap.add_argument("--cards", type=int, default=1,
                     help="number of cards (default 1). N > 1 runs one process per card, each owning a band of whole "
@@ -112,7 +118,13 @@ def main(argv=None):
     ap.add_argument("--resume", type=Path, default=None,
                     help="continue a run from a restart set, or from a restart root (its newest set), to the run's "
                          "original end (or --hours). Case, source and output folder come from the set")
-
+    ap.add_argument("--history-fields", default=None,
+                    help="fields in each hourly history file: products (default: what the maps, side-by-side, the "
+                         "column store and woof-nam products read), full (every field), state (3-D model state), "
+                         "or a comma list of field names")
+    ap.add_argument("--full-every", default=None,
+                    help="every Nth output hour carries every field whatever --history-fields says (default 3h; "
+                         "0 = never)")
     ap.add_argument("--managed-init", action="store_true",
                     help="--cards N: build the saved initial state in CUDA managed memory (a domain whose init does "
                          "not fit one card)")
@@ -126,6 +138,9 @@ def main(argv=None):
         a.out = a.out or Path(resume_meta["out"])
         a.source = resume_meta["source"]
         a.hours = a.hours if a.hours is not None else float(resume_meta["hours"])
+        hist = resume_meta.get("history") or {}
+        a.history_fields = a.history_fields or hist.get("fields")
+        a.full_every = a.full_every if a.full_every is not None else hist.get("full_every")
         if a.restart_every == "0" and resume_meta.get("restart_every"):
             a.restart_every = resume_meta["restart_every"]
         if a.restart_dir is None and resume_meta.get("restart_dir"):
@@ -136,16 +151,23 @@ def main(argv=None):
         ap.error("--case and --out are required (or --resume <restart>)")
     a.hours = 1.0 if a.hours is None else a.hours
     from namgpu import restart as _rst
+    from namgpu.io import history_select as _hs
+    a.history_fields = a.history_fields or _hs.DEFAULT_PRESET
+    a.full_every = _hs.DEFAULT_FULL_EVERY if a.full_every is None else a.full_every
     try:
         a.restart_every_h = _rst.parse_hours(a.restart_every)
+        a.full_every_h = _rst.parse_hours(a.full_every)
     except ValueError as e:
         ap.error(str(e))
+    _hs.parse(a.history_fields)                          # an unknown field name stops here, before the init
     if a.cards > 1 and (a.restart_every_h > 0 or a.resume is not None):
         raise SystemExit("--restart-every / --resume run on one card in this release: with --cards N every rank "
                          "would write its own rows and the resume would have to load them on the same N cards, "
                          "which is not written yet")
     if a.maps_only:
         return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out)
+    if a.products and "NAMGPU_RANK" not in os.environ:
+        _start_products(a.out if a.out.is_absolute() else paths.work_root() / a.out)
     if a.cards > 1 and "NAMGPU_RANK" not in os.environ:
         return launch(a, list(argv) if argv is not None else sys.argv[1:])
     if "NAMGPU_RANK" in os.environ:
@@ -259,6 +281,9 @@ def main(argv=None):
     rec["left_out"] = leave
 
     from namgpu import restart as rstmod
+    from namgpu.io import history_select
+    ctx.history_select = history_select.Selection(a.history_fields, rstmod.steps_for(a.full_every_h, cfg.dt))
+    rec["history"] = dict(ctx.history_select.receipt(), full_every=a.full_every)
     ctx.restart_writer = None
     if a.restart_every_h > 0:
         rroot = a.restart_dir or (out / "restart")
@@ -267,6 +292,7 @@ def main(argv=None):
             "case": str(a.case), "case_dir": str(ctx.case_dir), "source": a.source, "hours": a.hours,
             "out": str(out), "start": f"{ctx.start:%Y-%m-%d_%H:%M:%S}", "dt": float(cfg.dt),
             "restart_every": a.restart_every, "restart_dir": str(rroot), "memory_path": mp["path"],
+            "history": {"fields": a.history_fields, "full_every": a.full_every},
             "woof_nam": __import__("namgpu").__version__})
         print(f"restart sets every {a.restart_every_h:g} h -> {rroot}", flush=True)
 
@@ -369,6 +395,19 @@ def main(argv=None):
     rp.write_text(json.dumps(rec, indent=1, default=str))
     print(f"receipt {rp}", flush=True)
     return 1 if (rec["error"] or bad) else 0
+
+
+def _start_products(out: Path) -> None:
+    """The awphys GRIB2 follower: its own process (no CUDA context of this run; the writer's GPU post is a small
+    separate context), started once by the top process, alive across the maps-only re-exec, done when it has
+    written every hour after the run's receipt appears."""
+    out.mkdir(parents=True, exist_ok=True)
+    log = open(out / "products.log", "ab")
+    subprocess.Popen([sys.executable, "-c",
+                      "import sys; sys.path.insert(0, %r); from namgpu.io.products import main; "
+                      "sys.exit(main(sys.argv[1:]))" % PKG_PARENT, "--run", str(out), "--follow"],
+                     stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
+    print(f"products: awphys GRIB2 follower started -> {out / 'products'} (log {out / 'products.log'})", flush=True)
 
 
 def owned_census(ctx) -> dict:

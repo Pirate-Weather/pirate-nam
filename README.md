@@ -210,6 +210,89 @@ Every `woof-nam` step is also a module (`python -m namgpu.init.init_fetch_case`,
 `namgpu.run_forecast`, `namgpu.run_init_case`, `namgpu.io.maps`, `namgpu.io.io_referee_panels`,
 `namgpu.io.io_referee_sheets`, `namgpu.io.hist_compare`, `namgpu.licence_check`), with the same options.
 
+## GRIB2 products (awphys shape)
+
+`woof-nam products` writes one GRIB2 file per forecast hour in the shape of NOAA's NAM 12 km CONUS product
+`nam.tHHz.awphysFF.tm00.grib2`, so code that reads NOAA's NAM files reads ours with two changes: the file name
+starts with `woof-nam.`, and the generating process number is 254 where NOAA's is 84.
+
+```
+woof-nam products --run runs/2025-03-14_12z                   # every history hour of the run
+woof-nam products --run runs/2025-03-14_12z --hours 0-6
+woof-nam run --case 2025-03-14_12z --hours 84 --out runs/x --products   # write each hour while the forecast runs
+woof-nam products --compare cases/2025-03-14_12z/raw/nam/awphys06.grib2 \
+    runs/2025-03-14_12z/products/woof-nam.t12z.awphys06.tm00.grib2     # grid and inventory against NOAA's file
+```
+
+- **Files.** `<run>/products/woof-nam.tHHz.awphysFF.tm00.grib2` (HH = start hour, FF = forecast hour), a `.idx`
+  beside each (exactly what `wgrib2 -s` prints, like NOAA's index files), and `index.json` for the run (file, bytes,
+  records, valid time, and every record left out with its reason).
+- **Grid.** NCEP grid 218: Lambert conformal, 614 x 428 points, 12.19 km, true latitude 25 N, orientation 265 E,
+  NCEP's sphere. The grid section is byte-identical to NOAA's.
+- **Records.** NOAA's discipline, category and parameter numbers, fixed surfaces, time ranges and record order, from
+  the record table `namgpu/products/awphys.tsv` (one row per record of NOAA's file). The full 50-1000 hPa isobaric
+  set every 25 hPa is in, with VVEL, DZDT, ABSV and TKE. Accumulations use NOAA's 12 h and 3 h buckets.
+- **Packing.** GRIB2 complex packing, as in NOAA's files, with NOAA's own decimal and binary scale for each record.
+  Values carry NOAA's precision.
+- **How.** The history fields are regridded from the NMMB rotated lat-lon grid to grid 218 (bilinear; soil and
+  vegetation classes and masks nearest), winds turned grid-relative as NCEP writes them, and handed to gpuwm's Rust
+  GRIB2 exporter `rw_rrfs_upp`, which computes the post fields and encodes on every core. The post's column work
+  uses a GPU with room, else the CPU (`--post-device`). If a shared card runs out of memory, the hour is rerun
+  instead of lost, and `index.json` lists the rerun.
+- **The exporter.** `woof-nam products` needs the build of `rw_rrfs_upp` with the NAM awphys profile. It is not in
+  a gpuwm release yet. Until it is, set `GPUWM_BRIDGES` to a folder that holds that build.
+- **Speed.** About 25 s of products per forecast hour (2 hours in flight) against about 56 s of model per forecast
+  hour on one RTX 5090, so `--products` keeps up with the forecast. f00-f06 took 2 min 35 s on 24 cores.
+
+**Checked against NOAA.** 2025-03-14 12Z, a 6 h native start, f00-f06, each file against NOAA's archived
+`nam.t12z.awphysFF.tm00.grib2` of the same hour:
+
+| hour | records | match NOAA's inventory line and order | MB (NOAA's file) |
+|---|---|---|---|
+| f00 | 438 | 438 of 438 | 60.4 (54.9) |
+| f01 | 442 | 442 of 444 | 63.0 (57.7) |
+| f02 | 442 | 442 of 444 | 63.7 (57.9) |
+| f03 | 442 | 442 of 444 | 64.5 (58.7) |
+| f04 | 442 | 442 of 444 | 64.9 (58.8) |
+| f05 | 442 | 442 of 444 | 65.6 (59.8) |
+| f06 | 444 | 444 of 446 | 66.1 (60.4) |
+
+- The grid section is byte-identical at every hour.
+- The two records missing at f01-f06 are MAXUW and MAXVW (hourly 10 m maximum wind). The history of this check was
+  written before the model wrote its hourly 10 m maximum wind. A run of this version writes it.
+- f00 has fewer records because NOAA's analysis file has no hourly maxima, minima or accumulations either.
+- Values, our forecast against NAM's on grid 218 at f06 (correlation): surface temperature 0.997, 2 m maximum and
+  minimum temperature 0.999, 2 m maximum and minimum RH 0.986 and 0.987, gust 0.925, PBL height 0.952, Haines index
+  0.951. `tools/grib2_value_check.py` prints correlation and bias for every record.
+- In that history the vertical velocity is the bare W. NAM's post reads W_TOT, which also carries the terrain-forced
+  term, so VVEL and DZDT have NAM's structures at about 0.7 of its amplitude. A run of this version writes W_TOT, and
+  the products use it.
+
+**Not in the files.** 8 of NOAA's 454 records: visibility at cloud top, the Blackadar mixing length (NOAA's file holds
+zero there), the accumulated snowfall (WEASD), the four dominant precipitation types (CSNOW, CICEP, CFRZR, CRAIN) and
+lightning (LTNG). A record that is missing is left out of the file, never written as zeros or under another record's
+name. `docs/COMPATIBILITY.md` lists what a site changes, and `docs/COMPATIBILITY-TABLE.md` gives every record.
+
+## Output size
+
+For the 12 km grid, per forecast hour:
+
+| output | per hour | f00-f84 (85 hours) |
+|---|---|---|
+| awphys GRIB2 (`woof-nam products`) | 60-66 MB (f00-f06) | about 5.6 GB |
+| history `wrfout_d01_*`, lossless (zlib 1 + shuffle) | about 1.0 GB | about 86 GB |
+| history, uncompressed (for scale) | 2.93 GB | - |
+| restart set (`--restart-every`) | 15.3 GiB per set | `--restart-keep` sets (default 1) |
+
+- The 84 h GRIB2 figure is 85 files at the f06 size. NOAA's own files run about 10 % smaller (60.4 MB at f06).
+- The history is compressed losslessly by default: 2.93 GB -> 1.01 GB an hour (2.9x), and every value reads back
+  exact. Any netCDF-4 or HDF5 reader opens it with no plugin.
+- `--history-fields` picks the fields of each hourly history file: `products` (default: what the maps, side-by-side
+  sheets and `woof-nam products` read), `full`, `state` (the 3-D model state), or a comma list. `--full-every 3h`
+  (default) makes every 3rd hour carry every field. The presets change the size little (products 1,003 MB, full
+  1,012 MB, state 862 MB an hour), because the awphys records need every 3-D field and those are 98 % of the bytes.
+  The way to write less is fewer history hours, or deleting the history once the GRIB2 files are written.
+
 ## Scope
 
 - **Domain:** the NAM 12 km CONUS parent (rotated lat-lon B grid, 954 x 835 x 60, 25 s step).
@@ -341,6 +424,8 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full
   12 km grid on several cards is measured on the full memory path only.
 - **Restarts:** one card ("Restarts" above); the NAM's own restart files are not read.
+- **GRIB2 products:** 8 of NOAA's 454 awphys records are not produced ("GRIB2 products" above), and the
+  exporter build `woof-nam products` needs is not in a gpuwm release yet.
 - **Noah vegetation table:** the NAM's own VEGPARM.TBL was never published. A stand-in built from
   WRF's public-domain table is used (namgpu/data/fix/noah/PROVENANCE.txt).
 

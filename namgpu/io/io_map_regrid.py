@@ -60,6 +60,10 @@ class LambertFrame:
 
 
 NAM218 = LambertFrame()
+# NCEP grid 218 exactly as NOAA's awphys GRIB2 encodes it (section 3: shape of earth 6, a sphere of radius
+# 6,371,229 m; Dx = Dy = 12191 m; first point 12.19 N 226.541 E). `woof-nam products` writes on this frame so a
+# NAM ingest finds every point where NOAA's file puts it.
+NCEP218 = LambertFrame(name="NCEP218", dx=12191.0, dy=12191.0, radius=6371229.0)
 
 
 # ---- Lambert conformal (spherical) -------------------------------------------------------

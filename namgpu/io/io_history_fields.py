@@ -59,6 +59,55 @@ DIMS3S = ("bottom_top_stag", "south_north", "west_east")
 
 MICROPHYSICS_PORTED = ("fer", "fer_hires")
 
+# The physics fields NAM's awphys GRIB2 reads (woof-nam products, namgpu/products/awphys.tsv), written under their
+# NMMB state names (parm/nam_phy_state.txt) when the state holds them, H points, [JM,IM]: fluxes, surface layer,
+# radiation at the ground, land/sea/snow state, cloud cover, and the hourly extremes io-max-fields keeps (reset
+# every hour, so each history hour holds the maximum or minimum of the hour that ends there). Views of the state:
+# no device copy. U10MAX/V10MAX (the u, v of the hour's strongest 10 m wind) are written next to U10/V10, rotated
+# to earth-relative the same way (H points: io_max_fields reads U10/V10 at the H cell).
+PRODUCT_CARRIERS_2D = (
+    "TWBS", "QWBS", "USTAR", "Z0", "PBLH", "AKMS", "ALBEDO", "RSWIN", "RLWIN", "RSWOUT", "RADOT", "THS", "SST",
+    "SICE", "SM", "SNO", "SI", "SNOWC", "CMC", "TG", "VEGFRC", "ISLTYP", "IVGTYP", "CFRACL", "CFRACM", "CFRACH",
+    "PSHLTR", "POTEVP", "SFCEVP",
+    "T02MAX", "T02MIN", "RH02MAX", "RH02MIN", "SPD10MAX", "REFDMAX", "UPVVELMAX", "DNVVELMAX", "PRATEMAX",
+    "UPHLMAX25", "UPHLMIN25", "UPHLMAX03", "UPHLMIN03",
+    # soil moisture availability and total (Noah), the radiation time factors the post applies to RSWIN/RSWOUT/
+    # RLWIN (CZEN, CZMEAN, SIGT4), and the BMJ convective cloud bottom/top between outputs (cloud base)
+    "SMSTAV", "SMSTOT", "CZEN", "CZMEAN", "SIGT4", "CNVBOT", "CNVTOP",
+)
+# [LM,JM,IM] carriers: cloud fraction, and the MYJ turbulent kinetic energy (Q2 holds 2 TKE).
+PRODUCT_CARRIERS_3D = ("CLDFRA",)
+# Noah soil layers, wrfout names, on soil_layers_stag with layer 1 at the top (0-10/10-40/40-100/100-200 cm):
+# the history writer flips only bottom_top fields. One card only: the several-card merge writer has no soil
+# dimension and flips every 3-D field, so on several cards these records are left out (named in the run index).
+DIMS_SOIL = ("soil_layers_stag", "south_north", "west_east")
+SOIL_CARRIERS = {"TSLB": "STC", "SMOIS": "SMC", "SH2O": "SH2O"}
+
+
+def _dragco(ctx, scope):
+    """The post's surface drag coefficient on the NMMB B grid (UPP CALDRG.f, gridtype B, MODELNAME NMM): the mean
+    of the four V-point winds of the lowest layer around each H point, averaged with the z0 wind (UZ0, VZ0, H
+    points), CD = USTAR^2 / that speed squared where it is over 1e-6, 0 elsewhere and on the outermost rows and
+    columns (the post loops JSTA_M..JEND_M, ISTA_M..IEND_M). None when the state lacks an input or on several cards
+    (the slab edge rows have no neighbour row here)."""
+    st = ctx.st
+    if getattr(ctx, "slab", None) is not None or any(n not in st.fields for n in ("U", "V", "UZ0", "VZ0", "USTAR")):
+        return None
+    jm, im = int(ctx.grid.jm), int(ctx.grid.im)
+    d = st.add("H_DRAGCO", (jm, im))
+    with scope:
+        u, v = st["U"][-1], st["V"][-1]                 # lowest layer (NMMB l = LM is the last index)
+        ul = cp.float32(0.25) * (u[1:-1, 1:-1] + u[1:-1, :-2] + u[:-2, 1:-1] + u[:-2, :-2])
+        vl = cp.float32(0.25) * (v[1:-1, 1:-1] + v[1:-1, :-2] + v[:-2, 1:-1] + v[:-2, :-2])
+        ub = cp.float32(0.5) * (ul + st["UZ0"][1:-1, 1:-1])
+        vb = cp.float32(0.5) * (vl + st["VZ0"][1:-1, 1:-1])
+        w2 = ub * ub + vb * vb
+        ust = st["USTAR"][1:-1, 1:-1]
+        d[...] = cp.float32(0.0)
+        d[1:-1, 1:-1] = cp.where(w2 > cp.float32(1.0e-6), ust * ust / cp.where(w2 > cp.float32(1.0e-6), w2,
+                                                                                cp.float32(1.0)), cp.float32(0.0))
+    return d
+
 
 def _vec(ctx, key: str, host):
     """Upload a small host vector once and keep it in ctx.tables."""
@@ -187,6 +236,44 @@ def run(ctx):
     }
     if "MEMBRANE_MSLP" in st.fields and getattr(ctx, "quasipost_done", False):
         out["MSLP"] = (st["MEMBRANE_MSLP"], DIMS2)
+    for name in PRODUCT_CARRIERS_2D:
+        if name in st.fields and tuple(st[name].shape) == s2:
+            out.setdefault(name, (st[name], DIMS2))
+    for name in PRODUCT_CARRIERS_3D:
+        if name in st.fields and tuple(st[name].shape) == s3:
+            out.setdefault(name, (st[name], DIMS3))
+    if getattr(ctx, "slab", None) is None:
+        for name, src in SOIL_CARRIERS.items():
+            if src in st.fields and st[src].ndim == 3 and tuple(st[src].shape[1:]) == s2:
+                out.setdefault(name, (st[src], DIMS_SOIL))
+    drag = _dragco(ctx, scope)
+    if drag is not None:
+        out["DRAGCO"] = (drag, DIMS2)
+    if "U10MAX" in st.fields and "V10MAX" in st.fields and tuple(st["U10MAX"].shape) == s2:
+        # NMMB U10/V10 are H-point, grid-relative (io_wind_rotate); io_max_fields keeps the pair of the hour's
+        # strongest 10 m wind at the same cell, so the extreme is rotated with the same H-point coefficients
+        from namgpu.io.io_wind_rotate import h_coefficients
+        he_e, he_n, hn_e, hn_n = h_coefficients(ctx)
+        ue = st.add("H_UE10MAX", s2)
+        ve = st.add("H_VE10MAX", s2)
+        u10x, v10x = st["U10MAX"], st["V10MAX"]
+        with scope:
+            ue[...] = u10x * he_e + v10x * hn_e
+            ve[...] = u10x * he_n + v10x * hn_n
+        out["U10MAX"] = (ue, DIMS2)
+        out["V10MAX"] = (ve, DIMS2)
+    # The total vertical velocity W + BARO (VSOUND), which NMMB's history writes as 'vvel' (module_WRITE_ROUTINES
+    # RUNHISTORY: W_TOT -> vvel) and NAM's post turns into DZDT and omega; the state holds LM+1 levels, VSOUND
+    # writes the first LM (the mid layers).
+    if "W_TOT" in st.fields and st["W_TOT"].shape[0] >= lm:
+        out["W_TOT"] = (st["W_TOT"][:lm], DIMS3)
+    # The model's own (nonhydrostatic) interface pressures: NAM's post integrates its heights over them
+    out["PINT"] = (st.PINT, DIMS3S)
+    if "Q2" in st.fields and tuple(st["Q2"].shape) == s3:
+        tke = st.add("H_TKE_PBL", s3)
+        with scope:
+            tke[...] = st["Q2"] * cp.float32(0.5)       # MYJ Q2 = 2 TKE (parm/nam_phy_state.txt)
+        out["TKE_PBL"] = (tke, DIMS3)
     if "REFL_10CM" in st.fields:
         refl = st["REFL_10CM"]
         comp = st.add("H_COMPOSITE", s2)

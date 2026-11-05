@@ -32,6 +32,8 @@ COMMANDS = {
              "draw maps from history files"),
     "side-by-side": ("namgpu.io.io_referee_panels",
                      "draw MRMS | WOOF-NAM | archived NAM panels, then compose comparison sheets"),
+    "products": ("namgpu.io.products",
+                 "write the hourly NAM product files (nam.tHHz.awphysFF.tm00.grib2 on grid 218) from a run's history"),
     "compare": ("namgpu.io.hist_compare",
                 "check that two runs wrote the same history, bit for bit (e.g. 1 card against N cards)"),
     "licence-check": ("namgpu.licence_check",

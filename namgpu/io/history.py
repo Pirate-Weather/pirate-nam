@@ -36,6 +36,9 @@ from pathlib import Path
 import numpy as np
 
 DIMS2 = ("south_north", "west_east")
+# Only model-level fields are flipped (NMMB l=1 top -> WRF bottom-up). Soil layers (soil_layers_stag) stay top-down,
+# as WRF writes TSLB/SMOIS.
+LEVEL_DIMS = ("bottom_top", "bottom_top_stag")
 
 
 def _host(a):
@@ -50,7 +53,7 @@ def prepare_history(ctx, fields: dict, start: datetime) -> dict:
     arrays = []
     for name, (arr, dims) in fields.items():
         h = _host(arr)
-        if h.ndim == 3:
+        if h.ndim == 3 and dims[0] in LEVEL_DIMS:
             h = h[::-1]          # NMMB l=1 top -> WRF bottom-up
         arrays.append((name, np.ascontiguousarray(h, dtype=np.float32), tuple(dims)))
     centre = (jm // 2, im // 2)
@@ -137,7 +140,7 @@ def finish_payload(staged: dict) -> dict:
     staged["keep"] = None
     arrays = []
     for name, h, dims in staged.pop("staged"):
-        if h.ndim == 3:
+        if h.ndim == 3 and dims[0] in LEVEL_DIMS:
             h = h[::-1]          # NMMB l=1 top -> WRF bottom-up
         arrays.append((name, np.ascontiguousarray(h, dtype=np.float32), dims))
     out = {k: v for k, v in staged.items() if k not in ("event", "keep")}
@@ -164,15 +167,21 @@ def write_payload(path: Path, payload: dict) -> Path:
         nc.createDimension("west_east", d["west_east"])
         nc.createDimension("bottom_top", d["bottom_top"])
         nc.createDimension("bottom_top_stag", d["bottom_top"] + 1)
+        soil = {f[1].shape[0] for f in payload["fields"] if f[2][0] == "soil_layers_stag"}
+        if soil:
+            nc.createDimension("soil_layers_stag", soil.pop())
         t = nc.createVariable("Times", "S1", ("Time", "DateStrLen"))
         t[0, :] = netCDF4.stringtochar(np.array([valid.strftime("%Y-%m-%d_%H:%M:%S")], "S19"))
         xt = nc.createVariable("XTIME", "f4", ("Time",))
         xt[0] = payload["xtime_min"]
         for name, arr in (("XLAT", payload["xlat"]), ("XLONG", payload["xlon"])):
-            v = nc.createVariable(name, "f4", ("Time", "south_north", "west_east"), zlib=True)
+            v = nc.createVariable(name, "f4", ("Time", "south_north", "west_east"), zlib=True, complevel=1,
+                                  shuffle=True)
             v[0] = arr
         for name, arr, dims in payload["fields"]:
-            v = nc.createVariable(name, "f4", ("Time",) + dims, zlib=True, complevel=1)
+            # lossless: zlib level 1 with byte shuffle (2.6x on a full 12 km hour; levels 4-9 and zstd/blosc
+            # measured no better than 3 % smaller, README "Output size")
+            v = nc.createVariable(name, "f4", ("Time",) + dims, zlib=True, complevel=1, shuffle=True)
             v[0] = arr
         nc.MAP_PROJ = 203
         nc.CEN_LAT = payload["cen_lat"]

@@ -46,6 +46,8 @@ def run(ctx) -> Path:
     if getattr(ctx, "out_dir", None) is None:
         raise RuntimeError("io-history: ctx.out_dir not set")
     from ..steps import drv_timing_receipt as timing  # noqa: PLC0415
+    from .history_select import select  # noqa: PLC0415
+    fields = select(ctx, fields)         # --history-fields / --full-every (history_select.py)
     if getattr(ctx, "slab", None) is not None:
         return _run_slab(ctx, fields, start, timing)
     drain(ctx)                           # previous hour's file must be complete first (pinned buffers reused)
