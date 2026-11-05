@@ -1,7 +1,7 @@
 """A frame across 180 is not drawn by the installed gpuwm 2.9.12 renderer, which smears it; other frames are.
 
-Origin: the published gpuwm 2.9.12 rw_wrfbatch drew a CONUS window moved across 180 with every row smeared east-west,
-while the same window unmoved drew correctly (2026-11-05). The pinned build (tools/renderer patch 01) and a renderer
+Origin: the published gpuwm 2.9.12 rw_wrfbatch rendered a CONUS window moved across 180 with every row smeared east-west,
+while the same window unmoved rendered correctly (2026-11-05). The pinned build (tools/renderer patch 01) and a renderer
 named in NAMGPU_RENDERER are trusted. CPU only."""
 import os
 import sys
