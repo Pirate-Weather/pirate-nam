@@ -7,13 +7,13 @@
 
 ## What it takes to run
 
-| 48-hour forecast | Time | Cost (OVHcloud) | Status |
+| 84-hour forecast | Time | Cost (OVHcloud) | Status |
 |---|---|---|---|
-| WOOF-NAM from GFS, one card | 75 min | About CAD 1.45 | Measured, live |
-| GSI cycle, one card (t2-45) | About 2.4 h | About CAD 2.80 | Estimated from measured parts |
-| GSI cycle, two cards (t2-90) | About 1.5 h | About CAD 3.40 | Estimated from measured parts; not yet run end to end |
+| GSI cycle, two cards (t2-90), the production setup | About 2 h | About CAD 4.60 | Estimated from measured parts; first live run in progress |
+| GSI cycle, one card (t2-45) | About 3.2 h | About CAD 3.70 | Estimated from measured parts |
+| WOOF-NAM from GFS, one card | About 2.2 h | About CAD 2.55 | Scaled from a measured 48-hour run |
 
-Times are for the model and GSI, before post-processing and upload. The code is in [`pirate/`](pirate/README.md).
+Times are for the model and GSI. Fetching inputs, post-processing and upload add roughly an hour. The code is in [`pirate/`](pirate/README.md).
 
 ## Credits
 

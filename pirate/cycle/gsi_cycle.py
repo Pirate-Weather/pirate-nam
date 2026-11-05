@@ -9,6 +9,7 @@ seeded land), then GSI at tm05..tm00, then the free forecast.
 Usage: gsi_cycle.py woof-nam-run-args...       Environment: GSI_CPUS, GSI_MEM_GB
 """
 import os, shutil, struct, subprocess, sys, time
+from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np, cupy as cp
 from namgpu.driver import Driver
@@ -16,18 +17,21 @@ from namgpu import run_forecast
 from namgpu.init import init_derive_state
 from namgpu.steps import drv_dfi_tdfi_driver
 from namgpu.boundary import bnd_read_bc
+from namgpu.init import slab_init
 
-C = "2026110300"
+C = os.environ["NAM_CYCLE"]; CYC_HH = C[8:]    # the forecast's start, YYYYMMDDHH
+CYCLE_TIME = datetime.strptime(C, "%Y%m%d%H")
 # Containers always see the tree as /nam; NAM_HOST lets two experiments run side by side from separate trees on the host.
 HOST = os.environ.get("NAM_HOST", "/nam")
-GES_IN = "/nam/com/nam/v4.2/nwges/nam.20261103"
+GES_IN = f"/nam/com/nam/v4.2/nwges/nam.{C[:8]}"
 GES = HOST + GES_IN[4:]
-COLD_ANL = f"{GES_IN}/nam.t00z.input_domain_01_nemsio.anl.tm06"
+COLD_ANL = f"{GES_IN}/nam.t{CYC_HH}z.input_domain_01_nemsio.anl.tm06"
 SHM = Path("/dev/shm/gsi_cycle_" + os.path.basename(HOST))
 STEPS_PER_HOUR = 144
 QMIN = 1e-8
 FILTER_EACH_CYCLE = os.environ.get("GSI_FILTER", "0") == "1"
 RESET_NH = os.environ.get("GSI_RESET_NH", "0") == "1"
+HANDOFF = os.environ.get("GSI_HANDOFF")
 LAND_SEED = os.environ.get("GSI_LAND_SEED", "0") == "1"
 RRFS_START = bool(os.environ.get("RRFS_NPZ"))
 if RRFS_START: import rrfs_start
@@ -76,15 +80,13 @@ def export_guess(ctx, d):
     cp.asnumpy(cp.where(open_water, st["SST"], 0.0)).astype("f4").tofile(d / "tsea__sfc.bin")
 
 def set_guess_time(path, k):
-    """The template is one Fortran restart, so its header says 23Z + 1 h whichever hour it now holds. GSI takes the guess
-    time from there, and with the wrong one it silently matches no observations (cost 0). A tmNN guess was a 1 h forecast
-    from tm(NN+1), which in this cycle is always on the day before the 00Z analysis."""
+    """The template is one Fortran restart, so its header holds that run's date whichever hour it now holds. GSI takes the guess
+    time from there, and with the wrong one it silently matches no observations (cost 0). A tmNN guess is a 1 h forecast
+    (the header's forecast hour stays 1), so its start is 1 h before the tmNN analysis time."""
+    start = CYCLE_TIME - timedelta(hours=k + 1)
     with open(path, "r+b") as f:
         f.seek(HEADER_IDATE_OFFSET)
-        year, month, day, hour = struct.unpack(">4i", f.read(16))
-        if (year, month, day) != (2026, 11, 2): raise RuntimeError(f"unexpected template date {year} {month} {day}")
-        f.seek(HEADER_IDATE_OFFSET + 12)
-        f.write(struct.pack(">i", 23 - k))
+        f.write(struct.pack(">4i", start.year, start.month, start.day, start.hour))
 
 def check_state(ctx, label):
     """A broken model state or a NaN analysis must stop the cycle, because GSI still exits 0 on NaN input."""
@@ -138,8 +140,8 @@ def analyse(ctx, tm):
         print(f"tm06 start applied in {time.time() - t0:.0f} s", flush=True)
         shutil.rmtree(anl_dir); return
     # The template restart moves to the name this analysis expects, so only one 9 GB file ever exists.
-    k = int(tm[2:]); guess_file = f"{GES}/nam.t00z.nmm_b_restart_nemsio.tm{k + 1:02d}"
-    previous = [f for f in Path(GES).glob("nam.t00z.nmm_b_restart_nemsio.tm*")][0]
+    k = int(tm[2:]); guess_file = f"{GES}/nam.t{CYC_HH}z.nmm_b_restart_nemsio.tm{k + 1:02d}"
+    previous = [f for f in Path(GES).glob(f"nam.t{CYC_HH}z.nmm_b_restart_nemsio.tm*")][0]
     if str(previous) != guess_file: previous.rename(guess_file)
     gd = SHM / f"guess_{tm}"
     export_guess(ctx, gd); os.chmod(gd, 0o777)
@@ -159,7 +161,7 @@ def analyse(ctx, tm):
     costs = [ln.split("=")[1].strip() for ln in log_text.splitlines() if ln.startswith(("Initial cost function", "Final   cost function"))]
     print(f"{tm}: GSI cost (each outer loop) {costs}", flush=True)
     if not costs or any("NaN" in c or float(c.replace("D", "E")) <= 0 for c in costs): raise RuntimeError(f"GSI cost invalid at {tm}: {costs}")
-    anl_file = f"{GES}/nam.t00z.nmm_b_restart_nemsio_anl.{tm}"
+    anl_file = f"{GES}/nam.t{CYC_HH}z.nmm_b_restart_nemsio_anl.{tm}"
     container("/nam/exec/nemsio_fields", "dump", anl_file.replace(HOST, "/nam", 1), str(anl_dir), READ_NAMES)
     apply_analysis(ctx, anl_dir, tm, ANALYSED)
     check_state(ctx, f"analysis {tm}")
@@ -216,12 +218,24 @@ def seed_land(ctx):
     ctx.stream.synchronize(); shutil.rmtree(anl_dir)
     print("land seeded at tm06", flush=True)
 
+def save_handoff(ctx):
+    """Save the analysed state for the two-card forecast. It starts its own clock, so the saved context has to describe the
+    forecast's case: its start time, and boundary files cut for its window. The catch-up's last hour isn't needed afterwards."""
+    case_dir = ctx.case_dir.parent / CYCLE_TIME.strftime("%Y-%m-%d_%Hz")
+    keep = (ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir)
+    ctx.start = ctx.start_time = CYCLE_TIME; ctx.case_dir = case_dir; ctx.boco_dir = str(case_dir / "boco")
+    t0 = time.time(); rec = slab_init.save(ctx, HANDOFF)
+    ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir = keep
+    if rec.get("skipped"): print("handoff skipped:", rec["skipped"], flush=True)
+    print(f"handoff saved to {HANDOFF}: {rec['gib']} GiB in {time.time() - t0:.0f} s", flush=True)
+
 def analyse_at(ctx, n):
     if n in schedule and n not in done and not ctx.filter_active:
         done.add(n); analyse(ctx, schedule[n])
         if FILTER_EACH_CYCLE: run_filter(ctx, schedule[n])
         # tm06 is the run's first step, whose boundaries arrive normally at step 1.
         if n > 0: reload_boundaries(ctx, n)
+        if schedule[n] == "tm00" and HANDOFF: save_handoff(ctx)
 
 def step(self):
     # tm06 goes in before the first step. Later analyses go in straight after the step that reaches their hour, because

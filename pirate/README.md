@@ -4,6 +4,7 @@ This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unc
 
 | Folder | What it does |
 |---|---|
+| `prod/` | Runs one live cycle end to end: inputs, catch-up with GSI on one card, forecast on both, then publishing |
 | `cycle/` | Cycles WOOF-NAM with NOAA's GSI (`gsi_cycle.py`), and moves fields between the model and NEMSIO restart files (`nemsio_fields.f90`) |
 | `publish/` | Turns history files into GRIB2 and Zarr, uploads them, and updates the run list |
 | `verify/` | Scores a run against the archived NAM and builds the README's results |
@@ -12,7 +13,7 @@ This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unc
 | `infra/` | Creates and sets up an OVHcloud GPU machine |
 | `viewer/` | The static map viewer and data page |
 
-**This isn't turnkey yet.** It records how the tests were run, and `gsi_cycle.py` still has the 2026-11-03 00Z test case built in. Live cycling is the next job.
+**This isn't turnkey yet.** `prod/run_cycle.sh` runs a live cycle, but it's new and assumes a machine already set up by `infra/`. Its first live run is still in progress.
 
 **Tested against upstream commit `93d85e3`.** This fork's `main` is newer, and upstream has changed `driver.py` and `bnd_read_bc.py` since, both of which the cycle depends on. Retest before relying on a newer version.
 
