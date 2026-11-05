@@ -14,7 +14,7 @@ pre { background:var(--code); padding:12px; overflow-x:auto; font-size:14px; } c
 <pre>https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/&lt;YYYYMMDDHH&gt;/woof/grib/woofnam.t&lt;HH&gt;z.f&lt;FFF&gt;.grib2</pre>
 <p>Contents: temperature, wind, height and relative humidity at 1000, 925, 850, 700, 500, 300 and 250 mb; 2 m temperature and dew point; 10 m wind; surface and mean sea level pressure; composite reflectivity; precipitable water; total and hourly precipitation.</p>
 <h2>WMS</h2><p>WMS 1.3.0 map layers for the newest run, regridded to 0.1° lat-lon, with the same fields as the Zarr store. Use EPSG:3857, or give EPSG:4326 bounding boxes as lon,lat:</p>
-<pre>https://51-79-94-42.sslip.io/datasets/pirate-nam/wms?service=WMS&amp;version=1.3.0&amp;request=GetCapabilities</pre>
+<pre>https://nam-wms.pirateweather.net/datasets/pirate-nam/wms?service=WMS&amp;version=1.3.0&amp;request=GetCapabilities</pre>
 <h2>xarray</h2><p>A Zarr v3 store with a smaller set of fields, on the same grid, with <code>latitude</code> and <code>longitude</code> as 2D coordinates:</p>
 <pre>import xarray as xr
 ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110500/woof/zarr", consolidated=True)
