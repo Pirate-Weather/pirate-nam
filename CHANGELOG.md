@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Composite and simulated reflectivity now match how NOAA's NAM post computed them. The history `COMPOSITE` and
+  `REFL_10CM`, the maps, and the awphys GRIB2 `REFC` (record 3) and `REFD` (records 2, 295, 296) add the reflectivity
+  of the convection scheme's rain (Z = 300 R^1.4, full strength below the freezing level, 20 dBZ weaker at the
+  convective cloud top) to the microphysics reflectivity, as the NAM post did. Before, they carried the microphysics
+  part only and ran 3-4 dB colder than the NAM's own REFC at 30 dBZ for the same state. Columns without convective
+  rain are unchanged. The hourly maximum `REFDMAX` already had the term and is unchanged.
+
+- `--source native` starts from the NAM analysis as the operational NAM forecast did. The analysis' rain and ice
+  fractions and rime factor, its turbulent kinetic energy and its vertical velocity are kept (before, the rain and ice
+  started as cloud water, the TKE at its floor and the vertical velocity at 0), and no second digital filter runs
+  over it, because the NAM analysis file is already the NAM's filtered 0 h state. `--filter on` restores the filter;
+  `--filter off|on` works for every source. GFS, ECMWF, ERA5 and parent starts are unchanged.
+
 ## 0.1.2 (2026-11-05)
 
 - Nests run one-way by default, as NOAA's NAM did: a live parent (`--parent-center`, `--parent-size-km`,

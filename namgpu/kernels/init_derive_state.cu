@@ -97,6 +97,7 @@ extern "C" __global__ void init_derive_levels(
     float* __restrict__ o3,            // [LM, JM, IM]  out (cold)
     float* __restrict__ q2,            // [LM, JM, IM]  out (cold)
     const int restart,
+    const int keep,                    // bit 1: keep Q2, bit 2: keep W (read from the analysis, init_native_atm)
     const int ide, const int jde,
     const int im, const int jm, const int lm)
 {
@@ -116,8 +117,10 @@ extern "C" __global__ void init_derive_levels(
     vp[k] = v[k];
     tp[k] = t[k];
     told[k] = 0.0f;                       // module_INIT_READ_BIN.F90:2542-2555
-    w[k] = 0.0f;                          // module_INIT_READ_BIN.F90:451 (cold)
-    q2[k] = NMMB_Q2_COLD;                 // module_INIT_READ_BIN.F90:444-448 (cold)
+    // W and Q2: the cold values, unless the start read them from the analysis (a native NAM start, as the
+    // operational forecast read them from its restart-format input): keep bits from sources.decode_warm
+    if (!(keep & 2)) w[k] = 0.0f;         // module_INIT_READ_BIN.F90:451 (cold)
+    if (!(keep & 1)) q2[k] = NMMB_Q2_COLD; // module_INIT_READ_BIN.F90:444-448 (cold)
 
     // O3 (cold): 0 everywhere, 10 in the box. Fortran i,j are 1-based; the box is the active global line.
     const int i = i0 + 1, j = j0 + 1;

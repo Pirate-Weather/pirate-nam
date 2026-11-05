@@ -293,6 +293,7 @@ def _ctx(cfgfile: Path, init_dir: Path, stream, out: Path, case_dir: Path, start
     from namgpu.steps import drv_loop_limits
     os.environ[config.CONFIG_ENV] = str(cfgfile)      # State() and the loaders read the default configfile
     cfg = config.load(cfgfile)
+    config.start_filter(cfg, source)                  # no second TDFI over a native NAM analysis (config.start_filter)
     g = gridmod.build(cfg)
     st = statemod.State(g, names={k for k, v in statemod.all_specs().items() if v.rank == 0})
     ctx = Ctx(cfg=cfg, grid=g, st=st, stream=stream)

@@ -194,7 +194,12 @@ def run(ctx, *, restart: bool | None = None):
     if fer is None or fer["dtph"] != float(dtph) or fer["restart"] != restart:
         tables["fer"] = fer = _build(ctx, dtph, restart)
 
-    if not restart:
+    kept = ctx.tables.get("native_warm_kept") or ()
+    if not restart and not {"F_ICE", "F_RAIN", "F_RIMEF"} <= set(kept):
+        # (a native NAM start read F_ICE/F_RAIN/F_RIMEF from the analysis, as the operational forecast read them from
+        # its restart-format input: no cold fill over them. Breakage it fixes: the fill set them to 0/0/1, so every
+        # analysis drop started as cloud water: rain 0 vs 134, snow 0 vs 193 at 0 h; first-hour grid-scale rain
+        # 69-91 % of the NAM's, NAM start study 2026-11-05.)
         st = ctx.st
         im, jm, lm = int(ctx.grid.im), int(ctx.grid.jm), int(ctx.grid.lm)
         for name in ("F_ICE", "F_RAIN", "F_RIMEF"):

@@ -127,6 +127,9 @@ def main(argv=None):
     ap.add_argument("--skip-init", default="init-fetch-case",
                     help="comma list of init units to skip (default: the fetch, already done by woof-nam fetch)")
     ap.add_argument("--leave-out", default="", help="comma list of plan units set to mode skip (receipt lists them)")
+    ap.add_argument("--filter", choices=("auto", "on", "off"), default="auto",
+                    help="the start's digital filter (TDFI). auto (default): off for --source native, whose NAM "
+                         "analysis is already the NAM's filtered 0 h state; on for every other source. on / off force it")
     ap.add_argument("--no-maps", action="store_true", help="write history only, no maps")
     ap.add_argument("--products", action="store_true",
                     help="also write NOAA's NAM awphys GRIB2 (nam.tHHz.awphysFF.tm00.grib2 on grid 218, "
@@ -264,6 +267,7 @@ def main(argv=None):
     out = a.out if a.out.is_absolute() else paths.work_root() / a.out
     out.mkdir(parents=True, exist_ok=True)
     cfg = config.load()
+    config.start_filter(cfg, a.source, a.filter)          # TDFI off for a native NAM start unless --filter on
     g = gridmod.build(cfg)
     multi = rank_setup(g) if "NAMGPU_RANK" in os.environ else None   # several cards: this process is one rank
     if multi is not None and a.init_from is None:
@@ -490,6 +494,10 @@ def main(argv=None):
                 ctx.filter_active = False             # the filter ran before the first restart set / the move
                 n = drv.run(a.hours, log=log)
             else:
+                if int(cfg.filter_method) == 0:
+                    # no filter: the 0 h reflectivity from the start state (CALMICT), as the filter's end writes it
+                    from namgpu.steps import drv_dfi_refl_restore
+                    drv_dfi_refl_restore.run(ctx)
                 n = drv_time_loop._run(ctx, a.hours, SimpleNamespace(run=_tdfi), log=log)
         rec["error"] = None
     except Exception as e:  # noqa: BLE001

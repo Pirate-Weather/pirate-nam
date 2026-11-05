@@ -77,6 +77,15 @@ def _tracer_slots(ctx):
     return (int(tab["INDX_Q"]) - 1, int(tab["INDX_CW"]) - 1, int(tab["INDX_Q2"]) - 1)
 
 
+def _keep_bits(ctx) -> int:
+    """Cold-start fields the start read from its analysis and that this unit must not overwrite (sources.decode_warm
+    records them in ctx.tables["native_warm_kept"]): bit 1 Q2 (the analysis TKE), bit 2 W (its DZDT). Breakage it
+    fixes: a native NAM start decoded TKE into Q2 and then this unit's cold branch wrote 0.02 over it (TKE 0.01
+    everywhere at 0 h against the analysis' mean 0.109), and W started at 0 (NAM start study, 2026-11-05)."""
+    kept = ctx.tables.get("native_warm_kept") or ()
+    return (1 if "Q2" in kept else 0) | (2 if "W" in kept else 0)
+
+
 def run(ctx):
     st = ctx.st
     g = ctx.grid
@@ -132,7 +141,7 @@ def run(ctx):
         k_lev(grid_lev, blk2, (
             st["T"], st["Q"], st["CW"], st["U"], st["V"], pint,
             rtop, dwdt, omgalf, up, vp, tp, told, w, o3, st["Q2"],
-            restart_i, np.int32(im), np.int32(jm),      # IDE, JDE: single-card whole domain (IDE = IM)
+            restart_i, np.int32(_keep_bits(ctx)), np.int32(im), np.int32(jm),      # IDE, JDE: single-card whole domain (IDE = IM)
             np.int32(im), np.int32(jm), np.int32(lm)))
         k_trc(grid_lev, blk2, (
             st["Q"], st["CW"], st["Q2"], tracers, tracers_prev,

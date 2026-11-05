@@ -185,6 +185,7 @@ NATIVE_3D = {
     # NCEP local tables: 0-6-195 TCOND, 0-6-199 FICE, 0-1-202 FRAIN, 0-1-203 RIME, 0-19-11 TKE
     "TCOND": (0, 6, 195), "FICE": (0, 6, 199), "FRAIN": (0, 1, 202), "RIME": (0, 1, 203),
     "TKE": (0, 19, 11),
+    "DZDT": (0, 2, 9),        # vertical velocity (m/s): the analysis' W_TOT = W + BARO (BARO, mm/s, not subtracted)
 }
 # Staged inputs dropped from the state once init-native-atm / init-vcoord-recover have read them.
 STAGED_3D = ("PRES", "TMP", "SPFH", "UGRD", "VGRD", "CLMR", "CICE", "RWMR", "SNMR", "ZERO3")
@@ -383,12 +384,14 @@ def decode_native(ctx, path, names3, sfc, lm, tmpdir, sink, top_first=None):
 # fields, which is what lets init fit beside the 10.6 GiB state on a 16 GB card.
 ALIAS_INTO = {"TMP": "T", "SPFH": "Q", "UGRD": "U", "VGRD": "V"}
 SPECIES = ("CLMR", "CICE", "RWMR", "SNMR")
-WARM_INTO = {"TCOND": "CW", "FICE": "F_ICE", "FRAIN": "F_RAIN", "RIME": "F_RIMEF", "TKE": "Q2"}
+WARM_INTO = {"TCOND": "CW", "FICE": "F_ICE", "FRAIN": "F_RAIN", "RIME": "F_RIMEF", "TKE": "Q2", "DZDT": "W"}
 
 
 def decode_warm(ctx):
-    """init-native-atm warm start: decode the analysis' TCOND, FICE, FRAIN, RIME, TKE straight into
-    CW, F_ICE, F_RAIN, F_RIMEF, Q2 (one field in flight). Returns the names written."""
+    """init-native-atm warm start: decode the analysis' TCOND, FICE, FRAIN, RIME, TKE, DZDT straight into
+    CW, F_ICE, F_RAIN, F_RIMEF, Q2, W (one field in flight). Returns the names written, also kept in
+    ctx.tables["native_warm_kept"] so the later cold-start fills leave them alone (init-derive-state: Q2, W;
+    phys-fer-init: F_ICE, F_RAIN, F_RIMEF), as the operational NAM forecast read them from its input."""
     import cupy as cp
     w = ctx.tables.get("native_warm")
     if not w or not w["names"]:
@@ -404,11 +407,14 @@ def decode_warm(ctx):
             dst[...] = cp.clip(a, 0.0, 1.0)
         elif n == "RIME":
             dst[...] = cp.maximum(a, 1.0)
+        elif n == "DZDT":
+            dst[...] = a
         else:                                   # TKE -> Q2 = 2 TKE, EPSQ2 floor 0.02
             dst[...] = cp.maximum(2.0 * a, cp.float32(0.02))
         done.append(WARM_INTO[n])
 
     decode_native(ctx, Path(w["file"]), w["names"], [], lm, w["tmpdir"], sink, top_first=w["top_first"])
+    ctx.tables["native_warm_kept"] = tuple(done)
     return done
 
 
