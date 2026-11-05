@@ -18,7 +18,8 @@ Stages (each timed, with its CPU cores sampled every 2 s and the process tree's 
              of that cycle; existing files are kept)
   forecast   tools/run_forecast.py: the init chain (GFS start, bocos into boco-<name>/), TDFI (filter_method 3,
              drv_dfi_tdfi_driver through drv-time-loop; tdfi_s in the receipt), the forecast, history, with the CuPy
-             pool capped at the pre-flight's pool_limit (CUPY_GPU_MEMORY_LIMIT); --cards N > 1 saves the init once
+             pool capped at the pre-flight's pool_limit for the memory path the forecast takes on the card (fit
+             below 64 GiB, full at and above; CUPY_GPU_MEMORY_LIMIT); --cards N > 1 saves the init once
              (slab_init) and loads it per rank
   maps       run_forecast's post-run maps tail (rw_wrfbatch, no CUDA context)
 Receipt: <out>/nest-receipt.json (grid, keys, sources and licences, the static build record, ms/step, peak VRAM,
@@ -355,6 +356,8 @@ def main(argv=None) -> int:
         r_ = _src.SOURCES.get(source, {})
         raise SystemExit(f"--source {source}: no files for {cycle:%Y-%m-%d %H}Z (row from {r_.get('valid_from')})"
                          + (f"; use --source {r_['before_use']} or auto" if r_.get("before_use") else ""))
+    if source == "parent":
+        a.parent_run = resolve_parent_run(a.parent_run)
     boco_age, boco_why = boco_age_for(source, cycle, a.boco_age_h)
     credit, credit_lines = data_credits(source, parent_run=a.parent_run, given=a.parent_credit)
     sampler = Sampler().start()
@@ -425,7 +428,8 @@ def main(argv=None) -> int:
     rows = pf["pick"]["rrtm_rows"] if pf["ok"] else (a.rrtm_rows or 8)
     if pf["ok"]:
         print(f"woof-nam: pre-flight {pf.get('free_gib')} GiB free (by card {pf['free_by_card']}), estimate "
-              f"{pf['pick']['total_gib']} GiB per card at NAMGPU_RRTM_ROWS {rows}", flush=True)
+              f"{pf['pick']['total_gib']} GiB per card at NAMGPU_RRTM_ROWS {rows}, {pf['pick']['memory_path']} memory "
+              f"path, pool cap {pf['pick']['pool_limit_gib']} GiB", flush=True)
 
     # renderer: the maps tail and the sheets both draw with namgpu.io.maps.renderer() (tools/renderer/bin is
     # gitignored). Checked before the forecast: on a fresh clone the door ran the whole forecast (10-46 min) and then
@@ -458,9 +462,7 @@ def main(argv=None) -> int:
     env["NAMGPU_BOCO_AGE_H"] = str(boco_age)
     a.boco_age_h = boco_age
     if pf.get("pick"):
-        # the pool stays inside what the pre-flight checked (CuPy frees its cached blocks and retries at the cap)
-        env["CUPY_GPU_MEMORY_LIMIT"] = str(pf["pick"]["pool_limit_bytes"])
-        rec["pool_limit_gib"] = pf["pick"]["pool_limit_gib"]
+        _pool_cap(env, rec, pf["pick"])
 
     # static
     stage("static")
@@ -521,9 +523,7 @@ def main(argv=None) -> int:
             return 3
         rows = pf["pick"]["rrtm_rows"]
         env["NAMGPU_RRTM_ROWS"] = str(rows)
-        # the pool stays inside what was checked (CuPy frees its cached blocks and retries at the cap)
-        env["CUPY_GPU_MEMORY_LIMIT"] = str(pf["pick"]["pool_limit_bytes"])
-        rec["pool_limit_gib"] = pf["pick"]["pool_limit_gib"]
+        _pool_cap(env, rec, pf["pick"])
         print(f"woof-nam: card has room: {pf['free_gib']} GiB free, NAMGPU_RRTM_ROWS {rows}", flush=True)
 
     # forecast (init + bocos + TDFI + run) and maps
@@ -612,6 +612,21 @@ def main(argv=None) -> int:
     return code
 
 
+def _pool_cap(env: dict, rec: dict, pick: dict) -> None:
+    """Cap the CuPy pool at the pre-flight's pool_limit for the memory path the forecast takes on the card (CuPy frees
+    its cached blocks and retries at the cap, so the run stays inside what was checked). No cap when the path is
+    unknown (domain.vram_estimate gives pool_limit_bytes None): a cap from the wrong path's model killed the Milton
+    12 km parent on a 96 GB card (2026-11-05)."""
+    rec["memory_path"] = pick.get("memory_path")
+    if pick.get("pool_limit_bytes"):
+        env["CUPY_GPU_MEMORY_LIMIT"] = str(pick["pool_limit_bytes"])
+        rec["pool_limit_gib"] = pick["pool_limit_gib"]
+    else:
+        env.pop("CUPY_GPU_MEMORY_LIMIT", None)
+        rec["pool_limit_gib"] = None
+        rec["pool_limit_why_none"] = "memory path unknown (no card size from nvidia-smi, no NAMGPU_MEMORY_PATH)"
+
+
 def _rm_init(init_dir, rec: dict) -> None:
     """Remove the door-made /dev/shm init copy (a whole-domain init in host RAM; it was never removed)."""
     if init_dir is None:
@@ -678,14 +693,25 @@ def boco_age_for(source: str, cycle: datetime, given: int | None) -> tuple[int, 
     return age, f"live start: the {source} row's operational age {age} h (the start cycle's leads are not out yet)"
 
 
+def resolve_parent_run(parent_run) -> Path:
+    """--parent-run as given -> the folder holding the parent's wrfout_d01_* history (the folder itself or its run/
+    subfolder, parent_start.run_dir); refuses naming the folders it looked in."""
+    if parent_run is None:
+        raise SystemExit("--source parent needs --parent-run DIR (the parent run's folder: the nest door's --out "
+                         "folder or its run/ folder)")
+    from namgpu.init import parent_start
+    try:
+        return parent_start.run_dir(parent_run).resolve()
+    except ValueError as e:
+        raise SystemExit(f"--parent-run {parent_run}: {e}") from None
+
+
 def parent_credit(parent_run, given: str | None = None) -> dict:
     """What a parent run started from, from its hand-off history's global attributes (io_history_fields.handoff_attrs:
     START_SOURCE, DATA_CREDIT, DATA_LICENCES). A parent from before those were written needs --parent-credit: a nest
     under an IFS-started parent otherwise rendered maps with no ECMWF credit (CC BY 4.0) (fix round 2)."""
-    run = Path(parent_run) if parent_run else None
-    hist = sorted(run.glob("wrfout_d01_*")) if run and run.is_dir() else []
-    if not hist:
-        raise SystemExit(f"--source parent needs --parent-run DIR with the parent's wrfout_d01_* history; got {parent_run}")
+    run = resolve_parent_run(parent_run)
+    hist = sorted(run.glob("wrfout_d01_*"))
     import netCDF4
     with netCDF4.Dataset(hist[0]) as nc:
         at = {k: nc.getncattr(k) for k in nc.ncattrs()}

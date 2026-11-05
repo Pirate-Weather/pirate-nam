@@ -61,12 +61,26 @@ KM_PER_DEG = 6371.2 * np.pi / 180.0
 
 
 # ---- where the parent is ------------------------------------------------------------------------------------------
+def run_dir(given) -> Path:
+    """The folder that holds the parent's wrfout_d01_* history: the given folder itself, or <given>/run when the
+    given folder is the nest door's --out folder (the door writes history to <out>/run). Before this, only the
+    history folder itself was accepted and the door's own --out folder was refused (Milton nest box, 2026-11-05).
+    Refuses naming every folder it looked in."""
+    p = Path(str(given)).expanduser()
+    looked = (p, p / "run")
+    for d in looked:
+        if d.is_dir() and next(d.glob("wrfout_d01_*"), None) is not None:
+            return d
+    raise ValueError(f"{UNIT}: no parent history (wrfout_d01_*) in {looked[0]} or {looked[1]}; give the parent "
+                     "run's folder (the nest door's --out folder or its run/ folder)")
+
+
 def parent_run(ctx) -> Path:
     v = getattr(ctx, "parent_run", None) or ctx.cfg.raw.get("parent_run") or os.environ.get("NAMGPU_PARENT_RUN")
     if not v:
         raise ValueError(f"{UNIT}: source 'parent' needs the parent run directory (--parent-run, configfile key "
                          "parent_run, or NAMGPU_PARENT_RUN)")
-    return Path(str(v)).expanduser()
+    return run_dir(v)
 
 
 def history_path(run: Path, valid) -> Path:

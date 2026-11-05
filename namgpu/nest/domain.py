@@ -83,6 +83,19 @@ SOURCE_BY_REGION = [
 # co-tenant's memory. total = cap + lmem + fixed (context).
 VRAM = {"per_column_kb": 150.0, "fixed_gib": 1.0, "rrtm_mb_per_row_col": 0.59, "lmem_bytes_per_thread": 11264,
         "pool_headroom_gib": 1.0, "margin_gib": 0.75}
+# Per memory path (state.resolve_memory_path: the 32 GB fit below FIT_BELOW_GIB = 64 GiB of card, the full path at and
+# above it; NAMGPU_MEMORY_PATH / NAMGPU_SCRATCH_ARENA override), the pool part that does not scale with the slab.
+# The door resolves the path exactly as the forecast will (memory_path below) and caps the pool with that path's row.
+# Before this the door had one model, made before the full path switched on by itself at 64 GiB: on a 96 GB card the
+# Milton Gulf 12 km parent (215 x 217 x 60, rows 32) was capped at 12.3 GB and died at the start of its forecast,
+# 0.9 GB short on top of 12.1 GB in use (2026-11-05). Measured on that parent shape (same card, start, rows, 3 h, no
+# pool cap): CuPy pool at the end 12.67 GiB on the full path, 7.84 GiB on the fit path (MEASURED_POOL_GIB).
+#   fit:  the per-column part alone covers every fit-path run (parent 7.84 vs cap 11.45; 286 x 334 nest 14.27 vs 17.2).
+#   full: the full path also keeps the init-only and step scratch arrays for the whole run (pool after init 2.56 vs
+#         0.81 GiB on the parent); 2.5 GiB on top of the per-column part covers the parent (cap 13.95 GiB) and the
+#         286 x 334 nest on a 96 GB card (18.41 GiB pool at the end of 48 h, cap 22.2).
+VRAM_PATH = {"fit": {"fixed_pool_gib": 0.0}, "full": {"fixed_pool_gib": 2.5}}
+MEASURED_POOL_GIB = {"milton-parent-full-r32": 12.67, "milton-parent-fit-r32": 7.84}
 RRTM_ROW_CHOICES = (32, 16, 8, 4, 2)
 # SMs by card name (nvidia-smi has no SM count and the pre-flight must not open a CUDA context)
 CARD_SMS = (("5090", 170), ("PRO 6000", 188), ("4090", 128), ("5070 Ti", 70), ("3080", 68), ("H100", 132),
@@ -283,16 +296,50 @@ def free_gib(index: str | None = None) -> float:
     return float(out.strip().splitlines()[0]) / 1024.0
 
 
-def vram_estimate(g: dict, rows: int, cards: int = 1, index: str | None = None) -> dict:
+def card_total_gib(index: str | None = None) -> float:
+    """The card's total memory in GiB from nvidia-smi (no CUDA context); 0.0 when it cannot be read."""
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits", "-i",
+                              index or _visible_index()], capture_output=True, text=True, timeout=20).stdout
+        return float(out.strip().splitlines()[0]) / 1024.0
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return 0.0
+
+
+def memory_path(index: str | None = None) -> dict:
+    """The memory path the forecast will take on this card: state.resolve_memory_path on the same setting
+    (NAMGPU_MEMORY_PATH, else the older NAMGPU_SCRATCH_ARENA) and the card's total memory, as state.memory_path reads
+    them in the forecast process. path None when no setting is given and the card size cannot be read."""
+    from namgpu import state
+    want = os.environ.get("NAMGPU_MEMORY_PATH", "").strip().lower()
+    old = os.environ.get("NAMGPU_SCRATCH_ARENA", "").strip()
+    if not want and old in ("0", "1"):
+        want = "fit" if old == "1" else "full"
+    card = card_total_gib(index)
+    if want not in ("fit", "full") and card <= 0.0:
+        return {"path": None, "how": "unknown", "card_gib": 0.0,
+                "reason": "nvidia-smi gave no card size and NAMGPU_MEMORY_PATH is not set"}
+    return state.resolve_memory_path(want, card)
+
+
+def vram_estimate(g: dict, rows: int, cards: int = 1, index: str | None = None, path: str | None = "auto") -> dict:
+    """VRAM estimate for one card of the run. path: "fit" or "full"; "auto" = the path the forecast takes on this
+    card (memory_path); None = unknown: then the larger (full) row is used for the fit check and no pool cap is set,
+    because a cap from the wrong path's model either kills the run (too small) or protects no co-tenant."""
+    mp = memory_path(index) if path == "auto" else {"path": path}
+    row = VRAM_PATH[mp["path"] or "full"]
     cols = g["im"] * g["jm"] / max(1, cards)
     state = cols * VRAM["per_column_kb"] * 1024 / 2**30
     rrtm = rows * g["im"] * VRAM["rrtm_mb_per_row_col"] * 1e6 / 2**30
     lmem = VRAM["lmem_bytes_per_thread"] * sm_threads(index) / 2**30
-    pool = state + rrtm + VRAM["pool_headroom_gib"]
+    pool = state + row["fixed_pool_gib"] + rrtm + VRAM["pool_headroom_gib"]
     tot = pool + lmem + VRAM["fixed_gib"]
+    capped = mp["path"] is not None
     return {"columns_per_card": int(cols), "state_gib": round(state, 2), "rrtm_gib": round(rrtm, 2),
-            "lmem_gib": round(lmem, 2), "fixed_gib": VRAM["fixed_gib"], "pool_limit_gib": round(pool, 2),
-            "pool_limit_bytes": int(pool * 2**30), "total_gib": round(tot, 2), "rrtm_rows": rows}
+            "lmem_gib": round(lmem, 2), "fixed_gib": VRAM["fixed_gib"], "memory_path": mp["path"],
+            "path_fixed_gib": row["fixed_pool_gib"], "pool_limit_gib": round(pool, 2) if capped else None,
+            "pool_limit_bytes": int(pool * 2**30) if capped else None, "total_gib": round(tot, 2),
+            "rrtm_rows": rows}
 
 
 def preflight(g: dict, cards: int = 1, rows: int | None = None, free: float | None = None,
