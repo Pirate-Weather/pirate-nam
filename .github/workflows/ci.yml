@@ -32,6 +32,7 @@ jobs:
           python tests/test_restart_output.py
           python tests/test_products_spec.py
           python tests/test_era5_source.py
+          python tests/test_basemap.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist
@@ -45,4 +46,6 @@ jobs:
           # the wheel alone: the woof-nam command, its package data and the licence notices, no checkout on the path
           cp "$GITHUB_WORKSPACE/tests/test_cli.py" /tmp/test_cli_wheel.py
           cd /tmp && WOOF_NAM_TEST_INSTALLED=1 /tmp/smoke/bin/python /tmp/test_cli_wheel.py
+          cp "$GITHUB_WORKSPACE/tests/test_basemap.py" /tmp/test_basemap_wheel.py
+          cd /tmp && WOOF_NAM_TEST_INSTALLED=1 /tmp/smoke/bin/python /tmp/test_basemap_wheel.py
           cd /tmp && /tmp/smoke/bin/woof-nam --help && /tmp/smoke/bin/woof-nam licence-check

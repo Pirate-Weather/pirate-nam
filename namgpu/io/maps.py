@@ -154,27 +154,60 @@ def basemap_dir(rw: Path, env: dict | None = None) -> Path | None:
                 None)
 
 
+# The basemap shipped in the wheel (namgpu/data/basemap: Natural Earth and US Census, public domain). The released
+# gpuwm wheel carries rw_wrfbatch with no assets/basemap beside it, so on a bare `pip install woof-nam` every map was drawn
+# with no coastlines (2026-11-04), and then the basemap check refused the renderer and the run ended rc 1 at maps
+# after a finished forecast (2026-11-05, ERA5 lane).
+PACKAGED_BASEMAP = Path(__file__).resolve().parent.parent / "data" / "basemap"
+_BASEMAP_WARNED = False
+
+
+def _has_basemap(root: Path) -> bool:
+    return (root / "natural_earth_10m").is_dir() or (root / "natural_earth_110m").is_dir()
+
+
+def ensure_basemap(rw: Path) -> Path | None:
+    """Make sure rw_wrfbatch (and every renderer call gpuwm.rustwx makes from this process) finds a basemap.
+
+    Keeps what the renderer already finds (RUSTWX_BASEMAP_DIR, RUSTWX_ASSETS_DIR/basemap, assets/basemap beside the
+    binary); otherwise sets RUSTWX_BASEMAP_DIR in this process's environment to gpuwm's vendored basemap or, failing
+    that, the copy shipped in this package. Returns the basemap folder, or None after one warning: the maps are then
+    drawn without coastlines, borders or state lines, and the run goes on."""
+    global _BASEMAP_WARNED
+    found = basemap_dir(rw)
+    if found is not None:
+        return found
+    candidates = []
+    try:
+        from gpuwm import rustwx  # noqa: PLC0415
+        candidates.append(Path(rustwx.basemap_dir()))
+    except Exception:  # noqa: BLE001  (no gpuwm, or an older one without basemap_dir)
+        pass
+    candidates.append(PACKAGED_BASEMAP)
+    for root in candidates:
+        if _has_basemap(root):
+            os.environ["RUSTWX_BASEMAP_DIR"] = str(root)
+            return root
+    if not _BASEMAP_WARNED:
+        _BASEMAP_WARNED = True
+        print(f"woof-nam maps: WARNING: {rw} finds no Natural Earth basemap (none beside it, RUSTWX_BASEMAP_DIR "
+              f"unset, {PACKAGED_BASEMAP} missing): maps are drawn without coastlines, borders or state lines. "
+              f"Set RUSTWX_BASEMAP_DIR to a folder holding natural_earth_10m to draw them.", file=sys.stderr,
+              flush=True)
+    return None
+
+
 def renderer_env(rw: Path) -> dict:
-    """The environment to run rw_wrfbatch with: this process's, plus gpuwm's renderer environment (which pins
-    the basemap on a bare pip install) when the renderer has no basemap beside it."""
-    env = dict(os.environ)
-    if basemap_dir(rw, env) is None:
-        try:
-            from gpuwm import rustwx  # noqa: PLC0415
-            env = dict(rustwx.renderer_env())
-        except ImportError:
-            pass
-    return env
+    """The environment to run rw_wrfbatch with: this process's, with the basemap pinned (ensure_basemap)."""
+    ensure_basemap(rw)
+    return dict(os.environ)
 
 
 def renderer() -> Path:
-    """The rw_wrfbatch to draw with (see _renderer), checked to find its basemap."""
+    """The rw_wrfbatch to draw with (see _renderer), with its basemap pinned (ensure_basemap). A missing basemap is
+    a warning, never a refusal: the forecast is done by the time maps are drawn."""
     rw = _renderer()
-    if basemap_dir(rw, renderer_env(rw)) is None:
-        # without it the renderer draws every map with no coastlines, borders or state lines and does not say so
-        raise SystemExit(f"woof-nam maps: {rw} finds no Natural Earth basemap (assets/basemap beside it or "
-                         f"RUSTWX_BASEMAP_DIR): maps would have no coastlines or state lines. Copy the gpuwm "
-                         f"cut's tools/rustwx/assets/basemap next to the binary or set RUSTWX_BASEMAP_DIR.")
+    ensure_basemap(rw)
     return rw
 
 
@@ -232,6 +265,20 @@ def frame_bounds(lat, lon, pad: float = FRAME_PAD):
         w, e = c - 180.0, c + 180.0
     shift = 360.0 * np.floor((w + 180.0) / 360.0)          # W into [-180, 180); E keeps the span
     return (round(w - shift, 3), round(e - shift, 3), round(s, 3), round(n, 3))
+
+
+def legacy_frame(frame) -> tuple | None:
+    """A frame a renderer older than gpuwm 2.9.12 can draw (-180 <= W < E <= 180), for a domain whose own frame
+    crosses 180 or holds the pole: the CONUS frame (BOUNDS, the frame woof-nam 0.1.0 used) when the domain covers
+    it, else None. The released gpuwm 2.9.11 renderer refuses the 12 km parent's own frame (it holds the pole), so
+    without this a pip install made no map at all (2026-11-05)."""
+    w, e, s, n = frame
+    cw, ce, cs, cn = (float(v) for v in BOUNDS.split(","))
+    if s > cs or n < cn:
+        return None
+    if any(w <= cw + k and ce + k <= e for k in (-360.0, 0.0, 360.0)):
+        return (cw, ce, cs, cn)
+    return None
 
 
 def bounds_arg(b) -> str:
@@ -493,6 +540,9 @@ def render(argv=None) -> dict:
             dst = a.out / prod / f"namgpu_{start:%Y%m%d_%H}z_f{fhr:03d}_{prod}.png"
             jobs.append((cf, var, valid, obs, dst, prod, table))
 
+    legacy = legacy_frame(frame) if frame else None
+    used_legacy = []
+
     def one(job):
         cf, var, valid, obs, dst, prod, table = job
         od = work / f"r_{var}_{valid:%Y%m%d%H%M}"
@@ -503,6 +553,14 @@ def render(argv=None) -> dict:
             cmd += ["--observation", obs]
         p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, env=renderer_env)
         pngs = sorted(od.rglob("*.png")) if od.is_dir() else []
+        if (p.returncode or not pngs) and "bounds require" in (p.stderr or p.stdout) and legacy is not None:
+            # a renderer older than 2.9.12 (the released gpuwm 2.9.11 wheel's) cannot draw this frame: draw the
+            # CONUS frame instead of no map
+            cmd[cmd.index("--bounds") + 1] = bounds_arg(legacy)
+            p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, env=renderer_env)
+            pngs = sorted(od.rglob("*.png")) if od.is_dir() else []
+            if not (p.returncode or not pngs):
+                used_legacy.append(True)
         if p.returncode or not pngs:
             why = (p.stderr or p.stdout).strip()[-400:]
             if "bounds require" in why:
@@ -530,6 +588,10 @@ def render(argv=None) -> dict:
             else:
                 written += w
     shutil.rmtree(work, ignore_errors=True)
+    if used_legacy:
+        print(f"woof-nam maps: {rw} predates dateline frames (gpuwm 2.9.12): maps use the CONUS frame "
+              f"{bounds_arg(legacy)} instead of the domain's own {bounds_arg(frame)}", file=sys.stderr, flush=True)
+        frame = legacy
     result = {"written": written, "failures": failures, "skipped": skipped,
               "frame": list(frame) if frame else None, "renderer": str(rw), "label": label}
     receipt = os.environ.get(RECEIPT_ENV)

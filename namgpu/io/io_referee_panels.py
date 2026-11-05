@@ -172,6 +172,8 @@ def _renderer():
     renderer = rustwx.find_renderer()
     if renderer is None:
         raise SystemExit(rustwx.renderer_remedy())
+    from namgpu.io import maps  # noqa: PLC0415
+    maps.ensure_basemap(renderer)  # the released wheel's renderer has no basemap beside it
     return rustwx, renderer
 
 

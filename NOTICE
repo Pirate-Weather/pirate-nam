@@ -21,6 +21,8 @@ Origins
 |                                | namgpu/physics/{myj,jsfc,noah}/                     |                               |
 | WRF Noah tables (stand-in)     | namgpu/data/fix/noah/, namgpu/data/noah_tables/     | WRF public-domain statement   |
 | Ferrier table                  | namgpu/data/ferrier/ETAMPNEW_DATA.expanded_rain     | NOAA / WRF public domain      |
+| Map basemap (Natural Earth,    | namgpu/data/basemap/ (unmodified)                   | Natural Earth: public domain; |
+| US Census county boundaries)   |                                                     | Census: US Government work    |
 | OPAC aerosol climatology       | namgpu/parm/nam_climaeropac_global.txt (NCEP)       | as redistributed by NOAA      |
 | NOAA fix files (radiation)     | namgpu/data/fix/*.txt                               | US Government data            |
 | Data fetched at run time       | case inputs, GMTED2010 terrain                      | US Government data;           |
@@ -144,6 +146,10 @@ NOAA data shipped in this package, and data fetched at run time
 - Case inputs (NAM native analysis and boundary files, GFS 0.25 degree, MRMS), fetched from NOAA
   Open Data Dissemination by namgpu.init.init_fetch_case. US Government data.
 - GMTED2010 terrain (USGS/NGA), read from the user's WPS geog set. Public domain.
+- Map basemap in namgpu/data/basemap/: Natural Earth 10m and 110m coastlines, lakes, land, ocean,
+  borders and state lines (naturalearthdata.com, public domain) and the US Census Bureau
+  cb_2023_us_county_5m county boundaries (US Government work, 17 U.S.C. 105), unmodified copies of
+  the gpuwm 2.9.11 renderer bundle's assets/basemap.
 - Climatological aerosol table namgpu/parm/nam_climaeropac_global.txt: NCEP format of the OPAC
   climatology, Hess, Koepke and Schult (1998), Bull. Amer. Meteor. Soc. 79, 831-844, as
   redistributed by NOAA in the GFS fix set.

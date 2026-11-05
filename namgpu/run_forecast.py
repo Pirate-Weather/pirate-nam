@@ -635,7 +635,7 @@ def maps_only(case: str, out: Path, case_dir: Path | None = None, columns: bool 
     try:
         rec["maps"] = str(io_maps.run(ctx))[:2000]
     except (Exception, SystemExit) as e:  # noqa: BLE001
-        # SystemExit too: maps.renderer() raises it when the renderer or its basemap is missing, and before this the
+        # SystemExit too: maps.renderer() raises it when the renderer is missing, and before this the
         # receipt was never finished (no maps_error, no maps_s; review round 3, #3)
         rec["maps_error"] = f"{type(e).__name__}: {e}"
         print("MAPS ERROR", rec["maps_error"], flush=True)
