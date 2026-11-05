@@ -10,7 +10,8 @@ owns the order of the run:
      first_step True (the SOLVER_RUN firststep block runs once, on the forecast's first step).
   2. The forecast loop: driver.Driver.run (history 0 h, step, history on the post-advance count).
 
-Not ported (refused by name, not stubbed): restart read/write (Driver.run raises when ctx.restart),
+Not ported (refused by name, not stubbed): the NAM's own restart files, read when the configfile says restart
+(Driver.run raises when ctx.restart; woof-nam's own restart sets are namgpu/restart.py, woof-nam run --resume),
 TIMESERIES_RUN (NMM_INTEGRATE 844-861, 1140-1147).  The ESMF alarm checks and the CLOCKTIME print
 have no numerical effect and are not ported.
 

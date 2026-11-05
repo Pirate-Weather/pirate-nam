@@ -6,6 +6,10 @@
 Writes <out>/forecast-receipt.json (init s, per-hour wall, ms/step, nonfinite census at the end,
 peak VRAM, units left out) plus the driver's timing_receipt.json, history files and maps/.
 
+Restarts (namgpu/restart.py): --restart-every 1h writes a restart set every hour under <out>/restart; the
+receipt's "restart_latest" is the newest complete set. `woof-nam run --resume <out>/restart` (or a set) continues
+the run to its original end; case, source, hours and output folder come from the set.
+
 Our own box lanes source env-box.sh, which sets WOOF_NAM_BOX=1: only then does the run hand back the
 card lock it inherited (CARD3.lock / NAMGPU_CARD_LOCK) before the maps. Without it no lock is touched.
 """
@@ -72,15 +76,15 @@ def main(argv=None):
                "  woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03-14_12z-2c --cards 2\n"
                "A GFS start (--source gfs) also needs the static fields once: woof-nam static --help.",
         formatter_class=HelpFormatter)
-    ap.add_argument("--case", required=True,
+    ap.add_argument("--case", default=None,
                     help="the case folder woof-nam fetch wrote (cases/2025-03-14_12z), or its bare name, looked up "
                          "under <work root>/cases/; the name gives the start time (YYYY-MM-DD_HHz)")
     ap.add_argument("--source", default="native",
                     help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z), GFS (gfs) or "
                          "ECMWF open data IFS (ifs from 2026-10-20 12Z, ifs-0p25 from 2024-03-18 12Z; start and "
                          "boundaries from the same IFS cycle, CC BY 4.0)")
-    ap.add_argument("--hours", type=float, default=1.0, help="forecast length in hours (default 1)")
-    ap.add_argument("--out", type=Path, required=True, help="output folder (relative paths are under the work root)")
+    ap.add_argument("--hours", type=float, default=None, help="forecast length in hours (default 1)")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (relative paths are under the work root)")
     ap.add_argument("--skip-init", default="init-fetch-case",
                     help="comma list of init units to skip (default: the fetch, already done by woof-nam fetch)")
     ap.add_argument("--leave-out", default="", help="comma list of plan units set to mode skip (receipt lists them)")
@@ -97,11 +101,49 @@ def main(argv=None):
                     help="a saved initial state (python -m namgpu.init.slab_init save ...) to load instead of running "
                          "the init; every card keeps its own rows. With --cards N and no --init-from, the run saves "
                          "one first, on the first card, in <out>/init (deleted at the end unless --keep-init)")
-    ap.add_argument("--keep-init", action="store_true", help="keep the saved initial state <out>/init (--cards N)")
+    ap.add_argument("--keep-init", action="store_true",
+                    help="keep the saved initial state <out>/init (--cards N); on one card, save it there after the "
+                         "init (a later run with --init-from <out>/init starts from the same bits)")
+    ap.add_argument("--restart-every", default="0",
+                    help="write a restart set every N hours of forecast (1h, 90m, 3; default 0 = none) under "
+                         "--restart-dir; woof-nam run --resume continues from the newest one")
+    ap.add_argument("--restart-dir", type=Path, default=None, help="restart root (default <out>/restart)")
+    ap.add_argument("--restart-keep", type=int, default=1, help="restart sets kept (newest; default 1)")
+    ap.add_argument("--resume", type=Path, default=None,
+                    help="continue a run from a restart set, or from a restart root (its newest set), to the run's "
+                         "original end (or --hours). Case, source and output folder come from the set")
+
     ap.add_argument("--managed-init", action="store_true",
                     help="--cards N: build the saved initial state in CUDA managed memory (a domain whose init does "
                          "not fit one card)")
     a = ap.parse_args(argv)
+    resume_meta = None
+    if a.resume is not None and not a.maps_only:
+        from namgpu import restart as rstmod
+        a.resume = rstmod.resolve(a.resume if a.resume.is_absolute() else paths.work_root() / a.resume)
+        resume_meta = rstmod.read_meta(a.resume)
+        a.case = a.case or (resume_meta["case_dir"] if Path(resume_meta["case_dir"]).is_dir() else resume_meta["case"])
+        a.out = a.out or Path(resume_meta["out"])
+        a.source = resume_meta["source"]
+        a.hours = a.hours if a.hours is not None else float(resume_meta["hours"])
+        if a.restart_every == "0" and resume_meta.get("restart_every"):
+            a.restart_every = resume_meta["restart_every"]
+        if a.restart_dir is None and resume_meta.get("restart_dir"):
+            a.restart_dir = Path(resume_meta["restart_dir"])
+        if a.init_from is not None:
+            raise SystemExit("--resume and --init-from: a restart set already holds the whole state; give one")
+    if a.case is None or a.out is None:
+        ap.error("--case and --out are required (or --resume <restart>)")
+    a.hours = 1.0 if a.hours is None else a.hours
+    from namgpu import restart as _rst
+    try:
+        a.restart_every_h = _rst.parse_hours(a.restart_every)
+    except ValueError as e:
+        ap.error(str(e))
+    if a.cards > 1 and (a.restart_every_h > 0 or a.resume is not None):
+        raise SystemExit("--restart-every / --resume run on one card in this release: with --cards N every rank "
+                         "would write its own rows and the resume would have to load them on the same N cards, "
+                         "which is not written yet")
     if a.maps_only:
         return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out)
     if a.cards > 1 and "NAMGPU_RANK" not in os.environ:
@@ -128,7 +170,7 @@ def main(argv=None):
                          "bits; the init runs once (namgpu.init.slab_init save) and every rank loads its rows")
     if multi is not None:
         g = multi["grid"]                                     # the rank's grid (slab.local_grid)
-    if a.init_from is not None:
+    if a.init_from is not None or a.resume is not None:
         # the saved init replaces every field: allocate only the scalars here (no 2-D/3-D/4-D arrays twice)
         st = statemod.State(g, names={k for k, v in statemod.all_specs().items() if v.rank == 0})
     else:
@@ -158,7 +200,21 @@ def main(argv=None):
     rec["memory_path"] = mp
     print(f"memory path: {mp['path']} ({mp['how']}: {mp['reason']})", flush=True)
     t0 = time.perf_counter()
-    if a.init_from is not None:
+    if a.resume is not None:
+        from namgpu import restart as rstmod
+        from namgpu.init import slab_init
+        rec["resumed_from"] = str(a.resume)
+        rec["resumed_at_fhr"] = resume_meta["fhr"]
+        rec["init"] = {"resumed_from": str(a.resume), "load": slab_init.load(ctx, a.resume)}
+        rec["skipped_init"] = "all (resumed)"
+        ctx.slab = ctx.comm = ctx.decomp = None
+        ctx.case_dir = paths.case_dir(a.case)              # this machine's case folder, not the writer's
+        ctx.out_dir = out
+        rstmod.resume_boco(ctx, a.resume)
+        from namgpu.steps import drv_loop_limits
+        with ctx.stream:
+            drv_loop_limits.run(ctx)
+    elif a.init_from is not None:
         from namgpu.init import slab_init
         rec["init"] = {"loaded_from": str(a.init_from), "load": slab_init.load(ctx, a.init_from)}
         rec["skipped_init"] = "all (loaded)"
@@ -177,6 +233,13 @@ def main(argv=None):
         with ctx.stream:
             rec["init"] = init_case_driver.run(ctx, only=chain)
     ctx.stream.synchronize()
+    if a.keep_init and a.init_from is None and a.resume is None and multi is None:
+        # one card: the initial state, saved for later runs that must start from the same bits (--init-from)
+        from namgpu.init import slab_init
+        ts = time.perf_counter()
+        rec["init_saved"] = {"path": str(out / "init"), **slab_init.save(ctx, out / "init")}
+        rec["init_saved"]["save_s"] = round(time.perf_counter() - ts, 2)
+        print(f"initial state saved to {out / 'init'} ({rec['init_saved']['gib']} GiB)", flush=True)
     rec["init_s"] = round(time.perf_counter() - t0, 2)
     # the start source row as staged (file, static, levels, attribution and licence: ECMWF open data is CC BY 4.0)
     rec["init_source"] = ctx.tables.get("grid_source")
@@ -194,6 +257,18 @@ def main(argv=None):
     for u in leave:
         drv.units[u]["mode"] = "skip"
     rec["left_out"] = leave
+
+    from namgpu import restart as rstmod
+    ctx.restart_writer = None
+    if a.restart_every_h > 0:
+        rroot = a.restart_dir or (out / "restart")
+        rroot = rroot if rroot.is_absolute() else paths.work_root() / rroot
+        ctx.restart_writer = rstmod.Writer(rroot, a.restart_every_h, cfg.dt, keep=a.restart_keep, meta={
+            "case": str(a.case), "case_dir": str(ctx.case_dir), "source": a.source, "hours": a.hours,
+            "out": str(out), "start": f"{ctx.start:%Y-%m-%d_%H:%M:%S}", "dt": float(cfg.dt),
+            "restart_every": a.restart_every, "restart_dir": str(rroot), "memory_path": mp["path"],
+            "woof_nam": __import__("namgpu").__version__})
+        print(f"restart sets every {a.restart_every_h:g} h -> {rroot}", flush=True)
 
     from namgpu.steps.drv_physics_initialize import in_run_dir
     rd = in_run_dir(ctx)
@@ -222,7 +297,11 @@ def main(argv=None):
             return out
         rec["filter_method"] = int(cfg.filter_method)
         with ctx.stream:
-            n = drv_time_loop._run(ctx, a.hours, SimpleNamespace(run=_tdfi), log=log)
+            if a.resume is not None:
+                ctx.filter_active = False             # the filter ran before the first restart set
+                n = drv.run(a.hours, log=log)
+            else:
+                n = drv_time_loop._run(ctx, a.hours, SimpleNamespace(run=_tdfi), log=log)
         rec["error"] = None
     except Exception as e:  # noqa: BLE001
         n = ctx.ntimestep
@@ -231,9 +310,17 @@ def main(argv=None):
         print("RUN ERROR", rec["error"], flush=True)
     ctx.stream.synchronize()
     wall = time.perf_counter() - t1
+    if getattr(ctx, "restart_writer", None) is not None:
+        try:
+            ctx.restart_writer.drain()
+        except Exception as e:  # noqa: BLE001
+            rec["error"] = rec["error"] or f"restart write: {type(e).__name__}: {e}"
+        rec["restart"] = ctx.restart_writer.receipt()
+        rec["restart_latest"] = rec["restart"]["latest"]     # the set a worker resumes from (woof-nam run --resume)
+    n0 = int(rec.get("resumed_at_fhr", 0) * 3600.0 / cfg.dt + 0.5) if a.resume is not None else 0
     rec["steps_done"] = int(ctx.ntimestep)
     rec["run_s"] = round(wall, 2)
-    rec["ms_per_step"] = round(wall / max(1, ctx.ntimestep) * 1e3, 1)
+    rec["ms_per_step"] = round(wall / max(1, ctx.ntimestep - n0) * 1e3, 1)
     rec["hour_lines"] = hours_log
     bad = init_case_driver.census(ctx)
     if multi is not None:

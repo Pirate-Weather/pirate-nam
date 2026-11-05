@@ -504,18 +504,25 @@ class Driver:
         if ctx.restart:
             # Refused by name: RESET_ALARMS RESTARTED_RUN (NMM_INTEGRATE.F90:1682-1694), ALARM_RESTART
             # (1865-1875) and RST_OUT_00 (816-827) have no port yet, and no restart file is read or written.
-            raise NotImplementedError("drv-time-loop: restart read/write not ported "
+            raise NotImplementedError("drv-time-loop: the NAM's own restart files are not read (woof-nam run "
+                                      "--restart-every / --resume write and read woof-nam restart sets); not ported "
                                       "(NMM_INTEGRATE.F90 1682-1694, 1865-1875, 816-827)")
         nsteps = int(round(hours * 3600.0 / ctx.cfg.dt))
         steps_per_hour = max(1, int(round(3600.0 / ctx.cfg.dt)))
         t0 = time.perf_counter()
         self._initial_history()
-        for _ in range(nsteps):
+        # A resumed run (woof-nam run --resume) starts at the restart set's step count and runs to the same end.
+        n0 = int(ctx.ntimestep)
+        rw = getattr(ctx, "restart_writer", None)
+        for _ in range(max(0, nsteps - n0)):
             self.step()
             # Fortran: the clock is advanced inside the step, then history is written on the
             # post-advance count (NMM_INTEGRATE.F90:1153+).  step() has already incremented ntimestep.
             if not ctx.filter_active and self._due("history"):
                 self.write_history()
+            if rw is not None and not ctx.filter_active and rw.due(ctx.ntimestep):
+                timing.stamp(ctx, "restart/stage")
+                rw.write(ctx)                        # stream-ordered copy to pinned memory; files on a thread
             if ctx.ntimestep % steps_per_hour == 0:
                 # once per forecast hour: the only host sync, for the progress line
                 if ctx.stream is not None:
@@ -523,11 +530,13 @@ class Driver:
                 timing.drain(ctx)                    # timing stamps, read at the sync we already pay
                 wall = time.perf_counter() - t0
                 log(f"fh {ctx.ntimestep * ctx.cfg.dt / 3600.0:6.2f}  step {ctx.ntimestep}"
-                    f"  wall {wall:8.1f} s  {wall / ctx.ntimestep * 1e3:7.1f} ms/step")
+                    f"  wall {wall:8.1f} s  {wall / max(1, ctx.ntimestep - n0) * 1e3:7.1f} ms/step")
         if ctx.stream is not None:
             ctx.stream.synchronize()
         from .io import io_history
         io_history.drain(ctx)                        # last history file is on disk before the receipt
+        if rw is not None:
+            rw.drain()                               # last restart set is on disk before the receipt
         from .steps import drv_halo_exch as _halo    # noqa: PLC0415
         if _halo.UNIT_HASH and ctx.out_dir is not None:
             Path(ctx.out_dir).mkdir(parents=True, exist_ok=True)

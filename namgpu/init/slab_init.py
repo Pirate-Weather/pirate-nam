@@ -37,7 +37,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PER_RANK_TABLES = ("NMMB_LIMITS", "NMMB_LIMITS_LOCAL", "NMMB_LIMITS_HOST", "DIVCOR_LIMITS_CHECKED",
                    "HALO_BUFS", "HALO_MISSING", "UNIT_HASH")
 CTX_SKIP = {"cfg", "grid", "st", "stream", "driver", "bc", "tables", "timings", "slab", "halo",
-            "out_dir", "forecast_hours", "comm", "decomp", "hist_geo_global"}   # the forecast process keeps its own
+            "out_dir", "forecast_hours", "comm", "decomp", "hist_geo_global",
+            "restart_writer", "history_future"}   # the forecast process keeps its own
 FORMAT = 1
 
 
@@ -128,14 +129,12 @@ def _ptr(a):
     return int(a.data.ptr) if _is_cp(a) else int(a.__array_interface__["data"][0])
 
 
-def save(ctx, out) -> dict:
-    """Write the post-init context to `out` (a directory). Returns the receipt."""
+def plan(ctx):
+    """What save() writes, without writing it: (jobs, header, receipt). jobs = [(file name, array)], largest
+    first, each array C-contiguous (device or host); header = the skeleton.pkl dict. Arrays are not copied
+    except a non-contiguous one or a reinterpreting view (copied on the current stream). The restart writer
+    (namgpu/restart.py) uses this to stage the same set into pinned host memory."""
     import cupy as cp
-    out = Path(out)
-    out.mkdir(parents=True, exist_ok=True)
-    if ctx.stream is not None:
-        ctx.stream.synchronize()
-    cp.cuda.Device().synchronize()
     sv = _Saver()
     attrs = {k: v for k, v in vars(ctx).items() if k not in CTX_SKIP}
     tables = {k: v for k, v in ctx.tables.items() if k not in PER_RANK_TABLES}
@@ -153,12 +152,12 @@ def save(ctx, out) -> dict:
         groups.setdefault(_alloc_key(a), []).append(k)
     meta = {}
     nbytes = 0
-    jobs = []                                  # (file, array): written by a thread pool below
+    jobs = []                                  # (file name, array)
     def _solo(k):
         # stored on its own (a copy): non-contiguous, or not inside any other member's bytes
         a = sv.arrays[k]
         ac = cp.ascontiguousarray(a) if _is_cp(a) else np.ascontiguousarray(a)
-        jobs.append((out / f"a{k}.npy", ac))
+        jobs.append((f"a{k}.npy", ac))
         meta[k] = {"owner": k, "dev": bool(_is_cp(a)), "dtype": str(a.dtype), "shape": list(a.shape),
                    "off": 0, "strides": [], "c": True}
         return ac.nbytes
@@ -178,7 +177,7 @@ def save(ctx, out) -> dict:
             lo, hi = _ptr(oa), _ptr(oa) + oa.nbytes
             inside = [k for k in rest if _ptr(sv.arrays[k]) >= lo and _ptr(sv.arrays[k]) + sv.arrays[k].nbytes <= hi
                       and sv.arrays[k].dtype.itemsize and (_ptr(sv.arrays[k]) - lo) % sv.arrays[k].dtype.itemsize == 0]
-            jobs.append((out / f"a{own}.npy", oa))
+            jobs.append((f"a{own}.npy", oa))
             nbytes += oa.nbytes
             for k in inside:
                 a = sv.arrays[k]
@@ -191,29 +190,50 @@ def save(ctx, out) -> dict:
                     nbytes += _solo(k)
             rest = [k for k in rest if k not in inside]
             nsplit += 1 if rest else 0
-    # D2H copy + write on many threads (both release the GIL): no single-core stage for a 15-30 GB state
+    jobs.sort(key=lambda j: -j[1].nbytes)
+    header = {"format": FORMAT, "skel": skel, "vgrid": vgrid, "meta": meta,
+              "jm": int(g.jm), "im": int(g.im), "lm": int(g.lm)}
+    rec = {"arrays": len(meta), "owners": len({m["owner"] for m in meta.values()}), "split_groups": nsplit,
+           "gib": round(nbytes / 2**30, 2),
+           "skipped": sv.skipped, "jm": int(g.jm), "im": int(g.im)}
+    return jobs, header, rec
+
+
+def write_files(out, jobs, header, rec, workers: int = 16) -> None:
+    """Write a plan() to the directory `out`: one .npy per owner (D2H copy + write on many threads, both release
+    the GIL: no single-core stage for a 15-30 GB state), then skeleton.pkl and save-receipt.json."""
+    import cupy as cp
     from concurrent.futures import ThreadPoolExecutor
+    out = Path(out)
 
     def _write(job):
-        path, a = job
+        name, a = job
         if _is_cp(a):
             with cp.cuda.Stream(non_blocking=True) as s_:
                 h = cp.asnumpy(a, stream=s_)
                 s_.synchronize()
         else:
             h = a
-        np.save(path, h, allow_pickle=False)
+        np.save(out / name, h, allow_pickle=False)
 
-    jobs.sort(key=lambda j: -j[1].nbytes)
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=workers) as ex:
         list(ex.map(_write, jobs))
     with open(out / "skeleton.pkl", "wb") as f:
-        pickle.dump({"format": FORMAT, "skel": skel, "vgrid": vgrid, "meta": meta,
-                     "jm": int(g.jm), "im": int(g.im), "lm": int(g.lm)}, f, protocol=pickle.HIGHEST_PROTOCOL)
-    rec = {"arrays": len(meta), "owners": len({m["owner"] for m in meta.values()}), "split_groups": nsplit,
-           "gib": round(nbytes / 2**30, 2),
-           "skipped": sv.skipped, "jm": int(g.jm), "im": int(g.im)}
+        pickle.dump(header, f, protocol=pickle.HIGHEST_PROTOCOL)
     (out / "save-receipt.json").write_text(json.dumps(rec, indent=1))
+
+
+def save(ctx, out) -> dict:
+    """Write the post-init context to `out` (a directory). Returns the receipt."""
+    import cupy as cp
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    if ctx.stream is not None:
+        ctx.stream.synchronize()
+    cp.cuda.Device().synchronize()
+    jobs, header, rec = plan(ctx)
+    cp.cuda.Device().synchronize()             # copies of non-contiguous arrays are done
+    write_files(out, jobs, header, rec)
     return rec
 
 

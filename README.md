@@ -149,6 +149,48 @@ woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03
 
 `woof-nam init` builds and writes the initial state only (0 h history and maps), without a forecast.
 
+## Restarts
+
+`--restart-every 1h` writes the whole forecast state every hour. `--resume` continues from the newest set to
+the run's original end, and a resumed run writes the same history files, byte for byte, as a run that was
+never stopped.
+
+```
+woof-nam run --case 2025-03-14_12z --source native --hours 84 --out runs/x --restart-every 1h
+# the machine goes away at 30 h; on this or another machine with woof-nam and the same case:
+woof-nam run --resume runs/x/restart        # case, source, end hour and output folder come from the set
+```
+
+- **What a set holds.** A set is everything the step reads, taken right after that hour's history file:
+  - every prognostic and physics field: soil, snow, the precipitation and max-field accumulators, the radiation state;
+  - the digital-filter state;
+  - the boundary arrays and the position in the boundary files;
+  - the tables built at init;
+  - the step and radiation counters and the clock.
+
+  It is `<out>/restart/wrfrst_d01_<valid time>/`, 15.3 GiB for the 12 km grid. `<out>/restart/LATEST` names
+  the newest complete set, and `forecast-receipt.json` gives its path as `restart_latest`. The run's boundary
+  files are copied once into `<out>/restart/boco`, so a set also resumes on a machine whose case folder is
+  somewhere else.
+- **Safe to kill at any moment.** A set is written under a temporary name and renamed when it is complete, so a run
+  killed mid-write keeps the previous set. `--restart-keep N` keeps the newest N sets (default 1).
+- **Cost.**
+  - Each set is one copy of the state from the card into pinned host memory, queued in step order. The step loop
+    does not wait for it: 0.01-0.02 s of host time per set.
+  - The files are written by a background thread while the forecast steps on: 34-130 s per set on a busy disk.
+  - The first set of a run also allocates the 15 GiB pinned buffer: 6-10 s, once.
+  - Host memory: one pinned buffer the size of the state.
+- **Proof.** 2025-03-14 12Z native start, 6 h, one RTX 5090, both runs from one saved initial state:
+  - a straight run, and a run killed with SIGKILL right after its 3 h set, then resumed from that set;
+  - all 7 hourly history files (0-6 h) of the two runs are byte-identical (`cmp`, and `woof-nam compare`: 0 values differ);
+  - the resumed process loaded the set in 5.8 s.
+- **Scope.** One card. With `--cards N` the restart options stop with a message: each card would have to write its
+  own rows and resume on the same N cards, and that path is not written yet.
+
+A run that has to start from the same bits as another one saves the initial state with `--keep-init` (on one
+card, after the init, into `<out>/init`). The second run then starts with `--init-from <out>/init`. A fresh init
+is not bit-repeatable, because two of its sums use float atomics.
+
 ## Make maps
 
 Every map is drawn by gpuwm's Rust renderer `rw_wrfbatch`. Each map is titled "WOOF-NAM 12 km" with
@@ -298,6 +340,7 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
   (`tools/run_nam_domain.sh`), not from `woof-nam`; the 5 km grid is not measured yet.
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full
   12 km grid on several cards is measured on the full memory path only.
+- **Restarts:** one card ("Restarts" above); the NAM's own restart files are not read.
 - **Noah vegetation table:** the NAM's own VEGPARM.TBL was never published. A stand-in built from
   WRF's public-domain table is used (namgpu/data/fix/noah/PROVENANCE.txt).
 
