@@ -502,8 +502,17 @@ def _prep_frame(job):
     """One drawn frame: read the variables its products need (and the earlier frames' rain for the
     accumulation products), derive the CF fields and write the frame's CF file and its CF table (the table
     carries the panel titles, which name init, valid and lead). Runs in a worker process.
-    Returns (cf path or None, valid, start, CF variables written, skipped, table path, frame bounds)."""
+    job = (path, {hours back: earlier frame path}, need, products, work dir, label).
+    Returns (cf path or None, valid, start, CF variables written, skipped, table path, frame bounds).
+
+    The 0.1.0 call still works: the earlier frame as one path (the frame one hour back) or None in place of the
+    dict. That call gets the 0.1.0 return, (cf path or None, valid, start, CF variables written, skipped), and the
+    0.1.0 CF source line naming init and lead, and no table is written (the caller writes its own). Origin: the
+    WOOF worker's nam_maps.py makes that call; 0.1.1.dev6 took only the dict and drew no maps there."""
     path, prev_paths, need, products, work, label = job
+    old_call = not isinstance(prev_paths, dict)
+    if old_call:
+        prev_paths = {1: prev_paths} if prev_paths is not None else {}
     path = Path(path)
     valid, start, f = _read(path, set(need))
     prevs = {}
@@ -514,6 +523,22 @@ def _prep_frame(job):
     lat, lon = f.get("XLAT"), f.get("XLONG")
     if lat is None or lon is None:
         raise RuntimeError(f"woof-nam maps: {path.name} has no XLAT/XLONG")
+    if old_call:
+        for prod in [p for p in products if p in WINDOW_H]:
+            var = TABLE[prod][0]
+            if var in flds and not np.any(flds[var][0]):
+                # a dry window: fields_for's zeros are blanked by the row's mask_below, which only the tree's patched
+                # renderer reads; gpuwm's own renderer (what the 0.1.0 caller draws with) paints them domain-wide in
+                # the first colour, so this call skips the map, as 0.1.0 had no map for a dry hour
+                del flds[var]
+                sk.append((prod, f"{path.name}: dry window, no point at the first edge of the scale"))
+        if not flds:
+            return None, valid, start, [], sk
+        lon = (lon + 180.0) % 360.0 - 180.0
+        cf = Path(work) / f"namgpu_{valid:%Y%m%d%H%M}.nc"
+        _write_cf(cf, lat, lon, valid, flds,
+                  f"{label}, init {start:%Y-%m-%d %HZ} +{(valid - start).total_seconds() / 3600:g} h")
+        return str(cf), valid, start, sorted(flds), sk
     frame = frame_bounds(lat, lon)
     if not flds:
         return None, valid, start, [], sk, None, frame

@@ -34,6 +34,7 @@ jobs:
           python tests/test_era5_source.py
           python tests/test_basemap.py
           python tests/test_wind_ladder.py
+          python tests/test_maps_old_call.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist
