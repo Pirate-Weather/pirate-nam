@@ -78,6 +78,28 @@ NEED = ("T", "QVAPOR", "PRES", "PH", "U", "V", "HGT", "PSFC", "T2", "Q2", "U10",
 _TABLES = None
 
 
+def grid_refusal(run_dir: Path) -> str | None:
+    """None when the run's history is on the grid the grid-218 tables are cut from (the 12 km CONUS parent); else
+    the one-line reason. A nest's history (0.1.2: IndexError on every hour, 0 files) has no grid-218 product set:
+    NOAA's awphys files are the 12 km CONUS parent's, and the tables regrid from that grid only."""
+    hist = sorted(Path(run_dir).glob("wrfout_d01_*")) or sorted((Path(run_dir) / "run").glob("wrfout_d01_*"))
+    if not hist:
+        return None                        # nothing written yet (--follow) or a wrong folder: run() says which
+    try:
+        from netCDF4 import Dataset
+        with Dataset(hist[0]) as d:
+            nx, ny = len(d.dimensions["west_east"]), len(d.dimensions["south_north"])
+    except (ImportError, OSError, KeyError):
+        return None                        # not a history file this can read: run() reports it hour by hour
+    from namgpu import config
+    cfg = config.load()
+    if (nx, ny) == (int(cfg.im), int(cfg.jm)):
+        return None
+    return (f"{hist[0].parent} is a {nx} x {ny} grid; products are NOAA's NAM awphys files on grid 218, cut from the "
+            f"{int(cfg.im)} x {int(cfg.jm)} 12 km CONUS grid, so they need a 12 km CONUS history (woof-nam run); "
+            f"a nest has its maps and sheets (woof-nam nest) and its history files")
+
+
 def _tables():
     global _TABLES
     if _TABLES is None:
@@ -963,6 +985,11 @@ def main(argv=None) -> int:
     if a.run is None:
         ap.error("--run is required (or --compare)")
     from namgpu import exporter, paths
+    rd0 = a.run if a.run.is_absolute() else paths.work_root() / a.run
+    why = grid_refusal(rd0)
+    if why:
+        print(f"woof-nam products: refused: {why}", file=sys.stderr)
+        return 2
     try:
         exporter.ensure()                  # before any hour is read: stage the pinned writer, or stop in one line
     except exporter.ExporterMissing as e:

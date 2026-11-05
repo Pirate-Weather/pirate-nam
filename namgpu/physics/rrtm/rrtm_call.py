@@ -134,6 +134,9 @@ def run(ctx, args: dict, *, stamp=None, rows: int | None = None, sw: bool = True
         # NAMGPU_RRTM_ROWS wins; otherwise 32 rows on the full path, 8 on the 32 GB fit (16 rows ran out of memory at the 5th radiation call)
         rows = ROWS if ("NAMGPU_RRTM_ROWS" in os.environ or not _fit) else FIT_RRTM_ROWS
     rows = min(int(rows), jm)
+    if rows < rrtm_chunk.MIN_ROWS and rows < jm:
+        raise SystemExit(f"NAMGPU_RRTM_ROWS {rows}: radiation runs in row chunks of at least {rrtm_chunk.MIN_ROWS} rows "
+                         f"(a chunk owns its rows less one halo row each side); set 4 or more")
     cc = _chunk_ctx(ctx, rows)
     if _fit and rrtm_chunk.workspace(cc) is None:
         # one g-point workspace shared in time by swrad's chunk scratch and the LW taug/fracs pair (see

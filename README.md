@@ -67,6 +67,7 @@ The +12 h sheets and the other maps are in [docs/evidence/](docs/evidence/).
 python3 -m venv woof-nam-venv && source woof-nam-venv/bin/activate
 pip install recast-woof-nam          # or from GitHub: pip install "recast-woof-nam @ git+https://github.com/recastsystems/woof-nam.git"
 gpuwm fetch-geog --datasets topo_gmted2010_30s --root ~/WPS_GEOG              # GMTED2010 terrain, 174 MB download
+woof-nam doctor                      # the card, CuPy/NVRTC, terrain data, writers, and what the card can run
 ```
 
 pip installs `recast-woof-nam` with everything a run reads inside the package: the NAM parm files, the
@@ -379,8 +380,8 @@ peaked where the last column says.
 | 3 km nest (100 x 100 x 60) | RTX 5090 (shared) | 1 h, GFS 2025-03-14 12Z | 3,322 MiB | 4,306 MiB | - |
 
 - **Smallest card each grid fits:** the 12 km grid a 24 GB card (the run above; on a 24 GB card the column physics
-  works in row bands by itself when a whole-domain call would not fit, with the same output); the 333 x 333 nest an
-  8 GB card (measured on one, below) and the 100 x 100 nest a 4 GB card, from its peak.
+  works in row bands by itself when a whole-domain call would not fit, with the same output); the 333 x 333 nest (and up to
+  about 415 x 414, measured) an 8 GB card (below) and the 100 x 100 nest a 4 GB card, from its peak.
 - **What the peak holds:** 2.44 GiB of it, on an RTX 5090, is the local memory the GPU reserves for the step
   kernels (10,016 bytes per resident thread; a card with fewer multiprocessors reserves less), and about 0.3 GiB is the
   CUDA context and modules. The rest is the run's memory pool, which grows only when a request needs it and hands
@@ -399,7 +400,14 @@ them from the cache in about 1 s.
 |---|---|---|---|---|---|
 | 3 km nest (99 x 100 x 60) | RTX 3060 Ti, 8 GB | 1 h, GFS 2025-03-14 12Z | 2,011 MiB | 9.2 ms | 149 s (68 s of it the GFS download) |
 | 3 km nest (328 x 330 x 60) | RTX 3060 Ti, 8 GB | 3 h, same start | 4,104 MiB | 71.0 ms | 256 s (inputs already fetched) |
-| 3 km nest (360 x 359 x 60) | RTX 3060 Ti, 8 GB | 1 h, same start; radiation in 4-row chunks (the door's pick) | 4,178 MiB | 142.8 ms | 238 s (inputs already fetched) |
+| 3 km nest (360 x 359 x 60) | RTX 3060 Ti, 8 GB | 1 h, same start; radiation in 4-row chunks (0.1.2's pick) | 4,178 MiB | 142.8 ms | 238 s (inputs already fetched) |
+| 3 km nest (378 x 377 x 60) | RTX 3060 Ti, 8 GB | 1 h, same start; 0.1.3, radiation in 16-row chunks | 5,008 MiB | 94.9 ms | 156 s (inputs already fetched) |
+| 3 km nest (415 x 414 x 60) | RTX 3060 Ti, 8 GB | 1 h, same start; 0.1.3, radiation in 16-row chunks | 5,614 MiB | 112.9 ms | 189 s (inputs already fetched) |
+| 3 km nest (99 x 100 x 60) | RTX 3060 Ti, 8 GB | 1 h, ERA5 2025-03-14 12Z (`--source era5`); 0.1.3 | 1,960 MiB | 9.6 ms | 121 s (48 s of it the ERA5 download) |
+
+From 0.1.3 the door's estimate is 1-4 % above these peaks at 4- and 8-row chunks and 15-17 % above at 16, so on an 8 GB card it
+admits nests up to about 490 x 490 points and gives them the largest radiation chunks that fit; `woof-nam doctor`
+prints what the card in hand can run.
 
 ## Running on more than one card
 
@@ -484,8 +492,8 @@ woof-nam nest --center 35.7N,139.7E --size-km 1000 --res-km 3 --source gfs \
 - `--center LAT,LON` with N/S/E/W or signed degrees; `--size-km` (and `--size-y-km` for a rectangle);
   `--res-km` 3, 4, 5 or 12. The 3 km row takes the NAM CONUS-nest step and physics keys (dt 6.25 s, radiation
   every 192 steps, no parameterised convection).
-- `--source auto | gfs | ifs | ifs-0p25 | parent`. `auto` takes IFS 0.1 degree where it is published and GFS
-  before. `parent --parent-run DIR` is a one-way nest inside a WOOF-NAM 12 km run that wrote its hand-off set.
+- `--source auto | gfs | ifs | ifs-0p25 | era5 | parent`. `auto` takes IFS 0.1 degree where it is published and GFS
+  before; `era5` starts from the ERA5 reanalysis (from 1940 to about 6 days ago), as `woof-nam run --source era5`. `parent --parent-run DIR` is a one-way nest inside a WOOF-NAM 12 km run that wrote its hand-off set.
 - Before it starts, the door checks the free memory on the card and refuses if the domain does not fit. It
   also refuses if no renderer is found. It writes `nest-receipt.json` with every stage's wall time, cores and
   VRAM. From a checkout, `tools/woof-nam nest ...` runs the same command.
@@ -632,6 +640,7 @@ Each row's licence is also written next to its table in the code (`static_build.
 | deep-soil temperature | ERA5 1990-2019 climatology (WeatherBench 2) | Copernicus licence: free, commercial use allowed, attribution required |
 | start and boundaries | GFS 0.25 degree | NOAA/NCEP, U.S. public domain (AWS NODD) |
 | start and boundaries | ECMWF open data IFS 0.1 / 0.25 degree | ECMWF, CC BY 4.0 (credited on every map) |
+| start and boundaries (`--source era5`) | ERA5 reanalysis 0.25 degree, from Google's public ARCO-ERA5 copy | Copernicus C3S, CC BY 4.0 (credited on every map) |
 | snow, sea ice where IFS lacks them | GFS 0.25 degree f000, same cycle | NOAA/NCEP, U.S. public domain |
 | parent start and boundaries | your own WOOF-NAM 12 km history | the parent's own start-source credit is carried onto the maps |
 | truth (referee panels) | MRMS reflectivity and QPE; GPM IMERG | NOAA, U.S. public domain; NASA/JAXA open data |

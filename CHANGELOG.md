@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Radiation no longer hangs when it runs in 2-row chunks. A chunk of 2 rows owned no row, so the chunk loop never
+  advanced and grew in host memory until the machine ran out; on an 8 GB card every 3 km nest from about 361 x 360 to
+  405 x 405 points was given 2-row chunks by the nest door and hung at the first radiation call. Chunks now need 3 rows
+  or more, the door picks 32, 16, 8 or 4 rows, and `--rrtm-rows` below 3 (or `NAMGPU_RRTM_ROWS` below 3 on
+  `woof-nam run`) is refused in one line before the run starts.
+
+- The nest door's memory estimate matches the card. It was about 2.5 GB above the measured peak at every size on an
+  8 GB card, so the door gave smaller radiation chunks than the card could hold (twice the step time) and refused
+  nests that fit. It now covers every measured peak: 1-4 % above at 4- and 8-row radiation chunks, 15-17 % above at 16, and the door
+  still keeps 0.75 GiB free beyond it. On an 8 GB card the door now admits nests up to about 490 x 490 points; 378 x 377
+  and 415 x 414 ran at 94.9 and 112.9 ms per step (0.1.2: 360 x 359 at 142.8).
+
+- `woof-nam run` checks the card before it starts: a grid that cannot fit (the 12 km grid on an 8 GB card) is refused
+  in one line with the estimate and the card's size, where 0.1.2 stopped with a CuPy out-of-memory traceback.
+
+- `woof-nam nest --source era5`: nests start from the ERA5 reanalysis, as `woof-nam run` does. A source with no row
+  is now refused before any stage, `--dry-run` included.
+
+- `woof-nam products` on a nest's history says in one line that the awphys GRIB2 files are cut from the 12 km CONUS
+  grid, instead of an IndexError for every hour.
+
+- New `woof-nam doctor`: the card, CuPy and NVRTC (a test kernel), the terrain data, the map renderer, the GRIB2
+  writer, and what the card can run by the doors' memory estimate (the 12 km grid, 100 x 100 and 333 x 333 nests,
+  the largest square nest).
+
+- A case folder whose name is not the start time (YYYY-MM-DD_HHz) is refused in one line by `woof-nam run`.
+
+- `nest-receipt.json` reads the card's memory and load in containers that hide the card's process ids: it read
+  0.0 GiB and flagged the busy forecast as a single-core stage there.
+
 - README: memory and speed measured on an 8 GB card (RTX 3060 Ti, fresh `pip install recast-woof-nam==0.1.2`): 3 km
   nests of 99 x 100, 328 x 330 and 360 x 359 points peak at 2.0, 4.1 and 4.2 GB ("Speed and memory").
 
