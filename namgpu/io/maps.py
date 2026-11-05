@@ -5,8 +5,11 @@ archived NAM) on the same frame.
 
 Frame: taken from the history's own XLAT/XLONG (H points), dateline-aware (frame_bounds): a domain
 across 180 gets W < 180 < E with E past 180, which rw_wrfbatch draws on one Lambert frame centred on
-the domain. That needs a renderer from gpuwm 2.9.12 or later; an older one refuses the bounds by name,
-and the failure says which renderer to use (NAMGPU_RENDERER). No fixed CONUS frame.
+the domain. gpuwm 2.9.11's renderer refuses such bounds by name; gpuwm 2.9.12's accepts them but draws the
+rows across 180 from the wrong neighbours (smeared rows, 2026-11-05), so a frame across 180 is drawn only by
+the pinned build (tools/renderer, patch 01) or a renderer named in NAMGPU_RENDERER; otherwise that map is not
+drawn and the failure says why (seam_defect). A domain that holds the pole (the 12 km parent) is drawn on the
+CONUS frame on every renderer (legacy_frame). No other fixed frame.
 Titles: the renderer writes "<source> | <row title>"; every panel reads
 "WOOF-NAM <res> km | <field>  init YYYY-MM-DD HHZ  valid YYYY-MM-DD HHZ (+FFh)", res from the
 history's DY (NMMB dphd = 0.009 deg x res).
@@ -57,7 +60,7 @@ DEFAULT_PRODUCTS = "composite_reflectivity,t2m,d2m,wind10,wind850,mslp,qpf_1h,qp
 RECEIPT_ENV = "NAMGPU_MAPS_RECEIPT"
 BOUNDS = "-126,-66,22,52"            # the CONUS frame of the side-by-side panels (io_referee_panels); maps.py
                                      # frames come from each history's XLAT/XLONG (frame_bounds)
-RENDERER_ENV = "NAMGPU_RENDERER"     # full path of an rw_wrfbatch that draws dateline frames (gpuwm >= 2.9.12)
+RENDERER_ENV = "NAMGPU_RENDERER"     # full path of an rw_wrfbatch that draws dateline frames (the pinned build)
 # The pinned renderer lives in a checkout (tools/renderer/bin, not committed: tools/renderer/install_renderer.sh
 # builds it from a gpuwm cut with the patches in tools/renderer, or copies a built one, and puts the Natural Earth
 # basemap beside it). An installed wheel uses NAMGPU_RENDERER or the installed gpuwm renderer.
@@ -290,8 +293,8 @@ def _gpuwm_renderer() -> Path | None:
 
 def _renderer() -> Path:
     """The rw_wrfbatch to draw with: NAMGPU_RENDERER, else the pinned build (tools/renderer/bin in a checkout),
-    else the installed gpuwm's. Only gpuwm 2.9.12 and later draw a frame across the dateline; an older one
-    refuses such a frame by name (maps_main says which renderer to set)."""
+    else the installed gpuwm's. A frame across the dateline needs the pinned build (or NAMGPU_RENDERER): gpuwm
+    2.9.11 refuses it by name and gpuwm 2.9.12 draws it smeared (seam_defect)."""
     env = os.environ.get(RENDERER_ENV)
     if env:
         if not Path(env).is_file():
@@ -343,6 +346,36 @@ def legacy_frame(frame) -> tuple | None:
     if any(w <= cw + k and ce + k <= e for k in (-360.0, 0.0, 360.0)):
         return (cw, ce, cs, cn)
     return None
+
+
+# Installed gpuwm renderers that accept a frame across 180 but draw it wrong: gpuwm 2.9.12's rw_wrfbatch paints a
+# curvilinear domain across 180 from the wrong neighbours, every row smeared east-west (2026-11-05, published wheel:
+# a CONUS window moved across 180, drawn beside the same window unmoved). tools/renderer/01-cf_grid-recenter-order.patch
+# fixes it in the pinned build; raise this bound when a released gpuwm carries that fix.
+SEAM_SMEAR_UPTO = (2, 9, 12)
+
+
+def _gpuwm_version() -> tuple | None:
+    try:
+        from importlib.metadata import version  # noqa: PLC0415
+        return tuple(int(x) for x in re.findall(r"\d+", version("gpuwm"))[:3])
+    except Exception:  # noqa: BLE001  (no gpuwm installed)
+        return None
+
+
+def seam_defect(rw, frame) -> str | None:
+    """Why `rw` would draw `frame` wrong, or None. Only a frame across 180 (E > 180) on the installed gpuwm renderer
+    up to SEAM_SMEAR_UPTO is refused; the pinned build and a renderer named in NAMGPU_RENDERER are trusted."""
+    if frame is None or frame[1] <= 180.0 or os.environ.get(RENDERER_ENV):
+        return None
+    if Path(rw).resolve() == PINNED_RENDERER.resolve():
+        return None
+    v = _gpuwm_version()
+    if v is None or v > SEAM_SMEAR_UPTO:
+        return None
+    return (f"not drawn: the frame {bounds_arg(frame)} crosses 180 and {rw} (gpuwm {'.'.join(map(str, v))}) draws "
+            f"a domain across 180 with every row smeared; set {RENDERER_ENV} to a patched rw_wrfbatch "
+            f"(tools/renderer/install_renderer.sh builds it)")
 
 
 def bounds_arg(b) -> str:
@@ -680,6 +713,9 @@ def render(argv=None) -> dict:
 
     def one(job):
         cf, var, valid, obs, dst, prod, table, fr = job
+        bad = seam_defect(rw, fr)
+        if bad is not None:
+            return None, f"{prod} {valid:%Y%m%d%H}: {bad}"
         od = work / f"r_{var}_{valid:%Y%m%d%H%M}"
         cmd = [rw, "--cf", cf, "--variable", var, "--out-dir", od, "--valid",
                valid.strftime("%Y-%m-%dT%H:%M:%SZ"), "--bounds", bounds_arg(fr), "--cf-table", table,
@@ -699,8 +735,8 @@ def render(argv=None) -> dict:
         if p.returncode or not pngs:
             why = (p.stderr or p.stdout).strip()[-400:]
             if "bounds require" in why:
-                why += (f" [{rw} predates dateline frames (gpuwm 42631c9f83e, 2.9.12): set {RENDERER_ENV} "
-                        f"to a 2.9.12 rw_wrfbatch, e.g. {PINNED_RENDERER}]")
+                why += (f" [{rw} predates dateline frames: set {RENDERER_ENV} to the pinned build, "
+                        f"e.g. {PINNED_RENDERER} (tools/renderer/install_renderer.sh)]")
             return None, f"{prod} {valid:%Y%m%d%H}: exit {p.returncode}: {why}"
         # with an observation the renderer also writes the side-by-side; keep the model panel as the product
         model = [q for q in pngs if "comparison" not in q.name and "observed" not in q.name] or pngs
@@ -724,7 +760,7 @@ def render(argv=None) -> dict:
                 written += w
     shutil.rmtree(work, ignore_errors=True)
     if used_legacy:
-        print(f"woof-nam maps: {rw} predates dateline frames (gpuwm 2.9.12): maps use the CONUS frame "
+        print(f"woof-nam maps: {rw} predates dateline frames: maps use the CONUS frame "
               f"{bounds_arg(legacy)} instead of the domain's own {bounds_arg(frame)}", file=sys.stderr, flush=True)
         frame = legacy
     result = {"written": written, "failures": failures, "skipped": skipped,

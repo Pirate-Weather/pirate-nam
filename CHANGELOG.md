@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Maps of a domain across 180 (a nest over the Aleutians or Fiji) are no longer drawn wrong on gpuwm 2.9.12. That
+  release's renderer accepts such a frame but smears every row east-west, so with it the map is not drawn and the
+  log says to set `NAMGPU_RENDERER` to the patched renderer (`tools/renderer/install_renderer.sh`). The 12 km
+  parent still draws on the CONUS frame, as gpuwm 2.9.12 also smears its own whole-circle frame. woof-nam keeps
+  working with gpuwm 2.9.11 and 2.9.12.
+
 - `woof-nam products` works on a plain `pip install`. In 0.1.1 it stopped every hour with `FileNotFoundError: ...
   rw_rrfs_upp ... not in a gpuwm release yet`, because the GRIB2 writer it calls ships in no gpuwm release. woof-nam
   now carries its own pinned writer: the first `woof-nam products` downloads `rw_rrfs_upp` (Linux x86-64, 13 MB,
