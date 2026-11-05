@@ -46,7 +46,7 @@ Every forecast is published as hourly fields from 0 to 84 hours, on the NAM's 12
 |---|---|---|
 | **Map viewer** | Browsing a forecast in a browser | [index.html](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) |
 | **GRIB2** | Full field set, for forecast tools | `<YYYYMMDDHH>/woof/grib/woofnam.t<HH>z.f<FFF>.grib2`, 85 files of about 41 MB |
-| **Zarr** | A smaller field set for Python, with no server or download step | `<YYYYMMDDHH>/woof/zarr` |
+| **Zarr v3** | A smaller field set for Python, with no server or download step | `<YYYYMMDDHH>/woof/zarr` |
 
 All paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`. See the [data access page](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html) for details.
 
@@ -77,7 +77,7 @@ All paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`. S
 
 ```python
 import xarray as xr
-ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110512/woof/zarr", consolidated=True)
+ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110512/woof/zarr")
 ds.t2m.sel(fhr=24)
 ```
 

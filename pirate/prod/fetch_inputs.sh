@@ -29,6 +29,7 @@ for h in $(seq -f %03g 6 3 $((FCST_HOURS + 6))); do ln -sf $RAW/gfs.t${GH}z.pgrb
 
 echo "observations $(date -u +%H:%M:%S)"
 N=https://nomads.ncep.noaa.gov/pub/data/nccf/com/obsproc/prod
+mkdir -p /nam/ens_tmp   # make_refd3d.py's scratch space
 for lead in $ANALYSIS_LEADS; do
   AD=$(at $((10#$lead)) %Y%m%d); AH=$(at $((10#$lead)) %H); O=/nam/com/obsproc/v1.3/rap.$AD; mkdir -p $O
   # NAM's own observation files ended with the NAM, so GSI's second choice is what's used: RAP's hourly files for each analysis hour.
