@@ -83,7 +83,17 @@ SOURCE_BY_REGION = [
 # (CUPY_GPU_MEMORY_LIMIT = state + RRTM + pool_headroom_gib): CuPy frees its cached blocks and retries when an
 # allocation would pass the cap, so the run stays inside what the pre-flight checked instead of growing into a
 # co-tenant's memory. total = cap + lmem + fixed (context).
-VRAM = {"per_column_kb": 150.0, "fixed_gib": 1.0, "rrtm_mb_per_row_col": 0.59, "lmem_bytes_per_thread": 10016,
+# 2026-11-05 (0.1.1 release audit): the 150 KB per column and 0.59 MB per RRTM row-column above were measured
+# before the VRAM program landed (a band/chunk reference cycle and an uncapped pool let the pool grow through
+# the run). On the landed code the 32 GB fit path holds far less and stays flat: a 333 x 333 nest ran 48 h at
+# 5.8-6.1 GB with the pool at 1.72 GiB live at +48 h, the same as after its init. Measured through this door on
+# an RTX 5090 (fresh GFS start 2025-03-14 12Z, TDFI, 1 h, 286 x 333 = 95,238 columns): process peak 7.11 GiB at
+# RRTM rows 32 and 5.21 GiB at rows 4, so RRTM costs 0.255 MB per row-column and the rest 16.5 KB per column
+# (after 2.44 GiB of local memory and 1 GiB of context); the 300 km nest at rows 32: 2.97 GiB. The fit path's row
+# below carries its own per-column and RRTM terms, about 1.8x and 1.4x those measurements (MEASURED_PEAK_GIB,
+# tests/test_nest_door.py). The old model refused a 333 x 333 nest on any card with less than about 19 GiB free.
+# The full path (cards of 64 GiB and more) keeps the older, larger terms.
+VRAM = {"fixed_gib": 1.0, "lmem_bytes_per_thread": 10016,
         "pool_headroom_gib": 1.0, "margin_gib": 0.75}
 # Per memory path (state.resolve_memory_path: the 32 GB fit below FIT_BELOW_GIB = 64 GiB of card, the full path at and
 # above it; NAMGPU_MEMORY_PATH / NAMGPU_SCRATCH_ARENA override), the pool part that does not scale with the slab.
@@ -96,12 +106,20 @@ VRAM = {"per_column_kb": 150.0, "fixed_gib": 1.0, "rrtm_mb_per_row_col": 0.59, "
 #   full: the full path also keeps the init-only and step scratch arrays for the whole run (pool after init 2.56 vs
 #         0.81 GiB on the parent); 2.5 GiB on top of the per-column part covers the parent (cap 13.95 GiB) and the
 #         286 x 334 nest on a 96 GB card (18.41 GiB pool at the end of 48 h, cap 22.2).
-VRAM_PATH = {"fit": {"fixed_pool_gib": 0.0}, "full": {"fixed_pool_gib": 2.5}}
+VRAM_PATH = {"fit": {"fixed_pool_gib": 0.0, "per_column_kb": 30.0, "rrtm_mb_per_row_col": 0.35},
+             "full": {"fixed_pool_gib": 2.5, "per_column_kb": 150.0, "rrtm_mb_per_row_col": 0.59}}
+# process peaks measured through the door on the landed code (RTX 5090, fit path, see the note above)
+MEASURED_PEAK_GIB = {"nest-286x333-fit-r32": 7.11, "nest-286x333-fit-r4": 5.21, "nest-300km-fit-r32": 2.97}
 MEASURED_POOL_GIB = {"milton-parent-full-r32": 12.67, "milton-parent-fit-r32": 7.84}
 RRTM_ROW_CHOICES = (32, 16, 8, 4, 2)
 # SMs by card name (nvidia-smi has no SM count and the pre-flight must not open a CUDA context)
-CARD_SMS = (("5090", 170), ("PRO 6000", 188), ("4090", 128), ("5070 Ti", 70), ("3080", 68), ("H100", 132),
-            ("B200", 148))
+# longer names first: a key matches as a substring ("3080" is in "3080 Ti"); unknown cards count as 170 SMs
+CARD_SMS = (("5090", 170), ("PRO 6000", 188), ("4090", 128), ("5070 Ti", 70), ("3080 Ti", 80), ("3080", 68),
+            ("H100", 132), ("H200", 132), ("B200", 148), ("5080", 84), ("5070", 48), ("5060 Ti", 36), ("5060", 30),
+            ("4080 SUPER", 80), ("4080", 76), ("4070 Ti SUPER", 66), ("4070 Ti", 60), ("4070 SUPER", 56),
+            ("4070", 46), ("4060 Ti", 34), ("4060", 24), ("3090 Ti", 84), ("3090", 82), ("3070 Ti", 48),
+            ("3070", 46), ("3060 Ti", 38), ("3060", 28), ("A100", 108), ("A10G", 80), ("A10", 72),
+            ("L40S", 142), ("L40", 142), ("L4", 58), ("T4", 40))
 
 
 def geographic_to_rotated(lat, lon, tph0d, tlm0d):
@@ -380,8 +398,8 @@ def vram_estimate(g: dict, rows: int, cards: int = 1, index: str | None = None, 
     mp = memory_path(index) if path == "auto" else {"path": path}
     row = VRAM_PATH[mp["path"] or "full"]
     cols = g["im"] * g["jm"] / max(1, cards)
-    state = cols * VRAM["per_column_kb"] * 1024 / 2**30
-    rrtm = rows * g["im"] * VRAM["rrtm_mb_per_row_col"] * 1e6 / 2**30
+    state = cols * row["per_column_kb"] * 1024 / 2**30
+    rrtm = rows * g["im"] * row["rrtm_mb_per_row_col"] * 1e6 / 2**30
     lmem = VRAM["lmem_bytes_per_thread"] * sm_threads(index) / 2**30
     pool = state + row["fixed_pool_gib"] + rrtm + VRAM["pool_headroom_gib"]
     tot = pool + lmem + VRAM["fixed_gib"]

@@ -48,9 +48,45 @@ def test_cap_32gb_card_takes_the_fit_path(card):
     assert pf["ok"]
     e = pf["pick"]
     assert e["memory_path"] == "fit"
-    assert e["pool_limit_gib"] >= domain.MEASURED_POOL_GIB["milton-parent-fit-r32"]
     full = domain.vram_estimate(g, 32, path="full", index=None)
     assert full["pool_limit_bytes"] > e["pool_limit_bytes"]     # the full path holds every array for the whole run
+
+
+NEST_333 = dict(lat=38.6, lon=-98.9, size_km=999.0, res_km=3)
+NEST_100 = dict(lat=38.6, lon=-98.9, size_km=300.0, res_km=3)
+
+
+def test_fit_estimate_covers_measured_peaks(card):
+    # process peaks measured through the door on the landed code, RTX 5090 (170 SMs), fit path (domain.py note)
+    card(31.4, sms=170)
+    for grid, rows, key in ((NEST_333, 32, "nest-286x333-fit-r32"), (NEST_333, 4, "nest-286x333-fit-r4"),
+                            (NEST_100, 32, "nest-300km-fit-r32")):
+        e = domain.vram_estimate(domain.nest_grid(**grid), rows, index=None)
+        assert e["memory_path"] == "fit"
+        assert e["total_gib"] >= 1.2 * domain.MEASURED_PEAK_GIB[key], (key, e)
+        # the cap holds the measured pool (peak less local memory and context) with room to spare
+        assert e["pool_limit_gib"] >= domain.MEASURED_PEAK_GIB[key] - e["lmem_gib"] - e["fixed_gib"] + 1.0, (key, e)
+
+
+def test_333_nest_admitted_on_an_8gb_card(card):
+    # the 0.1.0 model wanted about 18 GiB for this nest and refused it on any card with less free
+    card(7.6, sms=34)
+    pf = domain.preflight(domain.nest_grid(**NEST_333), free=7.3)
+    assert pf["ok"], pf
+    assert pf["pick"]["memory_path"] == "fit"
+
+
+def test_300km_nest_admitted_on_a_4gb_card(card):
+    card(3.8, sms=24)
+    pf = domain.preflight(domain.nest_grid(**NEST_100), free=3.7)
+    assert pf["ok"], pf
+
+
+def test_card_sms_longer_names_first():
+    names = [k for k, _ in domain.CARD_SMS]
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            assert a not in b, f"{a!r} is listed before {b!r}, which contains it"
 
 
 def test_memory_path_setting_wins(card, monkeypatch):

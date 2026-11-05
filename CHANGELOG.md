@@ -47,6 +47,8 @@
 - `woof-nam nest`: the CuPy pool cap follows the memory path the forecast takes on the card (the 32 GB fit below
   64 GiB of card, the full path at and above, `NAMGPU_MEMORY_PATH` as set). A 12 km parent on a 96 GB card ran out
   of memory under a cap sized for the fit path. When the card size cannot be read and no path is set, no cap is set.
+- `woof-nam nest` sizes its memory check from this release's memory use: a 333 x 333 nest is admitted on an 8 GB
+  card (the check asked for about 18 GiB before), and common cards are counted by their own SM count.
 - `woof-nam nest --source parent --parent-run DIR` takes the parent door's `--out` folder or its `run/` folder (the
   one holding `wrfout_d01_*`); the refusal names the folders it looked in.
 
