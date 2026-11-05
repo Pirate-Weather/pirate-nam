@@ -5,7 +5,7 @@ WOOF-NAM is a GPU port of NOAA/NCEP's North American Mesoscale model (NAM, nam.v
 on one NVIDIA card or on several cards of one machine. NCEP retired the NAM on 2026-11-03 12Z; this
 package keeps the model running.
 
-Distribution name `woof-nam`, import name `namgpu`, version 0.1.0. Not on PyPI yet: install from GitHub (below) or from the wheel attached to the GitHub release.
+Distribution name `recast-woof-nam`, import name `namgpu`, version 0.1.0. Not on PyPI yet: install from GitHub (below) or from the wheel attached to the GitHub release.
 
 ## What it looks like
 
@@ -65,11 +65,11 @@ The +12 h sheets and the other maps are in [docs/evidence/](docs/evidence/).
 
 ```
 python3 -m venv woof-nam-venv && source woof-nam-venv/bin/activate
-pip install "woof-nam @ git+https://github.com/recastsystems/woof-nam.git"   # or, in a clone: pip install .
+pip install "recast-woof-nam @ git+https://github.com/recastsystems/woof-nam.git"   # or, in a clone: pip install .
 gpuwm fetch-geog --datasets topo_gmted2010_30s --root ~/WPS_GEOG              # GMTED2010 terrain, 174 MB download
 ```
 
-pip installs `woof-nam` with everything a run reads inside the package: the NAM parm files, the
+pip installs `recast-woof-nam` with everything a run reads inside the package: the NAM parm files, the
 NOAA radiation, CO2 and ozone fix files, the Noah tables and the CUDA kernels. It also installs
 `cupy-cuda13x[ctk]`, numpy, scipy, netCDF4, Pillow and `gpuwm` (2.9.11 or newer), which supplies the
 Rust GRIB2 decoder, the NetCDF writer and the map renderer `rw_wrfbatch`. The terrain for gravity-wave
