@@ -12,6 +12,12 @@ echo "boundaries $(date -u +%H:%M:%S)"
 CUDA_VISIBLE_DEVICES=1 $PY -m namgpu.init.gfs_bocos --case $CB --hours $FCST_HOURS > $R/boco.log 2>&1 || stop "boundaries, see $R/boco.log"
 
 echo "catch-up $(date -u +%H:%M:%S)"
+# Fresh GSI state every time, so a rerun doesn't start from a half-used restart file or an earlier attempt's bias file.
+PDY=${C:0:8}; COM=/nam/com/nam/v4.2/nam.$PDY; GES=/nam/com/nam/v4.2/nwges/nam.$PDY
+docker ps -aq --filter name=gsi_nam_ | xargs -r docker rm -f >/dev/null 2>&1; rm -rf /dev/shm/gsi_cycle_nam
+rm -f $GES/nam.t${HH}z.nmm_b_restart_nemsio*; cp /nam/gpuda/restart_template.nemsio $GES/nam.t${HH}z.nmm_b_restart_nemsio.tm06
+for t in 05 04 03 02 01 00; do rm -f $COM/nam.t${HH}z.satbias.tm$t $COM/nam.t${HH}z.satbias_pc.tm$t; done
+cp /nam/gpuda/satbias.tm06 $COM/nam.t${HH}z.satbias.tm06; cp /nam/gpuda/satbias_pc.tm06 $COM/nam.t${HH}z.satbias_pc.tm06
 rm -rf $R/catchup $R/init $R/fc
 CUDA_VISIBLE_DEVICES=0 GSI_TIMES=04,02,00 GSI_FILTER=0 GSI_CPUS=${GSI_CPUS:-28} GSI_MEM_GB=${GSI_MEM_GB:-70} GSI_HANDOFF=$R/init \
   $PY gpuda/gsi_cycle.py --case $CA --source gfs --hours 6 --no-maps --out $R/catchup > $R/catchup.log 2>&1

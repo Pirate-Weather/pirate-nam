@@ -50,7 +50,8 @@ echo "ensemble $(date -u +%H:%M:%S)"
 # GEFS init at T stands in for the EnKF's 6 h forecast from T-6. Use the newest init that exists, no later than the forecast's start.
 for back in 0 6 12; do T=$(at $back %Y%m%d%H); curl -sf -I -m 20 https://noaa-gefs-pds.s3.amazonaws.com/gefs.${T:0:8}/${T:8:2}/atmos/init/p30/gfs_data.tile1.nc >/dev/null && break; T=""; done
 [ -n "$T" ] || fail "no GEFS init"
-/woof/venv/bin/python /nam/prod/gefs_init_to_atmf.py $T ${GEFS_PROCS:-8} | tail -2 || fail "ensemble $T"
+E=$(date -u -d "${T:0:4}-${T:4:2}-${T:6:2} ${T:8:2}:00 UTC -6 hours" +%Y%m%d%H)
+[ -s /nam/com/gfs/v16.3/enkfgdas.${E:0:8}/${E:8:2}/atmos/gdas.t${E:8:2}z.atmf006.ensmean.nc ] || { /woof/venv/bin/python /nam/prod/gefs_init_to_atmf.py $T ${GEFS_PROCS:-8} | tail -2 || fail "ensemble $T"; }
 
 echo "gsi tree $(date -u +%H:%M:%S)"
 COM=/nam/com/nam/v4.2/nam.$PDY; GES=/nam/com/nam/v4.2/nwges/nam.$PDY; mkdir -p $COM $GES /nam/com/obsproc/v1.3/nam.$PDY /nam/com/radarl2/v1.2/radar.$PDY
@@ -60,7 +61,4 @@ export GUESS=GDAS
 export RUNTYPE=CATCHUP
 export GUESStm00=NAM
 V
-rm -f $GES/nam.t${HH}z.nmm_b_restart_nemsio*; cp /nam/gpuda/restart_template.nemsio $GES/nam.t${HH}z.nmm_b_restart_nemsio.tm06
-for t in 05 04 03 02 01 00; do rm -f $COM/nam.t${HH}z.satbias.tm$t $COM/nam.t${HH}z.satbias_pc.tm$t; done
-cp /nam/gpuda/satbias.tm06 $COM/nam.t${HH}z.satbias.tm06; cp /nam/gpuda/satbias_pc.tm06 $COM/nam.t${HH}z.satbias_pc.tm06
 df -h /woof | tail -1; echo "INPUTS_READY $C $(date -u +%H:%M:%S)"

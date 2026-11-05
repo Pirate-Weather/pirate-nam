@@ -222,10 +222,12 @@ def save_handoff(ctx):
     """Save the analysed state for the two-card forecast. It starts its own clock, so the saved context has to describe the
     forecast's case: its start time, and boundary files cut for its window. The catch-up's last hour isn't needed afterwards."""
     case_dir = ctx.case_dir.parent / CYCLE_TIME.strftime("%Y-%m-%d_%Hz")
-    keep = (ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir)
+    keep = (ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir, ctx.ntimestep, ctx.wrote_first_hist, ctx.first_step)
     ctx.start = ctx.start_time = CYCLE_TIME; ctx.case_dir = case_dir; ctx.boco_dir = str(case_dir / "boco")
+    # The forecast's 0 h file is the analysis, and it's only written when the saved context says hour 0 hasn't been yet.
+    ctx.ntimestep = 0; ctx.wrote_first_hist = False; ctx.first_step = True
     t0 = time.time(); rec = slab_init.save(ctx, HANDOFF)
-    ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir = keep
+    ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir, ctx.ntimestep, ctx.wrote_first_hist, ctx.first_step = keep
     if rec.get("skipped"): print("handoff skipped:", rec["skipped"], flush=True)
     print(f"handoff saved to {HANDOFF}: {rec['gib']} GiB in {time.time() - t0:.0f} s", flush=True)
 
@@ -233,9 +235,10 @@ def analyse_at(ctx, n):
     if n in schedule and n not in done and not ctx.filter_active:
         done.add(n); analyse(ctx, schedule[n])
         if FILTER_EACH_CYCLE: run_filter(ctx, schedule[n])
-        # tm06 is the run's first step, whose boundaries arrive normally at step 1.
-        if n > 0: reload_boundaries(ctx, n)
+        # With a handoff, tm00 is this run's last step and the forecast reads its own boundaries, so there's nothing to reload:
+        # the catch-up case has no boundary file past its end. tm06 is the first step, whose boundaries arrive normally at step 1.
         if schedule[n] == "tm00" and HANDOFF: save_handoff(ctx)
+        elif n > 0: reload_boundaries(ctx, n)
 
 def step(self):
     # tm06 goes in before the first step. Later analyses go in straight after the step that reaches their hour, because
