@@ -433,6 +433,7 @@ def _save_main(a) -> int:
     from namgpu.driver import Ctx, Driver
     from namgpu.init import init_case_driver
     cfg = config.load()
+    config.start_filter(cfg, a.source, getattr(a, "filter", "auto"))   # --tdfi runs it only when the start has one
     g = gridmod.build(cfg)
     st = statemod.State(g)
     ctx = Ctx(cfg=cfg, grid=g, st=st, stream=cp.cuda.Stream(non_blocking=True))
@@ -516,6 +517,8 @@ def main(argv=None) -> int:
     s.add_argument("--from-hour", type=int, default=0, help="--boco-dir: this start's hour in the run (the init "
                    "and TDFI read the boundaries from that hour on)")
     s.add_argument("--tdfi", action="store_true", help="run the start's TDFI (filter_method 3) before saving")
+    s.add_argument("--filter", choices=("auto", "on", "off"), default="auto",
+                   help="as woof-nam run --filter: auto is off for --source native (its analysis is already filtered)")
     a = ap.parse_args(argv)
     return _save_main(a)
 

@@ -400,7 +400,7 @@ def fetch(cycle: datetime, case_dir: Path, hours: int = 48, workers: int = 16, c
     if "fetch" in srcmod.SOURCES.get(source, {}):
         # ifs, ifs-0p25: the row's own fetch entry (ECMWF jsonl .index byte ranges, the GFS ICEC donor)
         raw.mkdir(parents=True, exist_ok=True)
-        sjobs = plan_source(source, cycle, hours, raw)
+        sjobs = plan_source(source, cycle, hours, raw, cfg)
         t0 = time.perf_counter()
         bad = 0
         with ThreadPoolExecutor(workers) as ex:
@@ -509,12 +509,12 @@ def _jsonl_lead(fetch: dict, cycle: datetime, lead: int, dest: Path) -> str:
     raise OSError(f"{dest.name}: every host failed: {errors}")
 
 
-def domain_band(margin_deg: float) -> str:
+def domain_band(margin_deg: float, cfg=None) -> str:
     """'lat_s,-180,lat_n,180': the latitude band of the run's domain (the configfile grid's H and V points, on the
     host; NAMGPU_CONFIGFILE moves it with the run) widened by margin_deg, every longitude (gpuwm's area string)."""
     import numpy as np
     from namgpu import config, grid
-    g = grid.build(config.load())
+    g = grid.build(cfg if cfg is not None else config.load())
     lat = np.degrees(np.concatenate([g.glat_h.ravel(), g.glat_v.ravel()]))
     south = max(-90.0, float(np.floor(lat.min() - margin_deg)))
     north = min(90.0, float(np.ceil(lat.max() + margin_deg)))
@@ -561,14 +561,14 @@ def _arco_time(fetch: dict, valid: datetime, area: str, dest: Path) -> str:
             f"in {time.perf_counter() - t0:.0f} s (gpuwm ARCO-ERA5, area {area})")
 
 
-def _arco_jobs(name: str, row: dict, cycle: datetime, hours: int, raw: Path):
+def _arco_jobs(name: str, row: dict, cycle: datetime, hours: int, raw: Path, cfg=None):
     fetch, b = row["fetch"], row["boundary"]
     last = cycle + timedelta(hours=hours)
     stop = store_stop(fetch)
     if stop is not None and last > stop:
         raise ValueError(f"fetch_case: source {name!r}: the store's last published hour is {stop:%Y-%m-%d %H}Z, "
                          f"this run needs {last:%Y-%m-%d %H}Z")
-    area = domain_band(float(fetch["lat_margin_deg"]))
+    area = domain_band(float(fetch["lat_margin_deg"]), cfg)
     jobs = []
     for lead in range(0, hours + 1, int(b["interval_h"])):
         dest = raw.parent / b["file"].format(bcyc=cycle.hour, lead=lead)
@@ -577,13 +577,13 @@ def _arco_jobs(name: str, row: dict, cycle: datetime, hours: int, raw: Path):
     return jobs
 
 
-def plan_source(name: str, cycle: datetime, hours: int, raw: Path):
+def plan_source(name: str, cycle: datetime, hours: int, raw: Path, cfg=None):
     """Jobs for an init source row with a "fetch" entry: its start and boundary leads plus its donor fields."""
     from namgpu.init.sources import SOURCES
     row = SOURCES[name]
     fetch = row["fetch"]
     if fetch["kind"] == "arco-zarr":
-        return _arco_jobs(name, row, cycle, hours, raw)
+        return _arco_jobs(name, row, cycle, hours, raw, cfg)
     if fetch["kind"] != "ecmwf-jsonl":
         raise ValueError(f"fetch_case: source {name!r} fetch kind {fetch['kind']!r} has no fetcher")
     last = max(s for s, _ in fetch["steps"])

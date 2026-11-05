@@ -63,9 +63,10 @@ def test_fit_estimate_covers_measured_peaks(card):
                             (NEST_100, 32, "nest-300km-fit-r32")):
         e = domain.vram_estimate(domain.nest_grid(**grid), rows, index=None)
         assert e["memory_path"] == "fit"
-        assert e["total_gib"] >= 1.2 * domain.MEASURED_PEAK_GIB[key], (key, e)
-        # the cap holds the measured pool (peak less local memory and context) with room to spare
-        assert e["pool_limit_gib"] >= domain.MEASURED_PEAK_GIB[key] - e["lmem_gib"] - e["fixed_gib"] + 1.0, (key, e)
+        # the estimate covers the measured peak (0.1.3: no longer 1.2x it; the door keeps margin_gib on top)
+        assert e["total_gib"] >= domain.MEASURED_PEAK_GIB[key], (key, e)
+        # the cap holds the measured pool (peak less local memory and context)
+        assert e["pool_limit_gib"] >= domain.MEASURED_PEAK_GIB[key] - e["lmem_gib"] - e["fixed_gib"], (key, e)
 
 
 def test_333_nest_admitted_on_an_8gb_card(card):

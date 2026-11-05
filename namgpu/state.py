@@ -142,7 +142,7 @@ HISTORY_SCRATCH = frozenset({
     "H_CW_SPEC", "H_FICE_SPEC", "H_FRAIN_SPEC", "H_P", "H_T", "H_QVAPOR", "H_QCLOUD", "H_QRAIN",
     "H_QICE", "H_QSNOW", "H_PH", "UEARTH", "VEARTH", "QP_PRESTV", "QP_PRESZ", "QP_GROUND_MASK",
     # the 2-D history buffers of the same units (io-wind-rotate, io-quasipost-*, io-history-fields)
-    "UE10", "VE10", "H_PSFC", "H_HGT", "H_RAINNC", "H_RAINC", "H_T2", "H_COMPOSITE",
+    "UE10", "VE10", "H_PSFC", "H_HGT", "H_RAINNC", "H_RAINC", "H_T2", "H_COMPOSITE", "H_REFL_10CM",
     "QP_GROUND_LEVEL", "QP_PMSL", "QP_RELAXMASK", "QP_RELAXWORK", "QP_RELAX_NEXT", "RELAXWORK_NEXT", "MEMBRANE_MSLP",
     "P850Z", "P700Z", "QP_KS850", "QP_KS700", "QP_KS500", "QP_DUMMY1", "QP_DUMMY2",
     "P500U", "P500V", "P700WIND", "P700RV", "P700U", "P700V", "P850WIND", "P850RV", "P850U", "P850V", "M10WIND", "M10RV",

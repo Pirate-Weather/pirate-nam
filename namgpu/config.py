@@ -75,6 +75,25 @@ def _coerce(text: str):
         return t
 
 
+FILTER_CHOICES = ("auto", "on", "off")
+
+
+def start_filter(cfg, source, choice: str = "auto") -> int:
+    """The start's digital filter (TDFI, configfile filter_method) for this start source; sets cfg.filter_method.
+
+    auto (default): off for the archived NAM analysis (source native), the configfile's TDFI for every other source.
+    bgrd3d00 is the NAM's own 0 h state written after its filter had run (module_NMM_INTEGRATE.F90 writes the 00 h
+    history only once FILTER_METHOD is 0, set at the filter's end), so a second TDFI re-filters a filtered state and
+    loses its rain fractions (first-hour grid-scale rain 69 % of the NAM's with it, 91 % without; NAM start study,
+    2026-11-05). on: the configfile's filter for every source (filter_method stays as read). off: no filter."""
+    if choice not in FILTER_CHOICES:
+        raise ValueError(f"--filter {choice!r}: one of {FILTER_CHOICES}")
+    if choice == "off" or (choice == "auto" and str(source) == "native"):
+        cfg.filter_method = 0
+        cfg.raw["filter_method"] = 0
+    return int(cfg.filter_method)
+
+
 def parse_configfile(path: Path, subs: dict[str, str] | None = None) -> dict:
     subs = dict(SCRIPT_SUBSTITUTIONS, **(subs or {}))
     out: dict = {}

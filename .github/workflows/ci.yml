@@ -36,6 +36,7 @@ jobs:
           python tests/test_wind_ladder.py
           python tests/test_maps_old_call.py
           python tests/test_pole_frame.py
+          python tests/test_seam_frame.py
           python tests/test_maps_dry_window_skip.py
           python tests/test_nest_twoway_default.py
           python tests/test_products_writer.py
@@ -43,7 +44,7 @@ jobs:
       - name: moving-nest tests (CPU)
         run: |
           python -m pip install --quiet numpy scipy netCDF4 pytest
-          PYTHONPATH=. python -m pytest -q -p no:cacheprovider tests/test_follow_bocos.py tests/test_follow_door.py tests/test_follow_prepcap.py tests/test_follow_replay.py tests/test_follow_segment.py
+          PYTHONPATH=. python -m pytest -q -p no:cacheprovider tests/test_follow_bocos.py tests/test_follow_door.py tests/test_follow_prepcap.py tests/test_follow_replay.py tests/test_follow_segment.py tests/test_small_card.py tests/test_nest_door.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist

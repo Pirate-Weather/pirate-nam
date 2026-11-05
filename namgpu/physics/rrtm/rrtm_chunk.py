@@ -48,10 +48,20 @@ def workspace(ctx):
     return None
 
 
+MIN_ROWS = 3
+
+
 def windows(jm: int, w: int):
-    """(w0, w1, a, b) per chunk: compute rows [w0, w1), owned rows [a, b)."""
+    """(w0, w1, a, b) per chunk: compute rows [w0, w1), owned rows [a, b).
+
+    An inner chunk of w rows owns w - 2 of them (one halo row each side), so w must be at least MIN_ROWS = 3. With
+    w = 2 an inner chunk owns no row and the loop never advanced: radiation hung at its first call with the host
+    list growing without end (woof-nam 0.1.2, 8 GB card, NAMGPU_RRTM_ROWS 2)."""
     if w >= jm:
         return [(0, jm, 0, jm)]
+    if w < MIN_ROWS:
+        raise ValueError(f"row chunks of {w} rows: radiation and column bands need at least {MIN_ROWS} rows per chunk "
+                         f"(NAMGPU_RRTM_ROWS {MIN_ROWS} or more; 4 or more is the door's floor)")
     out, a = [], 0
     while a < jm:
         w0 = 0 if a == 0 else min(a - 1, jm - w)

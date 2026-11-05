@@ -3,11 +3,11 @@
     woof-nam nest --two-way --center 24N,83W --size-km 1900 --size-y-km 1400 --res-km 3 \
         --parent-size-km 3000 --parent-size-y-km 2600 --source gfs --start 2022092612 --hours 84 --out runs/ian-2way
 
-A live parent runs two-way by default: --two-way, or any --parent-* option, turns on NMMB's two-way feedback (the
-nest's T, Q, CW, U, V box means replace the parent's in the overlap, weight --2way-wgt, default 1.0 as NMMB's own
-two-way test). --concurrent is the same run with the feedback off: the nest takes its boundaries from the live parent
-every parent step (25 s), as the operational NAM ran its nests (nest_mode: 1-way). Without any of these `woof-nam
-nest` is the one-domain door, and --source parent --parent-run is the one-way hand-off door, both unchanged.
+A live parent (--concurrent, or any --parent-* option) runs one-way by default: the nest takes its boundaries from the
+live parent every parent step (25 s), as the operational NAM ran its nests (nest_mode: 1-way). --two-way adds NMMB's
+two-way feedback (the nest's T, Q, CW, U, V box means replace the parent's in the overlap, weight --2way-wgt, default
+1.0 as NMMB's own two-way test). Without any of these `woof-nam nest` is the one-domain door, and --source parent
+--parent-run is the one-way hand-off door, both unchanged.
 
 Stages: domain (parent configfile, nest configfile on the parent's grid: domain.nest_grid_associated), preflight (both
 domains in one process), renderer, warm, static (both), fetch (the parent's area holds the nest), wait-vram, init (each
@@ -31,9 +31,10 @@ from namgpu.nest import cli, domain
 def add_args(n) -> None:
     n.add_argument("--two-way", action="store_true", help="a 12 km parent and this nest run together in one "
                    "process, with NMMB's two-way feedback (the nest's T, Q, CW, U, V replace the parent's in the "
-                   "overlap); the default whenever a live parent is asked for (any --parent-* option)")
+                   "overlap); off by default: a live parent runs one-way (--concurrent)")
     n.add_argument("--concurrent", action="store_true", help="a live parent with the feedback off: the nest takes "
-                   "its boundaries from the live parent every parent step, as the operational NAM nests ran")
+                   "its boundaries from the live parent every parent step, as the operational NAM nests ran; the default "
+                   "whenever a live parent is asked for (any --parent-* option)")
     n.add_argument("--parent-center", default=None, help="--two-way/--concurrent: the parent's centre (default "
                    "--center)")
     n.add_argument("--parent-size-km", type=float, default=None, help="--two-way/--concurrent: parent east-west "

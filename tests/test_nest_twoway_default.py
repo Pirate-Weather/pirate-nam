@@ -1,5 +1,6 @@
-"""woof-nam nest, CPU only: a live parent runs two-way by default, --concurrent turns the feedback off, and the
-one-domain door and the --source parent hand-off never reach the live-parent door."""
+"""woof-nam nest, CPU only: a live parent runs one-way concurrent by default (as NOAA's NAM ran its nests),
+--two-way turns the feedback on, and the one-domain door and the --source parent hand-off never reach the
+live-parent door."""
 from __future__ import annotations
 
 import sys
@@ -41,10 +42,11 @@ def test_two_way_flag():
     assert _door(BASE + ["--two-way"]) is True
 
 
-def test_live_parent_defaults_two_way():
-    assert _door(BASE + ["--parent-size-km", "1300"]) is True
-    assert _door(BASE + ["--parent-center", "24N,83W"]) is True
-    assert _door(BASE + ["--parent-size-y-km", "1300"]) is True
+def test_live_parent_defaults_one_way():
+    assert _door(BASE + ["--parent-size-km", "1300"]) is False
+    assert _door(BASE + ["--parent-center", "24N,83W"]) is False
+    assert _door(BASE + ["--parent-size-y-km", "1300"]) is False
+    assert _door(BASE + ["--two-way", "--parent-size-km", "1300"]) is True
 
 
 def test_concurrent_is_feedback_off():

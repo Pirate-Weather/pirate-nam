@@ -1,6 +1,65 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-11-05)
+
+- Radiation no longer hangs when it runs in 2-row chunks. A chunk of 2 rows owned no row, so the chunk loop never
+  advanced and grew in host memory until the machine ran out; on an 8 GB card every 3 km nest from about 361 x 360 to
+  405 x 405 points was given 2-row chunks by the nest door and hung at the first radiation call. Chunks now need 3 rows
+  or more, the door picks 32, 16, 8 or 4 rows, and `--rrtm-rows` below 3 (or `NAMGPU_RRTM_ROWS` below 3 on
+  `woof-nam run`) is refused in one line before the run starts.
+
+- The nest door's memory estimate matches the card. It was about 2.5 GB above the measured peak at every size on an
+  8 GB card, so the door gave smaller radiation chunks than the card could hold (twice the step time) and refused
+  nests that fit. It now covers every measured peak: 1-4 % above at 4- and 8-row radiation chunks, 15-17 % above at 16, and the door
+  still keeps 0.75 GiB free beyond it. On an 8 GB card the door now admits nests up to about 490 x 490 points; 378 x 377
+  and 415 x 414 ran at 94.9 and 112.9 ms per step (0.1.2: 360 x 359 at 142.8).
+
+- `woof-nam run` checks the card before it starts: a grid that cannot fit (the 12 km grid on an 8 GB card) is refused
+  in one line with the estimate and the card's size, where 0.1.2 stopped with a CuPy out-of-memory traceback.
+
+- `woof-nam nest --source era5`: nests start from the ERA5 reanalysis, as `woof-nam run` does. A source with no row
+  is now refused before any stage, `--dry-run` included.
+
+- `woof-nam products` on a nest's history says in one line that the awphys GRIB2 files are cut from the 12 km CONUS
+  grid, instead of an IndexError for every hour.
+
+- New `woof-nam doctor`: the card, CuPy and NVRTC (a test kernel), the terrain data, the map renderer, the GRIB2
+  writer, and what the card can run by the doors' memory estimate (the 12 km grid, 100 x 100 and 333 x 333 nests,
+  the largest square nest).
+
+- A case folder whose name is not the start time (YYYY-MM-DD_HHz) is refused in one line by `woof-nam run`.
+
+- `nest-receipt.json` reads the card's memory and load in containers that hide the card's process ids: it read
+  0.0 GiB and flagged the busy forecast as a single-core stage there.
+
+- README: memory and speed measured on an 8 GB card (RTX 3060 Ti, fresh `pip install recast-woof-nam==0.1.2`): 3 km
+  nests of 99 x 100, 328 x 330 and 360 x 359 points peak at 2.0, 4.1 and 4.2 GB ("Speed and memory").
+
+- Composite and simulated reflectivity now match how NOAA's NAM post computed them. The history `COMPOSITE` and
+  `REFL_10CM`, the maps, and the awphys GRIB2 `REFC` (record 3) and `REFD` (records 2, 295, 296) add the reflectivity
+  of the convection scheme's rain (Z = 300 R^1.4, full strength below the freezing level, 20 dBZ weaker at the
+  convective cloud top) to the microphysics reflectivity, as the NAM post did. Before, they carried the microphysics
+  part only and ran 3-4 dB colder than the NAM's own REFC at 30 dBZ for the same state. Columns without convective
+  rain are unchanged. The hourly maximum `REFDMAX` already had the term and is unchanged.
+
+- `--source native` starts from the NAM analysis as the operational NAM forecast did. The analysis' rain and ice
+  fractions and rime factor, its turbulent kinetic energy and its vertical velocity are kept (before, the rain and ice
+  started as cloud water, the TKE at its floor and the vertical velocity at 0), and no second digital filter runs
+  over it, because the NAM analysis file is already the NAM's filtered 0 h state. `--filter on` restores the filter;
+  `--filter off|on` works for every source. GFS, ECMWF, ERA5 and parent starts are unchanged.
+
+## 0.1.2 (2026-11-05)
+
+- Nests run one-way by default, as NOAA's NAM did: a live parent (`--parent-center`, `--parent-size-km`,
+  `--parent-size-y-km`) without `--two-way` now runs as `--concurrent`. `--two-way` enables feedback; two-way made
+  Ian 27 hPa deeper than observed in our test (908.8 hPa against 937). In 0.1.1 a live parent ran two-way unless
+  `--concurrent` was given.
+
+- Maps of a domain across 180 (a nest over the Aleutians or Fiji) are no longer drawn wrong on gpuwm 2.9.12. That
+  release's renderer accepts such a frame but smears every row east-west, so with it the map is not drawn and the
+  log says to set `NAMGPU_RENDERER` to the patched renderer (`tools/renderer/install_renderer.sh`). The 12 km
+  parent still draws on the CONUS frame, as gpuwm 2.9.12 also smears its own whole-circle frame. woof-nam keeps
+  working with gpuwm 2.9.11 and 2.9.12.
 
 - `woof-nam products` works on a plain `pip install`. In 0.1.1 it stopped every hour with `FileNotFoundError: ...
   rw_rrfs_upp ... not in a gpuwm release yet`, because the GRIB2 writer it calls ships in no gpuwm release. woof-nam

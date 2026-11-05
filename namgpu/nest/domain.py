@@ -93,8 +93,17 @@ SOURCE_BY_REGION = [
 # below carries its own per-column and RRTM terms, about 1.8x and 1.4x those measurements (MEASURED_PEAK_GIB,
 # tests/test_nest_door.py). The old model refused a 333 x 333 nest on any card with less than about 19 GiB free.
 # The full path (cards of 64 GiB and more) keeps the older, larger terms.
-VRAM = {"fixed_gib": 1.0, "lmem_bytes_per_thread": 10016,
-        "pool_headroom_gib": 1.0, "margin_gib": 0.75}
+# 2026-11-05 (0.1.3, an 8 GB card): the fit row was still about 2.5 GiB above the measured peak at every size on an
+# RTX 3060 Ti (6.5 GiB estimated vs 4,104 MiB peak at 328 x 330 rows 8; 6.71 vs 4,178 MiB at 360 x 359 rows 4), so the
+# door handed 8 GB cards rows 4 (twice the step time of rows 8) and refused nests the card runs. The over-count was
+# 1.0 GiB of pool headroom counted in the peak (it is the cap's, above the estimate), 30 KB per column where the card
+# holds about 23, and 0.35 MB per RRTM row-column where the 5090's rows 32 vs rows 4 pair gives 0.255 and the 3060 Ti
+# nests less. Refit on the whole-card peaks (nvidia-smi, 0.5 s) of four 3060 Ti nests (rows 32, 8, 4, 16) and the 5090
+# pair: per column 23 KB, RRTM 0.26 MB per row-column, context and modules 0.5 GiB, pool cap 0.25 GiB above the
+# estimate. The estimate covers every measured peak: within 1-4 % at rows 4 and 8 and on the 5090 pair, 15 % above at
+# 378 x 377 rows 16 (MEASURED_PEAK_GIB, tests/test_small_card.py), and the door keeps margin_gib (0.75 GiB) free
+# beyond it. The full path keeps its own larger terms (cards of 64 GiB and more).
+VRAM = {"lmem_bytes_per_thread": 10016, "margin_gib": 0.75}
 # Per memory path (state.resolve_memory_path: the 32 GB fit below FIT_BELOW_GIB = 64 GiB of card, the full path at and
 # above it; NAMGPU_MEMORY_PATH / NAMGPU_SCRATCH_ARENA override), the pool part that does not scale with the slab.
 # The door resolves the path exactly as the forecast will (memory_path below) and caps the pool with that path's row.
@@ -106,12 +115,21 @@ VRAM = {"fixed_gib": 1.0, "lmem_bytes_per_thread": 10016,
 #   full: the full path also keeps the init-only and step scratch arrays for the whole run (pool after init 2.56 vs
 #         0.81 GiB on the parent); 2.5 GiB on top of the per-column part covers the parent (cap 13.95 GiB) and the
 #         286 x 334 nest on a 96 GB card (18.41 GiB pool at the end of 48 h, cap 22.2).
-VRAM_PATH = {"fit": {"fixed_pool_gib": 0.0, "per_column_kb": 30.0, "rrtm_mb_per_row_col": 0.35},
-             "full": {"fixed_pool_gib": 2.5, "per_column_kb": 150.0, "rrtm_mb_per_row_col": 0.59}}
-# process peaks measured through the door on the landed code (RTX 5090, fit path, see the note above)
-MEASURED_PEAK_GIB = {"nest-286x333-fit-r32": 7.11, "nest-286x333-fit-r4": 5.21, "nest-300km-fit-r32": 2.97}
+# fixed_gib: CUDA context and loaded modules (outside the pool); pool_headroom_gib: the pool cap above the estimate.
+VRAM_PATH = {"fit": {"fixed_pool_gib": 0.0, "per_column_kb": 23.0, "rrtm_mb_per_row_col": 0.26, "fixed_gib": 0.5,
+                     "pool_headroom_gib": 0.25},
+             "full": {"fixed_pool_gib": 2.5, "per_column_kb": 150.0, "rrtm_mb_per_row_col": 0.59, "fixed_gib": 1.0,
+                      "pool_headroom_gib": 1.0}}
+# process peaks measured through the door on the landed code (fit path): RTX 5090 (170 SMs, process peak, see the
+# note above) and RTX 3060 Ti 8 GB (38 SMs, whole-card peak by nvidia-smi every 0.5 s, GFS 2025-03-14 12Z, 0.1.2)
+MEASURED_PEAK_GIB = {"nest-286x333-fit-r32": 7.11, "nest-286x333-fit-r4": 5.21, "nest-300km-fit-r32": 2.97,
+                     "3060ti-99x100-r32": 2011 / 1024, "3060ti-328x330-r8": 4104 / 1024,
+                     "3060ti-360x359-r4": 4178 / 1024, "3060ti-378x377-r16": 5008 / 1024}
 MEASURED_POOL_GIB = {"milton-parent-full-r32": 12.67, "milton-parent-fit-r32": 7.84}
-RRTM_ROW_CHOICES = (32, 16, 8, 4, 2)
+# 4 is the floor: rrtm_chunk.windows needs 3 or more rows, and rows 2 hung radiation (0.1.2 on an 8 GB card); 3 owns
+# one row per chunk and is not measured
+RRTM_ROW_CHOICES = (32, 16, 8, 4)
+MIN_RRTM_ROWS = 4
 # SMs by card name (nvidia-smi has no SM count and the pre-flight must not open a CUDA context)
 # longer names first: a key matches as a substring ("3080" is in "3080 Ti"); unknown cards count as 170 SMs
 CARD_SMS = (("5090", 170), ("PRO 6000", 188), ("4090", 128), ("5070 Ti", 70), ("3080 Ti", 80), ("3080", 68),
@@ -401,11 +419,15 @@ def vram_estimate(g: dict, rows: int, cards: int = 1, index: str | None = None, 
     state = cols * row["per_column_kb"] * 1024 / 2**30
     rrtm = rows * g["im"] * row["rrtm_mb_per_row_col"] * 1e6 / 2**30
     lmem = VRAM["lmem_bytes_per_thread"] * sm_threads(index) / 2**30
-    pool = state + row["fixed_pool_gib"] + rrtm + VRAM["pool_headroom_gib"]
-    tot = pool + lmem + VRAM["fixed_gib"]
+    pool = state + row["fixed_pool_gib"] + rrtm + row["pool_headroom_gib"]
+    # the estimate of the peak: the pool at its working size (the headroom above it is the cap's, and the door's
+    # margin_gib covers it), the local-memory reservation and the context
+    tot = pool - row["pool_headroom_gib"] + lmem + row["fixed_gib"]
+    if mp["path"] != "fit":
+        tot += row["pool_headroom_gib"]          # the full path's terms as they were (cards of 64 GiB and more)
     capped = mp["path"] is not None
     return {"columns_per_card": int(cols), "state_gib": round(state, 2), "rrtm_gib": round(rrtm, 2),
-            "lmem_gib": round(lmem, 2), "fixed_gib": VRAM["fixed_gib"], "memory_path": mp["path"],
+            "lmem_gib": round(lmem, 2), "fixed_gib": row["fixed_gib"], "memory_path": mp["path"],
             "path_fixed_gib": row["fixed_pool_gib"], "pool_limit_gib": round(pool, 2) if capped else None,
             "pool_limit_bytes": int(pool * 2**30) if capped else None, "total_gib": round(tot, 2),
             "rrtm_rows": rows}

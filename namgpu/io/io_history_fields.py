@@ -7,7 +7,7 @@ Reads  : T, Q, CW, F_ICE, F_RAIN, PD [JM,IM] (or [LM,JM,IM]); FIS, PINT (LM+1), 
          before this unit; it raises if they are absent); Z (state, midlayer). Grid: psgml1, sgml2 (ctx.tables).
          UEARTH, VEARTH = earth-relative winds on H points, LM levels (io-wind-rotate). W, TSHLTR, QSHLTR
          (state). REFL_10CM (LM levels) only when the Ferrier microphysics (phys-fer-calmict) has
-         written it; COMPOSITE is its column maximum.
+         written it; history REFL_10CM and COMPOSITE add the BMJ convective term as NAM's post does (_refl_post).
 Writes (scratch via st.add, names H_*): H_P, H_T, H_QVAPOR, H_QCLOUD, H_QRAIN, H_QICE, H_QSNOW, H_PH,
          H_PSFC, H_HGT, H_RAINNC, H_RAINC, H_COMPOSITE, and H_CW_SPEC, H_FICE_SPEC, H_FRAIN_SPEC when
          spec_adv is on (see "Condensate" below).
@@ -325,16 +325,58 @@ def run(ctx):
             tke[...] = st["Q2"] * cp.float32(0.5)       # MYJ Q2 = 2 TKE (parm/nam_phy_state.txt)
         out["TKE_PBL"] = (tke, DIMS3)
     if "REFL_10CM" in st.fields:
-        refl = st["REFL_10CM"]
-        comp = st.add("H_COMPOSITE", s2)
-        with scope:
-            comp[...] = refl.max(axis=0)
-        out["REFL_10CM"] = (refl, DIMS3)
+        refl3, comp = _refl_post(ctx, s2, s3, scope)
+        out["REFL_10CM"] = (refl3, DIMS3)
         out["COMPOSITE"] = (comp, DIMS2)
     if handoff_on(ctx.cfg):
         out.update(handoff_fields(ctx, scope))
     return out
 
+
+
+def _refl_post(ctx, s2, s3, scope):
+    """History REFL_10CM and COMPOSITE as NAM's post writes them (woof-nam 0.1.3, 2026-11-05): the microphysics
+    REFL_10CM plus the BMJ convective-rain reflectivity Z = 300 R**1.4, R = CPRATE * 3.6e6 / (DT*NPHS) mm/h, from the
+    convective cloud top (CNVTOP) to the ground, tapered by 20 dBZ between the freezing level and the cloud top
+    (kernel hist_refl_post). COMPOSITE is the column maximum of that sum, so the awphys REFC (carrier COMPOSITE) and
+    the REFD records (read from history REFL_10CM) carry it too. Breakage it fixes: COMPOSITE was the column maximum
+    of the microphysics REFL_10CM alone, 3-4 dB (at 30 dBZ) colder than the NAM's own REFC from the same state (NAM
+    start study, Chicago 2023-07-29 00Z). The state REFL_10CM stays the microphysics field (the hourly maximum
+    REFDMAX adds its own convective term, io_max_fields.cu); columns without convective rain are byte-identical to
+    before. Without the BMJ carriers (no convection scheme) the fields are the plain ones."""
+    st = ctx.st
+    g = ctx.grid
+    im, jm, lm = int(g.im), int(g.jm), int(g.lm)
+    refl = st["REFL_10CM"]
+    comp = st.add("H_COMPOSITE", s2)
+    have_cu = all(n in st.fields and tuple(st[n].shape) == s2 for n in ("CPRATE", "CNVTOP"))
+    if not have_cu:
+        with scope:
+            comp[...] = refl.max(axis=0)
+        return refl, comp
+    k = kernels.get(UNIT, "hist_refl_post")
+    gcol = kernels.grid_cols(im, jm)
+    rdtphs = np.float32(3.6e6) / (np.float32(ctx.cfg.dt) * np.float32(int(ctx.cfg.nphs)))
+
+    def launch(write3, out3):
+        k(gcol, kernels.BLOCK_COL, (np.int32(im), np.int32(jm), np.int32(lm), refl, st.T, st.Z,
+                                    st["CPRATE"], st["CNVTOP"], np.float32(rdtphs), np.int32(write3), out3, comp))
+
+    if getattr(ctx, "history_stream", False):
+        # COMPOSITE now (no 3-D array); REFL_10CM is computed into H_STREAM right before its copy, same arithmetic
+        with scope:
+            launch(0, comp)
+
+        def fill():
+            o = st.add("H_STREAM", (lm + 1, jm, im)).reshape(-1)[:lm * jm * im].reshape(s3)
+            with scope:
+                launch(1, o)
+            return o
+        return StreamField(s3, fill), comp
+    o = st.add("H_REFL_10CM", s3)
+    with scope:
+        launch(1, o)
+    return o, comp
 
 # ---- parent hand-off field set (configfile key history_handoff: true) ---------------------------------------------
 # What a one-way nest started from this history needs beyond the atmosphere (namgpu/init/parent_start.py, the

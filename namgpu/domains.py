@@ -173,4 +173,10 @@ def bc_hours(hours: float) -> int:
 
 
 def start_of(case_dir: Path) -> datetime:
-    return datetime.strptime(Path(case_dir).name[:14], "%Y-%m-%d_%Hz")
+    """The start time from the case folder's name (YYYY-MM-DD_HHz). A folder named otherwise stops in one line."""
+    name = Path(case_dir).name
+    try:
+        return datetime.strptime(name[:14], "%Y-%m-%d_%Hz")
+    except ValueError:
+        raise SystemExit(f"woof-nam: case folder {name!r}: the name must be the start time, YYYY-MM-DD_HHz (e.g. "
+                         f"cases/2025-03-14_12z); rename the folder or fetch into one named so") from None

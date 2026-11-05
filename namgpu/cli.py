@@ -44,6 +44,8 @@ COMMANDS = {
                       "release's SHA-256 pin"),
     "compare": ("namgpu.io.hist_compare",
                 "check that two runs wrote the same history, bit for bit (e.g. 1 card against N cards)"),
+    "doctor": ("namgpu.doctor",
+               "check this machine (card, CuPy/NVRTC, terrain data, renderer, GRIB2 writer) and what its card can run"),
     "licence-check": ("namgpu.licence_check",
                       "check the per-file licence notices in this install"),
 }

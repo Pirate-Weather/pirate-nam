@@ -90,6 +90,48 @@ def _reserve_step_lmem(rec) -> None:
           f"{lm['reserved_gib']} GiB ({lm['delta_gib']:+} GiB device used)", flush=True)
 
 
+def memory_check(a) -> int:
+    """Pre-flight of `woof-nam run`, the nest door's estimate (nest/domain.py vram_estimate) on the run's grid and
+    rows: refuse in one line when the card cannot hold the run, before any allocation. 0.1.2 had none, so the 12 km
+    grid on an 8 GB card died in State() with a raw OutOfMemoryError. The estimate is the fit memory path's (the
+    smallest working set; a card of 64 GiB or more takes the full path, which holds more but fits there: 58-76 GB for
+    12 km on a 96 GB card), so this refuses only a run that cannot fit on any path. No margin either: this door has
+    no smaller setting to fall back to, and column bands shrink a tight run.
+    Skipped when the nest door already checked (NAMGPU_PREFLIGHT_DONE) or NAMGPU_PREFLIGHT=0."""
+    if os.environ.get("NAMGPU_PREFLIGHT_DONE") or os.environ.get("NAMGPU_PREFLIGHT") == "0":
+        return 0
+    from namgpu import config, state as statemod
+    from namgpu.nest import domain
+    from namgpu.physics.rrtm import rrtm_chunk
+    forced = os.environ.get("NAMGPU_RRTM_ROWS", "").strip()
+    if forced and int(forced) < rrtm_chunk.MIN_ROWS:
+        print(f"woof-nam run: refused: NAMGPU_RRTM_ROWS {forced}: radiation runs in row chunks of at least "
+              f"{rrtm_chunk.MIN_ROWS} rows; set 4 or more", file=sys.stderr)
+        return 3
+    cfg = config.load()
+    g = {"im": int(cfg.im), "jm": int(cfg.jm)}
+    if a.cards > 1:
+        cards = [c.strip() for c in a.card_list.split(",") if c.strip()] or [str(i) for i in range(a.cards)]
+        cards = cards[:a.cards]
+    else:
+        cards = [domain._visible_index()]
+    for c in cards:
+        try:
+            free = domain.free_gib(c)
+        except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+            return 0                      # no nvidia-smi reading: nothing to check against (the run says so if it dies)
+        rows = int(forced) if forced else statemod.FIT_RRTM_ROWS
+        e = domain.vram_estimate(g, min(rows, g["jm"]), len(cards), c, path="fit")
+        if e["total_gib"] > free:
+            total = domain.card_total_gib(c)
+            print(f"woof-nam run: refused: the {g['im']} x {g['jm']} grid needs about {e['total_gib']} GiB per card "
+                  f"({len(cards)} card{'s' if len(cards) > 1 else ''}, NAMGPU_RRTM_ROWS {e['rrtm_rows']}, the "
+                  f"smallest memory path) and card {c} ({domain.card_name(c)}, {total:.1f} GiB) has "
+                  f"{free:.2f} GiB free; use more cards (--cards N) or a smaller domain (woof-nam nest)", file=sys.stderr)
+            return 3
+    return 0
+
+
 def main(argv=None):
     from namgpu.cli import HelpFormatter
     ap = argparse.ArgumentParser(
@@ -127,6 +169,9 @@ def main(argv=None):
     ap.add_argument("--skip-init", default="init-fetch-case",
                     help="comma list of init units to skip (default: the fetch, already done by woof-nam fetch)")
     ap.add_argument("--leave-out", default="", help="comma list of plan units set to mode skip (receipt lists them)")
+    ap.add_argument("--filter", choices=("auto", "on", "off"), default="auto",
+                    help="the start's digital filter (TDFI). auto (default): off for --source native, whose NAM "
+                         "analysis is already the NAM's filtered 0 h state; on for every other source. on / off force it")
     ap.add_argument("--no-maps", action="store_true", help="write history only, no maps")
     ap.add_argument("--products", action="store_true",
                     help="also write NOAA's NAM awphys GRIB2 (nam.tHHz.awphysFF.tm00.grib2 on grid 218, "
@@ -237,6 +282,11 @@ def main(argv=None):
         _start_products(a.out if a.out.is_absolute() else paths.work_root() / a.out)
     from namgpu import domains
     domains.select(a.domain, a.source)
+    if "NAMGPU_RANK" not in os.environ:
+        domains.start_of(Path(a.case) if a.case_dir is not None else paths.case_dir(a.case))   # the name, in one line
+        rc = memory_check(a)
+        if rc:
+            return rc
     static_rec = None
     if "NAMGPU_RANK" not in os.environ:
         # once per run, before the init (and before any rank): in a child pinned to the first card
@@ -264,6 +314,7 @@ def main(argv=None):
     out = a.out if a.out.is_absolute() else paths.work_root() / a.out
     out.mkdir(parents=True, exist_ok=True)
     cfg = config.load()
+    config.start_filter(cfg, a.source, a.filter)          # TDFI off for a native NAM start unless --filter on
     g = gridmod.build(cfg)
     multi = rank_setup(g) if "NAMGPU_RANK" in os.environ else None   # several cards: this process is one rank
     if multi is not None and a.init_from is None:
@@ -490,6 +541,10 @@ def main(argv=None):
                 ctx.filter_active = False             # the filter ran before the first restart set / the move
                 n = drv.run(a.hours, log=log)
             else:
+                if int(cfg.filter_method) == 0:
+                    # no filter: the 0 h reflectivity from the start state (CALMICT), as the filter's end writes it
+                    from namgpu.steps import drv_dfi_refl_restore
+                    drv_dfi_refl_restore.run(ctx)
                 n = drv_time_loop._run(ctx, a.hours, SimpleNamespace(run=_tdfi), log=log)
         rec["error"] = None
     except Exception as e:  # noqa: BLE001

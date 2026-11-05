@@ -54,6 +54,8 @@ FETCH = {
             "f000 (public domain)"),
     "ifs-0p25": ("namgpu.nest.cli:fetch_rows", "ECMWF open data (IFS HRES 0.25 deg), CC BY 4.0; sea ice from "
                  "NOAA GFS f000 (public domain)"),
+    "era5": ("namgpu.nest.cli:fetch_rows", "Contains modified Copernicus Climate Change Service information (ERA5 "
+             "reanalysis, CC BY 4.0), read from Google's public ARCO-ERA5 copy"),
     "parent": ("namgpu.nest.cli:fetch_parent", "WOOF-NAM 12 km history (ours)"),
 }
 SINGLE_CORE_S = 30.0
@@ -150,22 +152,46 @@ def _cpu_s(pid: int) -> float | None:
         return None
 
 
-def _gpu_mib(pids) -> float:
+def _foreign(listed) -> bool:
+    """True when nvidia-smi's process ids are not this host's: a container with its own PID namespace (the card lists
+    the host's ids, or none). Then no listed id is ours whatever runs, and the whole card is the only reading."""
+    return not listed or any(not os.path.exists(f"/proc/{p}") for p in listed)
+
+
+def _card_query(field: str) -> float | None:
+    idx = os.environ.get("CUDA_VISIBLE_DEVICES", "").split(",")[0].strip() or "0"
+    try:
+        out = subprocess.run(["nvidia-smi", f"--query-gpu={field}", "--format=csv,noheader,nounits", "-i", idx],
+                             capture_output=True, text=True, timeout=10).stdout
+        return float(out.strip().splitlines()[0])
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return None
+
+
+def _gpu_mib(pids, base_mib: float = 0.0) -> float:
+    """VRAM of this run's processes (nvidia-smi per process). In a container whose PID namespace hides the card's
+    process ids (0.1.2 receipts read 0.0 GiB there for every stage), the whole card's used memory less base_mib (what
+    the card held when the run started)."""
     try:
         out = subprocess.run(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"],
                              capture_output=True, text=True, timeout=10).stdout
     except (OSError, subprocess.SubprocessError):
         return 0.0
     want = set(pids)
-    tot = 0.0
+    tot, listed, hit = 0.0, [], False
     for line in out.splitlines():
         try:
             p, m = (x.strip() for x in line.split(","))
+            listed.append(int(p))
             if int(p) in want:
                 tot += float(m)
+                hit = True
         except ValueError:
             pass
-    return tot
+    if hit or not _foreign(listed):
+        return tot
+    used = _card_query("memory.used")
+    return max(0.0, used - base_mib) if used is not None else 0.0
 
 
 def _gpu_util(pids=None) -> float:
@@ -180,17 +206,22 @@ def _gpu_util(pids=None) -> float:
         return -1.0
     if not out.strip():
         return -1.0
-    want, tot = set(pids or ()), 0.0
+    want, tot, listed, hit = set(pids or ()), 0.0, [], False
     for line in out.splitlines():
         f = line.split()
         if line.startswith("#") or len(f) < 4:
             continue
         try:
+            listed.append(int(f[1]))
             if int(f[1]) in want and f[3] != "-":
                 tot += float(f[3])
+                hit = True
         except ValueError:
             pass
-    return tot
+    if hit or not _foreign(listed):
+        return tot
+    card = _card_query("utilization.gpu")         # a container that cannot see the card's pids: the whole card
+    return card if card is not None else -1.0
 
 
 def _cpu_idle_ticks() -> tuple[float, float]:
@@ -230,13 +261,14 @@ class Sampler:
         return out
 
     def _loop(self):
+        self.base_mib = _card_query("memory.used") or 0.0
         last_t, last = time.perf_counter(), self._snap()
         last_idle, ncpu = _cpu_idle_ticks(), os.cpu_count() or 1
         k = 0
         while not self._stop.wait(self.period):
             t, now = time.perf_counter(), self._snap()
             d = sum(v - last.get(p, 0.0) for p, v in now.items()) - sum(v for p, v in last.items() if p not in now)
-            gpu = _gpu_mib(list(now)) if k % 2 == 0 else (self.samples[-1]["vram_mib"] if self.samples else 0.0)
+            gpu = _gpu_mib(list(now), self.base_mib) if k % 2 == 0 else (self.samples[-1]["vram_mib"] if self.samples else 0.0)
             idle = _cpu_idle_ticks()
             dt_tot = idle[1] - last_idle[1]
             idle_cores = round(ncpu * (idle[0] - last_idle[0]) / dt_tot, 1) if dt_tot > 0 else -1.0
@@ -353,9 +385,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.cmd != "nest":
         return 2
+    if a.rrtm_rows is not None and a.rrtm_rows < 3:
+        print(f"woof-nam nest: refused: --rrtm-rows {a.rrtm_rows}: radiation runs in row chunks of at least 3 rows "
+              f"(the door picks from {domain.RRTM_ROW_CHOICES}); give 3 or more", file=sys.stderr)
+        return 2
     following = bool(a.follow or a.storm or a.storm_id or a.follow_config)
-    # A live parent (--two-way, --concurrent, or any --parent-* option) runs two-way unless --concurrent asks for the
-    # feedback off. The --source parent hand-off and the one-domain door below stay one-way.
+    # A live parent (--two-way, --concurrent, or any --parent-* option) runs one-way concurrent, as NOAA's NAM ran its
+    # nests (nest_mode: 1-way); --two-way turns on NMMB's feedback. The --source parent hand-off and the one-domain
+    # door below are one-way too.
     if a.two_way or a.concurrent or a.parent_center or a.parent_size_km or a.parent_size_y_km:
         if following:
             # twoway_door builds one fixed nest inside its live parent and has no move step: a --follow there would
@@ -364,7 +401,8 @@ def main(argv=None) -> int:
                      "a live parent (--two-way, --concurrent, --parent-*) does not move its nest")
         if a.center is None:
             ap.error("nest: --center LAT,LON is required with a live parent")
-        a.two_way = a.two_way or not a.concurrent
+        a.two_way = bool(a.two_way)              # feedback only when asked for; otherwise --concurrent
+        a.concurrent = not a.two_way
         from namgpu.nest import twoway_door
         return twoway_door.main(a, argv)
     cycle = datetime.strptime(a.start, "%Y%m%d%H")
@@ -388,6 +426,7 @@ def main(argv=None) -> int:
         r_ = _src.SOURCES.get(source, {})
         raise SystemExit(f"--source {source}: no files for {cycle:%Y-%m-%d %H}Z (row from {r_.get('valid_from')})"
                          + (f"; use --source {r_['before_use']} or auto" if r_.get("before_use") else ""))
+    resolve_fetch(source)                 # a source with no row stops here, dry run included, before any stage
     if source == "parent":
         a.parent_run = resolve_parent_run(a.parent_run)
     boco_age, boco_why = boco_age_for(source, cycle, a.boco_age_h)
@@ -500,6 +539,7 @@ def main(argv=None) -> int:
             print(f"woof-nam: kernel compile failures {w['failed']}", flush=True)
 
     env = dict(os.environ, NAMGPU_CONFIGFILE=str(cfgfile), NAMGPU_RRTM_ROWS=str(rows), PYTHONUNBUFFERED="1",
+               NAMGPU_PREFLIGHT_DONE="nest",
                NAMGPU_DATA_CREDIT=credit, NAMGPU_DATA_LICENCES=json.dumps(credit_lines), NAMGPU_START_SOURCE=source,
                PYTHONPATH=str(ROOT) + (":" + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else ""))
     env["NAMGPU_BOCO_AGE_H"] = str(boco_age)
