@@ -63,9 +63,12 @@ def main() -> int:
     cf, valid, start, have, sk = maps._prep_frame(("h_f002", "h_f001", need, prods, work, "WOOF-NAM"))
     assert have == ["t2m"] and [s[0] for s in sk] == ["qpf_1h"] and "dry" in sk[0][1], (have, sk)
 
-    # the dict call: 7 values (table, frame bounds), the dry hour stays zeros for the row's mask_below
-    r = maps._prep_frame(("h_f002", {1: "h_f001"}, need, prods, work, "WOOF-NAM"))
+    # the dict call: 7 values (table, frame bounds); a wet hour draws, a dry hour is skipped too (gpuwm's renderers
+    # paint a field of zeros domain-wide in the first colour; only the tree's patched renderer reads mask_below)
+    r = maps._prep_frame(("h_f001", {1: "h_f000"}, need, prods, work, "WOOF-NAM"))
     assert len(r) == 7 and r[3] == ["qpf1h", "t2m"] and Path(r[5]).is_file() and len(r[6]) == 4, r
+    r = maps._prep_frame(("h_f002", {1: "h_f001"}, need, prods, work, "WOOF-NAM"))
+    assert len(r) == 7 and r[3] == ["t2m"] and [s[0] for s in r[4]] == ["qpf_1h"] and "dry" in r[4][0][1], r
     print("test_maps_old_call: PASS")
     return 0
 
