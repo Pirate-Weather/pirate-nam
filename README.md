@@ -1,3 +1,109 @@
+<p align="center"><img src="pirate/assets/logo.svg" width="130" alt="Pirate NAM logo: a storm cloud in a pirate hat and eye patch, above crossed lightning bolts"></p>
+
+# Pirate NAM
+
+Keeping the retired North American Mesoscale model sailing, on one GPU machine.
+
+> **Experimental.** Not an official forecast, and not a NOAA or NCEP product. Runs may stop or change without notice. Don't use it for decisions that affect safety.
+
+**[Map viewer](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) · [Data access (GRIB2 and Zarr)](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html)**
+
+## What it is
+
+NOAA retired the NAM on 3 November 2026. Pirate NAM runs the same model design on a much smaller machine by combining two existing pieces of work: [WOOF-NAM](https://github.com/recastsystems/woof-nam), an independent GPU port of the NAM's NMMB model, and NOAA's GSI, the Fortran program that blends observations into a model state. Its goal is to stay as close as practical to what the NAM would have produced.
+
+**Where this stands:** the forecasts on the map viewer today use WOOF-NAM started directly from GFS, without observations. The cycle with GSI described below has only been tested on one past case, and isn't running live yet.
+
+## How the tested cycle works
+
+Like the NAM, it runs a 6-hour catch-up before the forecast, so the model has absorbed recent observations by the time the forecast starts. For a 00Z forecast:
+
+| Time | Step | Runs on |
+|---|---|---|
+| 18Z | Start from GFS | GPU |
+| 20Z | GSI adds observations | CPU |
+| 22Z | GSI adds observations | CPU |
+| 00Z | GSI adds observations | CPU |
+| 00Z to +48 h | Forecast | GPU |
+
+WOOF-NAM forecasts on the GPU between analyses, with the model state kept on the card. At each analysis, its fields are written into a real NMMB restart file, GSI runs on that file unchanged, and whatever GSI changed goes back onto the card.
+
+## Compared with NOAA's NAM and WOOF-NAM
+
+| | NOAA NAM v4.2 | WOOF-NAM as released | Pirate NAM (tested cycle) |
+|---|---|---|---|
+| **Status** | Retired 3 Nov 2026 | Open source | Experimental; GFS-start version live |
+| **Model** | NMMB, Fortran | Same design, ported to GPU | WOOF-NAM, unchanged |
+| **Numerics** | The reference | Single precision, not bit-identical to the NAM | Same as WOOF-NAM |
+| **Hardware** | Supercomputer | One or more NVIDIA cards | One V100S card, 15 CPUs, 45 GB |
+| **Grids** | 12 km parent plus higher-resolution nests | 12 km; 4 km, nests and others available | 12 km only |
+| **Forecast length** | 84 h at 12 km | Your choice | 48 h |
+| **Start** | Global model atmosphere plus NAM's own land, 6 h before the forecast | GFS, or a NAM analysis when one exists | GFS, 6 h before the forecast |
+| **Observations** | GSI every hour through the catch-up (7 analyses) | None | GSI every 2 hours (3 analyses): more made no measured difference |
+| **Observation sources** | NAM's dedicated data feed, satellite radiances, radar | None | RAP observation files and MRMS radar. Radiances and lightning left out: no measured benefit |
+| **Ensemble in GSI** | Global ensemble | None | GEFS |
+| **Digital filter** | At each catch-up start | At the start | At the start only: filtering each analysis made no measured improvement |
+| **Soil and snow** | Carried from cycle to cycle, with observed rainfall | From GFS | From GFS. Seeding from the NAM archive improved scores by only 0.4% in testing |
+| **SST and sea ice** | Refreshed from outside analyses | From GFS | From GFS |
+| **Lateral boundaries** | GFS cycle 6 h older than the forecast | GFS cycle 6 h older than the start | GFS cycle 6 h older than the forecast |
+
+## Results for one run
+
+All scores are RMSE against the archived NAM forecast for the 00Z 3 November 2026 cycle, on the NAM's own output grid. Lower means closer to the NAM.
+
+- The GSI cycle's median error is **0.80×** plain WOOF-NAM from GFS, and it's closer to the NAM on **68 of 69** scores.
+- Its median error is **1.16×** our Fortran rerun of the NAM.
+
+![RMSE against the NAM by forecast hour, for six fields](pirate/assets/scores.png)
+
+### Scores at 12 hours
+
+| Field | GSI cycle | Plain WOOF | Fortran rerun | WOOF from NAM analysis |
+|---|--:|--:|--:|--:|
+| 500 mb height (m) | **4.22** | 5.43 | 3.48 | 0.96 |
+| 250 mb height (m) | **5.62** | 7.30 | 5.27 | 1.45 |
+| 700 mb humidity (%) | **11.19** | 13.01 | 9.92 | n/a |
+| 2 m temperature (K) | **0.84** | 1.08 | 0.64 | 0.36 |
+| 2 m dew point (K) | **1.06** | 1.44 | 0.87 | 0.33 |
+| 850 mb wind (m/s) | **1.59** | 1.90 | 1.41 | 0.49 |
+| 10 m wind (m/s) | **0.83** | 0.96 | 0.69 | 0.32 |
+| 250 mb wind (m/s) | **2.66** | 3.14 | 2.60 | 0.52 |
+| Composite reflectivity (dBZ) | **11.31** | 12.06 | 10.09 | 8.45 |
+| Precipitation (mm) | **3.12** | 4.15 | 3.18 | 0.80 |
+| Sea level pressure (Pa) | **46.5** | 57.5 | n/a | 25.2 |
+
+GSI cycle: WOOF-NAM from GFS with three GSI analyses. Plain WOOF: WOOF-NAM from GFS. Fortran rerun: the original Fortran NAM and GSI rebuilt with gfortran on the same substitute inputs, with land seeded from the NAM's archive. WOOF from NAM analysis: WOOF-NAM started from the NAM's own archived analysis, which tests the port itself and isn't something a live system could do.
+
+### Maps at 12 hours
+
+![Maps of reflectivity, sea level pressure and 500 mb height at 12 hours, with differences from the NAM](pirate/assets/maps_f12.png)
+
+Valid 12Z 3 November 2026. Red is higher than the NAM and blue is lower. The noisy pressure differences over the western mountains appear in both WOOF-NAM runs, and sea level pressure is an extrapolated quantity there.
+
+### How to read this
+
+- **This is one case.** Other weather could score differently.
+- **Close to the NAM isn't the same as accurate.** These scores don't compare any of the runs with observations. The NAM's own errors count as the truth here, and the NAM also used GSI, which favours the GSI cycle on this measure.
+- **The Fortran rerun has an advantage near the surface:** its land was seeded from the same archive it's scored against. A live run couldn't do that.
+
+## What it takes to run
+
+| 48-hour forecast | Time | Cost (OVHcloud) | Status |
+|---|---|---|---|
+| WOOF-NAM from GFS, one card | 75 min | About CAD 1.45 | Measured, live |
+| GSI cycle, one card (t2-45) | About 2.4 h | About CAD 2.80 | Estimated from measured parts |
+| GSI cycle, two cards (t2-90) | About 1.5 h | About CAD 3.40 | Estimated from measured parts; not yet run end to end |
+
+Times are for the model and GSI, before post-processing and upload. The code is in [`pirate/`](pirate/README.md).
+
+## Credits
+
+The NAM, NMMB and GSI were developed by NOAA/NCEP and its collaborators. WOOF-NAM is by Recast Systems, under the Apache 2.0 licence; its `LICENSE` and `NOTICE` are unchanged here. Input data comes from NOAA's GFS, GEFS, RAP and MRMS. Pirate NAM isn't affiliated with or endorsed by NOAA, NCEP or Recast Systems.
+
+---
+
+*Everything below is WOOF-NAM's own README, unchanged.*
+
 # WOOF-NAM
 
 WOOF-NAM is a GPU port of NOAA/NCEP's North American Mesoscale model (NAM, nam.v4.2.11): the NMMB

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Pirate NAM logo: a storm cloud in a pirate hat and eye patch, above crossed lightning bolts">
+  <title>Pirate NAM</title>
+  <circle cx="60" cy="60" r="58" fill="#14304f"/>
+  <!-- crossed lightning bolts, the crossbones of a weather pirate -->
+  <path d="M28 66 L52 86 L45 88 L72 112 L58 91 L65 89 L40 62 Z" fill="#fab219"/>
+  <path d="M92 66 L68 86 L75 88 L48 112 L62 91 L55 89 L80 62 Z" fill="#fab219" stroke="#14304f" stroke-width="2" stroke-linejoin="round"/>
+  <!-- cloud -->
+  <path d="M34 80 C21 80 15 69 21 60 C18 49 29 41 39 45 C43 34 60 31 69 40 C80 35 93 43 91 55 C102 59 102 80 87 80 Z" fill="#f4f3ef"/>
+  <!-- tricorn hat -->
+  <path d="M26 46 C38 50 48 40 60 39 C72 40 82 50 94 46 C90 30 76 26 70 26 C66 16 54 16 50 26 C44 26 30 30 26 46 Z" fill="#1a1a19" stroke="#fab219" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- skull badge on the hat -->
+  <circle cx="60" cy="30" r="5" fill="#f4f3ef"/>
+  <circle cx="58" cy="29.5" r="1.1" fill="#1a1a19"/><circle cx="62" cy="29.5" r="1.1" fill="#1a1a19"/>
+  <rect x="57.5" y="33.5" width="5" height="3" rx="1" fill="#f4f3ef"/>
+  <!-- patch, strap, good eye, grin -->
+  <path d="M25 50 L95 66" stroke="#1a1a19" stroke-width="2.5"/>
+  <ellipse cx="46" cy="59" rx="8" ry="7" fill="#1a1a19"/>
+  <circle cx="74" cy="60" r="5" fill="#1a1a19"/><circle cx="75.6" cy="58.4" r="1.6" fill="#f4f3ef"/>
+  <path d="M48 71 C54 77 66 77 73 70" fill="none" stroke="#1a1a19" stroke-width="3" stroke-linecap="round"/>
+</svg>
