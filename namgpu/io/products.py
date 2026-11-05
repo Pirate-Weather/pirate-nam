@@ -23,6 +23,8 @@ inventory identity against NOAA's file.
     woof-nam products --compare cases/.../raw/nam/awphys24.grib2 runs/.../products/woof-nam.t12z.awphys24.tm00.grib2
 
 Reads the history only (no CUDA). Each hour runs as its own process; the exporter runs its own worker threads.
+The writer is woof-nam's pinned rw_rrfs_upp (namgpu/exporter.py): the first run downloads it from the woof-nam
+release and checks its SHA-256, or `woof-nam fetch-bridges` does that ahead of time.
 """
 from __future__ import annotations
 
@@ -586,12 +588,9 @@ def idx_lines(recs) -> list:
 # ---------------------------------------------------------------------------------------------- one hour
 
 def _exporter() -> Path:
-    from namgpu.bridges import bridges_dir
-    exe = bridges_dir() / RW
-    if not exe.is_file():
-        raise FileNotFoundError(f"{exe}: gpuwm's GRIB2 exporter with the NAM awphys profile is not here; it is "
-                                f"not in a gpuwm release yet, so set GPUWM_BRIDGES to a folder that holds that build")
-    return exe
+    """The writer (namgpu.exporter: $WOOF_NAM_RW_RRFS_UPP, $GPUWM_BRIDGES, else the pinned copy woof-nam stages)."""
+    from namgpu import exporter
+    return exporter.ensure(fetch_if_missing=False)
 
 
 class _Hour:
@@ -963,7 +962,12 @@ def main(argv=None) -> int:
         return compare(*a.list_both)
     if a.run is None:
         ap.error("--run is required (or --compare)")
-    from namgpu import paths
+    from namgpu import exporter, paths
+    try:
+        exporter.ensure()                  # before any hour is read: stage the pinned writer, or stop in one line
+    except exporter.ExporterMissing as e:
+        print(f"woof-nam products: {e}", file=sys.stderr)
+        return 2
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,39}", a.prefix):
         ap.error(f"--prefix {a.prefix!r}: letters, digits, '.', '_' and '-' only")
     FILE_NAME = a.prefix + FILE_NAME[FILE_NAME.index(".t{HH}z"):]

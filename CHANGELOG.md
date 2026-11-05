@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `woof-nam products` works on a plain `pip install`. In 0.1.1 it stopped every hour with `FileNotFoundError: ...
+  rw_rrfs_upp ... not in a gpuwm release yet`, because the GRIB2 writer it calls ships in no gpuwm release. woof-nam
+  now carries its own pinned writer: the first `woof-nam products` downloads `rw_rrfs_upp` (Linux x86-64, 13 MB,
+  glibc 2.28 or later) from the woof-nam release and checks its size and SHA-256 before installing it. New command
+  `woof-nam fetch-bridges` (`--from FILE`, `--where`). If the writer cannot be had, `products` and `run --products`
+  stop at once with one line naming it and the command that fetches it, before any hour is read or any forecast
+  step runs.
+
 - `woof-nam nest --follow tc | low | object:refl | object:uh | path`: a nest that follows a storm. Start it with
   `--storm LAT,LON` or `--storm-id` (an IBTrACS id). The window moves by whole grid cells at the source's boundary
   times. The nest keeps its own state where the old and new windows overlap, and the new strip starts from the

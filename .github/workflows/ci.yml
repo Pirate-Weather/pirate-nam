@@ -38,6 +38,7 @@ jobs:
           python tests/test_pole_frame.py
           python tests/test_maps_dry_window_skip.py
           python tests/test_nest_twoway_default.py
+          python tests/test_products_writer.py
 
       - name: moving-nest tests (CPU)
         run: |
@@ -58,4 +59,6 @@ jobs:
           cd /tmp && WOOF_NAM_TEST_INSTALLED=1 /tmp/smoke/bin/python /tmp/test_cli_wheel.py
           cp "$GITHUB_WORKSPACE/tests/test_basemap.py" /tmp/test_basemap_wheel.py
           cd /tmp && WOOF_NAM_TEST_INSTALLED=1 /tmp/smoke/bin/python /tmp/test_basemap_wheel.py
+          cp "$GITHUB_WORKSPACE/tests/test_products_writer.py" /tmp/test_products_writer_wheel.py
+          cd /tmp && WOOF_NAM_TEST_INSTALLED=1 /tmp/smoke/bin/python /tmp/test_products_writer_wheel.py
           cd /tmp && /tmp/smoke/bin/woof-nam --help && /tmp/smoke/bin/woof-nam licence-check

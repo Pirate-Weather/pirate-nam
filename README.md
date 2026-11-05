@@ -279,8 +279,12 @@ woof-nam products --compare cases/2025-03-14_12z/raw/nam/awphys06.grib2 \
   GRIB2 exporter `rw_rrfs_upp`, which computes the post fields and encodes on every core. The post's column work
   uses a GPU with room, else the CPU (`--post-device`). If a shared card runs out of memory, the hour is rerun
   instead of lost, and `index.json` lists the rerun.
-- **The exporter.** `woof-nam products` needs the build of `rw_rrfs_upp` with the NAM awphys profile. It is not in
-  a gpuwm release yet. Until it is, set `GPUWM_BRIDGES` to a folder that holds that build.
+- **The exporter.** The GRIB2 writer is `rw_rrfs_upp` (gpuwm's Rust field-set writer with the NAM awphys profile),
+  a 13 MB Linux x86-64 binary attached to the woof-nam GitHub release (glibc 2.28 or later). The first
+  `woof-nam products` (or `woof-nam run --products`) downloads it into `~/.woof-nam/bridges/` and checks its size
+  and SHA-256 against the pins in the package before installing it. `woof-nam fetch-bridges` does the same ahead of
+  time, and `woof-nam fetch-bridges --from FILE` installs a copy you already have (same pins). Set
+  `WOOF_NAM_BRIDGE_URL` to fetch from a mirror, or `WOOF_NAM_RW_RRFS_UPP` to run your own build.
 - **Speed.** About 25 s of products per forecast hour (2 hours in flight) against about 56 s of model per forecast
   hour on one RTX 5090, so `--products` keeps up with the forecast. f00-f06 took 2 min 35 s on 24 cores.
 
@@ -646,8 +650,8 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full
   12 km grid on several cards is measured on the full memory path only.
 - **Restarts:** one card ("Restarts" above); the NAM's own restart files are not read.
-- **GRIB2 products:** 8 of NOAA's 454 awphys records are not produced ("GRIB2 products" above), and the
-  exporter build `woof-nam products` needs is not in a gpuwm release yet.
+- **GRIB2 products:** 8 of NOAA's 454 awphys records are not produced ("GRIB2 products" above). The prebuilt
+  writer is for Linux x86-64; elsewhere, build `rw_rrfs_upp` from gpuwm and set `WOOF_NAM_RW_RRFS_UPP`.
 - **Noah vegetation table:** the NAM's own VEGPARM.TBL was never published. A stand-in built from
   WRF's public-domain table is used (namgpu/data/fix/noah/PROVENANCE.txt).
 

@@ -229,6 +229,11 @@ def main(argv=None):
         return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out, a.case_dir,
                          not a.no_columns)
     if a.products and "NAMGPU_RANK" not in os.environ:
+        from namgpu import exporter
+        try:
+            exporter.ensure()
+        except exporter.ExporterMissing as e:
+            raise SystemExit(f"woof-nam run --products: {e}") from None
         _start_products(a.out if a.out.is_absolute() else paths.work_root() / a.out)
     from namgpu import domains
     domains.select(a.domain, a.source)

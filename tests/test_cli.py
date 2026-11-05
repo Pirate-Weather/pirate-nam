@@ -21,7 +21,7 @@ from namgpu import cli, paths  # noqa: E402
 
 SUBCOMMANDS = [[], ["fetch"], ["static"], ["init"], ["run"], ["maps"], ["side-by-side"],
                ["side-by-side", "mrms"], ["side-by-side", "archive"], ["side-by-side", "woof-nam"],
-               ["side-by-side", "sheets"], ["products"], ["compare"], ["columns"], ["licence-check"]]
+               ["side-by-side", "sheets"], ["products"], ["fetch-bridges"], ["compare"], ["columns"], ["licence-check"]]
 
 
 def _help(args):
