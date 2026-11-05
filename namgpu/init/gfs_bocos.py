@@ -1,4 +1,5 @@
-"""init-gfs-bocos: lateral boundary files boco.NNNN from GFS, in the format NPS writes and READ_BC reads.
+"""init-gfs-bocos: lateral boundary files boco.NNNN from GFS (or any isobaric SOURCES row with a "boundary"
+entry: IFS open data), in the format NPS writes and READ_BC reads.
 
 The NPS boundary step (nam_nps.fd nemsinterp module_boundary.F90:630-1366), on the GPU. For every
 boundary time (GFS every 3 h, the 6-h-old cycle as operational NAM: CONTRACT section 5) the GFS file
@@ -50,6 +51,36 @@ def gfs_files(case_dir: Path, start, hours: int, interval_h: int = 3, age_h: int
     return out
 
 
+def boundary_row(ctx):
+    """(name, row) of the source the boundaries come from: the start's own row when it has a "boundary" entry
+    (gfs, ifs, ...), else GFS (the native NAM start takes GFS boundaries, as operational NAM)."""
+    from namgpu.init import sources as srcmod
+    name, row = srcmod.source_row(ctx)
+    if "boundary" not in row:
+        name, row = "gfs", srcmod.SOURCES["gfs"]
+    return name, row
+
+
+def source_files(case_dir: Path, start, hours: int, row: dict):
+    """[(forecast hour, path)] of a row's boundary files: its cycle age_h older than start, every interval_h."""
+    b = row["boundary"]
+    if int(b["interval_h"]) * 3600 != int(TBOCO):
+        raise ValueError(f"{UNIT}: boundary interval {b['interval_h']} h; boco files carry tboco = {TBOCO} s")
+    cyc = start - timedelta(hours=int(b["age_h"]))
+    return [(fh, Path(case_dir) / b["file"].format(bcyc=cyc.hour, lead=fh + int(b["age_h"])))
+            for fh in range(0, int(hours) + 1, int(b["interval_h"]))]
+
+
+def boco_dir(ctx) -> Path:
+    """<case>/boco[-<domain>] for GFS boundaries (and the native start, which takes GFS's), with -<source> added
+    for any other boundary source: a folder of GFS boundaries must never be reused by an IFS run of the same
+    domain (run() skips the build when every file exists)."""
+    from namgpu import config as configmod
+    name, _ = boundary_row(ctx)
+    d = configmod.boco_dirname(ctx.cfg)
+    return Path(ctx.case_dir) / (d if name == "gfs" else f"{d}-{name}")
+
+
 def strips(st, lm, lnsh, lnsv):
     """Device strips of one boundary time: dict name -> (south, north, west, east)."""
     import cupy as cp
@@ -95,27 +126,28 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     import cupy as cp
     from types import SimpleNamespace
     from namgpu import state as statemod
-    from namgpu.init import gfs_start, init_grid_geo
+    from namgpu.init import gfs_start, init_grid_geo, source_records as srec
 
     g, cfg = ctx.grid, ctx.cfg
     lm, lnsh, lnsv = int(g.lm), int(cfg.lnsh), int(cfg.lnsv)
-    from namgpu import config as configmod
-    out_dir = Path(out_dir or Path(ctx.case_dir) / configmod.boco_dirname(cfg))
+    out_dir = Path(out_dir or boco_dir(ctx))
     out_dir.mkdir(parents=True, exist_ok=True)
-    files = gfs_files(ctx.case_dir, ctx.start, hours)
+    bname, brow = boundary_row(ctx)
+    rec = srec.table(brow)
+    files = source_files(ctx.case_dir, ctx.start, hours, brow)
     missing = [str(p) for _, p in files if not p.is_file()]
     if missing:
-        raise FileNotFoundError(f"{UNIT}: GFS boundary files missing: {missing[:3]} (run init-fetch-case)")
+        raise FileNotFoundError(f"{UNIT}: {bname} boundary files missing: {missing[:3]} (run init-fetch-case)")
     st = statemod.State(g, names=BC_FIELDS)
     bctx = SimpleNamespace(cfg=cfg, grid=g, st=st, stream=ctx.stream, tables={}, case_dir=ctx.case_dir,
-                           start=ctx.start, first_step=True, init_source="gfs", analysis=None)
+                           start=ctx.start, first_step=True, init_source=bname, analysis=None)
     init_grid_geo.run(bctx)
     static, _ = gfs_start.load_static(bctx)
     st.add("HGT_M", static["HGT_SFC"].shape)[...] = static["HGT_SFC"]
     tmpdir = str(Path(ctx.case_dir).resolve().parents[1] / "scratch")
     prev = None
     for k, (fh, path) in enumerate(files):
-        gfs_start.model_state(bctx, path, tmpdir, sfc_keys=gfs_start.SFC_COLUMNS)
+        gfs_start.model_state(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec)
         cur = strips(st, lm, lnsh, lnsv)
         bad = {n: int(sum(int((~cp.isfinite(x)).sum()) for x in v)) for n, v in cur.items()}
         if any(bad.values()):
@@ -140,8 +172,7 @@ def run(ctx, hours: int | None = None):
         raw = str(ctx.cfg.raw.get("nhours_fcst", "48")).strip()
         hours = int(raw) if raw.lstrip("-").isdigit() else 48
     hours = int(hours)
-    from namgpu import config as configmod
-    out_dir = Path(ctx.case_dir) / configmod.boco_dirname(ctx.cfg)
+    out_dir = boco_dir(ctx)
     want = [out_dir / f"boco.{fh:04d}" for fh in range(0, hours, 3)]
     if not all(p.is_file() for p in want):
         build(ctx, hours, out_dir)

@@ -124,6 +124,16 @@ woof-nam static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2
 
 This writes `static/nam12_static.npz` (1.4 MB, a few seconds). Every later GFS start reuses it.
 
+**IFS start (ECMWF open data, CC BY 4.0).** `--source ifs-0p25` (0.25 degree, cycles from 2024-03-18 12Z)
+or `--source ifs` (0.1 degree, cycles from 2026-10-20 12Z) fetches the IFS start, its 3-hourly
+boundaries from the same IFS cycle and MRMS. IFS open data has no sea-ice cover, so that one field
+comes from the same cycle's GFS. An IFS start uses the same static fields as a GFS start.
+
+```
+woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --source ifs-0p25
+woof-nam run --case 2025-03-14_12z --source ifs-0p25 --hours 24 --out runs/2025-03-14_12z-ifs
+```
+
 ## Run one forecast
 
 ```
@@ -131,7 +141,7 @@ woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03
 ```
 
 `--case` is the case folder from `woof-nam fetch` (a bare name is looked up under `cases/`).
-`--source gfs` starts from GFS instead. The run writes:
+`--source gfs` starts from GFS instead, `--source ifs-0p25` or `--source ifs` from the IFS. The run writes:
 - hourly history `wrfout_d01_<valid time>` (wrfout-shaped NetCDF);
 - maps in `<out>/maps/<product>/` (composite reflectivity, 2 m temperature and dewpoint, 10 m and
   850 hPa wind, MSLP, 1 h precipitation);
@@ -170,8 +180,9 @@ Every `woof-nam` step is also a module (`python -m namgpu.init.init_fetch_case`,
   - RRTM longwave and shortwave (NCEP's RRTMG, hourly);
   - Janjic gravity-wave drag (GMTED2010 terrain).
 - **Start sources:** the archived NAM native analysis (`bgrd3d00`, for cycles before the
-  retirement) or GFS 0.25 degree for any date. On both starts the lateral boundaries come from the
-  GFS cycle 6 hours older, as in the operational NAM.
+  retirement), GFS 0.25 degree for any date, or ECMWF open data IFS (0.25 degree from 2024-03-18 12Z,
+  0.1 degree from 2026-10-20 12Z). On the NAM and GFS starts the lateral boundaries come from the
+  GFS cycle 6 hours older, as in the operational NAM; on an IFS start they come from the same IFS cycle.
 - **Not bitwise with the NAM.** The port runs in single precision with fast numerics. It is judged
   by whole wet forecasts beside the archived NAM forecast of the same cycle and MRMS reflectivity.
 

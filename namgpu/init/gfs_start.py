@@ -1,4 +1,4 @@
-"""Start the NAM from an isobaric analysis (GFS 0.25 deg; HRRR/RRFS rows once their grids are placed).
+"""Start the NAM from an isobaric analysis (GFS 0.25 deg, IFS open data; HRRR/RRFS rows once their grids are placed).
 
 The NPS replacement for any date (NAM retired 2026-11-03 12Z, CONTRACT "Init after NAM retirement").
 Same order as NPS: metgrid-style columns (a surface level, then the isobaric levels ground up) on the
@@ -22,10 +22,15 @@ the NAM grid is land are filled from the nearest source land (ring averaging unt
 """
 from __future__ import annotations
 
+from namgpu import cores as _cores
+
 import contextlib
+import os
 from pathlib import Path
 
 import numpy as np
+
+from namgpu.init import source_records as srec
 
 UNIT = "init-gfs-start"
 from namgpu import paths  # noqa: E402
@@ -34,26 +39,14 @@ ROOT = paths.work_root()          # cases/, static/, scratch/ live here (namgpu/
 STATIC_NPZ = ROOT / "static" / "nam12_static.npz"
 MISSING = -9999.0
 PL_ORDER = ("HGT", "TMP", "SPFH", "RH", "UGRD", "VGRD", "CLMR", "ICMR", "RWMR", "SNMR")
-PL_DCP = {"HGT": (0, 3, 5), "TMP": (0, 0, 0), "SPFH": (0, 1, 0), "RH": (0, 1, 1), "UGRD": (0, 2, 2),
-          "VGRD": (0, 2, 3), "CLMR": (0, 1, 22), "ICMR": (0, 1, 23), "RWMR": (0, 1, 24), "SNMR": (0, 1, 25)}
+# The record keys are per source row (source_records.py TABLES); these module names stay as the GFS table.
+PL_DCP = srec.GFS["pl"]
 # Isobaric source surface records: name -> (d, c, p, level_type, level_value, second_level_value)
-SFC = {
-    "PRES": (0, 3, 0, "1", "0", None), "HGT": (0, 3, 5, "1", "0", None),
-    "TSK": (0, 0, 0, "1", "0", None),
-    "T2": (0, 0, 0, "103", "2", None), "RH2": (0, 1, 1, "103", "2", None),
-    "Q2": (0, 1, 0, "103", "2", None),
-    "U10": (0, 2, 2, "103", "10", None), "V10": (0, 2, 3, "103", "10", None),
-    "TSOIL1": (2, 0, 2, "106", "0", "0.1"), "TSOIL2": (2, 0, 2, "106", "0.1", "0.4"),
-    "TSOIL3": (2, 0, 2, "106", "0.4", "1"), "TSOIL4": (2, 0, 2, "106", "1", "2"),
-    "SOILW1": (2, 0, 192, "106", "0", "0.1"), "SOILW2": (2, 0, 192, "106", "0.1", "0.4"),
-    "SOILW3": (2, 0, 192, "106", "0.4", "1"), "SOILW4": (2, 0, 192, "106", "1", "2"),
-    "CNWAT": (2, 0, 196, "1", "0", None), "WEASD": (0, 1, 13, "1", "0", None),
-    "SNOD": (0, 1, 11, "1", "0", None), "ICEC": (10, 2, 0, "1", "0", None),
-    "LANDSRC": (2, 0, 0, "1", "0", None),
-}
+SFC = srec.GFS["sfc"]
 SOIL_KEYS = ("TSOIL1", "TSOIL2", "TSOIL3", "TSOIL4", "SOILW1", "SOILW2", "SOILW3", "SOILW4", "CNWAT")
 STATIC_KEYS = ("HGT_SFC", "LAND", "VGTYP", "SOTYP", "SFCR", "VEG", "ALBDO")
 STATIC_EXTRA = ("ALBASE", "MXSNAL")   # init-static-build files only (fractions); NAM's bgrd3d00 has neither
+BIG_GRID_POINTS = 2_000_000   # records above this (IFS 0.1 deg: 6.5 M points) are split evenly over the cores
 LAT_MARGIN = 2.0      # deg of source rows kept south of the domain's southernmost point
 
 
@@ -71,71 +64,119 @@ def _sel_pl(dcp, pa):
 # Surface records the vertical interpolation itself reads (columns()); the rest of SFC is the start's
 # land-surface state. Boundary times (gfs_bocos) need only these: the GFS forecast files (f006 ...)
 # carry no CNWAT, so asking for the full SFC set refused every boundary file (2026-11-04).
-SFC_COLUMNS = ("PRES", "HGT", "T2", "RH2", "U10", "V10")
+SFC_COLUMNS = srec.GFS["sfc_columns"]
 
 
-def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None):
+def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None, rec=None, lat_max_deg=None):
     """Decode one isobaric source file (GDT 0, regular lat-lon) into init-gfs-decode's GfsDecoded
-    (cropped to rows north of lat_min_deg) plus the surface fields. Returns (dec, sfc, grid)."""
+    (cropped to rows north of lat_min_deg, or to the band lat_min..lat_max for a table with lat_crop "both")
+    plus the surface fields, through the source row's record table rec (source_records; default GFS).
+    Returns (dec, sfc, grid)."""
+    import time
     import cupy as cp
     from namgpu.init import init_grib2_decode as g2
     from namgpu.init import init_gfs_decode as gd
     from namgpu.init import init_gfs_hinterp as hin
     from namgpu.init.sources import _selsfc
 
+    rec = srec.GFS if rec is None else rec
+    pl_dcp, sfc_tab = rec["pl"], rec["sfc"]
+    t_dec = time.perf_counter()
     inv = g2.inventory(path)
     r0 = inv[0]
     if int(r0["gdt"]) != 0:
         raise ValueError(f"{UNIT}: {path} is GDT {r0['gdt']}, the isobaric path places only GDT 0")
     nx, ny = int(r0["nx"]), int(r0["ny"])
+    # The gather writes rows south to north (row j = -90 + j dlat) for a north-first global file (lat1 = 90):
+    # GFS and ECMWF open data both are. Any other first latitude would be misregistered by this row arithmetic.
+    if abs(abs(float(r0["lat1"])) - 90.0) > 1e-6:
+        raise ValueError(f"{UNIT}: {path} first latitude {r0['lat1']}; the isobaric path places global grids only")
     dlat = 180.0 / (ny - 1)
     dlon = 360.0 / nx
     lev = {}
     for r in inv:
         if str(r["level_type"]) == "100":
             lev.setdefault(r["dcp"], set()).add(float(r["level_value"]))
-    need = [PL_DCP[n] for n in ("HGT", "TMP", "RH", "UGRD", "VGRD")]
+    need = [pl_dcp[n] for n in rec["pl_need"]]
     plev = sorted(set.intersection(*[lev[d] for d in need]), reverse=True)      # ground up (high p first)
     plev = [p for p in plev if p >= 100.0]                                     # 1 hPa and below
     j0 = max(0, int(np.floor((lat_min_deg - LAT_MARGIN + 90.0) / dlat)))
-    nrow = ny - j0
+    j1 = ny
+    if rec.get("lat_crop") == "both" and lat_max_deg is not None:
+        j1 = min(ny, int(np.ceil((lat_max_deg + LAT_MARGIN + 90.0) / dlat)) + 1)
+    nrow = j1 - j0
     kw = dict(missing_value=MISSING, tmpdir=tmpdir, expect_shape=(nx, ny))
     pl = cp.zeros((len(PL_ORDER), len(plev), nrow, nx), dtype=cp.float32)
-    keys = tuple(SFC) if sfc_keys is None else tuple(sfc_keys)
-    # One grib2_dump process per variable, all at once (each dump is one host process on one core; run
-    # in series they were most of the 16 s per boundary time). The device placement stays per variable.
-    jobs = {}
+    keys = tuple(sfc_tab) if sfc_keys is None else tuple(sfc_keys)
+    optional = set(rec.get("sfc_optional", ()))
+    if optional:
+        keys = tuple(n for n in keys if n not in optional or any(_selsfc(sfc_tab[n])(r) for r in inv))
+    # grib2_dump processes at once, one core each. Big grids: the records split evenly over the cores (one process
+    # per variable left 6 cores busy and 13-18 s per IFS 0.1 deg time: 14 CCSDS records of 6.5 M points in a row,
+    # 2026-11-04 lane init-ifs). Each record is decoded on its own, so the split does not change a value.
+    sels = []
     for v, name in enumerate(PL_ORDER):
-        have = lev.get(PL_DCP[name], set())
-        sel = {f"{k}": _sel_pl(PL_DCP[name], p) for k, p in enumerate(plev) if p in have}
-        if sel:
-            jobs[v] = sel
-    jobs["sfc"] = {n: _selsfc(SFC[n]) for n in keys}
+        if name not in pl_dcp:
+            continue                     # a slot this source does not publish stays 0
+        have = lev.get(pl_dcp[name], set())
+        sels += [((v, k), _sel_pl(pl_dcp[name], p)) for k, p in enumerate(plev) if p in have]
+    sels += [(("sfc", n), _selsfc(sfc_tab[n])) for n in keys]
+    if nx * ny <= BIG_GRID_POINTS:
+        # small grids (GFS 0.25 deg, 1.04 M points): one process per variable, as before; splitting further was
+        # slower (each grib2_dump re-reads the whole file: 22 s against 7 s for the 502 MB GFS f000)
+        jobs = {}
+        for key, sel in sels:
+            jobs.setdefault(key[0], {})[key] = sel
+    else:
+        ncore = max(1, min(len(sels), _cores.usable()))
+        per = -(-len(sels) // ncore)
+        jobs = {c: dict(sels[c * per:(c + 1) * per]) for c in range(-(-len(sels) // per))}
     stream = getattr(ctx, "stream", None)
 
     def one(item):
+        # keep only the domain rows of each record as soon as it is placed: a whole 0.1 deg record is 26 MB on the
+        # card, and 88 of them held at once OOMed the IFS start beside other work on a shared 32 GB card (2026-11-04)
         key, sel = item
-        if stream is not None:
-            with stream:
-                return key, g2.run(ctx, path, sel, **kw)
-        return key, g2.run(ctx, path, sel, **kw)
+        with (stream if stream is not None else contextlib.nullcontext()):
+            got = g2.run(ctx, path, sel, **kw)
+            if j0 or j1 != ny:
+                got = {k: cp.ascontiguousarray(a[j0:j1]) for k, a in got.items()}
+        return key, got
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
-        results = dict(ex.map(one, jobs.items()))
-    for v, got in results.items():
-        if v == "sfc":
-            continue
-        for k, a in got.items():
-            pl[v, int(k)] = a[j0:]
-    sfc_raw = results.pop("sfc")
-    del results
-    sfc = {n: cp.ascontiguousarray(a[j0:]) for n, a in sfc_raw.items()}
-    del sfc_raw
+    sfc = {}
+    # Each grib2_dump is a Rust process whose rayon pool defaults to every core it can see: 76 dumps x 96 threads
+    # on a rented 96-core container (pids.max 5888, 2026-11-04) failed to start their pools and killed the IFS boundary
+    # build at +33 h. The dumps already run side by side, so each gets its share of the usable cores.
+    rayon_prev = os.environ.get("RAYON_NUM_THREADS")
+    os.environ["RAYON_NUM_THREADS"] = str(max(1, _cores.usable() // max(1, len(jobs))))
+    try:
+        with ThreadPoolExecutor(max_workers=len(jobs)) as ex:
+            for _, got in ex.map(one, jobs.items()):
+                for (v, k), a in got.items():
+                    if v == "sfc":
+                        sfc[k] = cp.ascontiguousarray(a)
+                    else:
+                        pl[v, k] = a
+                del got
+    finally:
+        if rayon_prev is None:
+            os.environ.pop("RAYON_NUM_THREADS", None)
+        else:
+            os.environ["RAYON_NUM_THREADS"] = rayon_prev
     # Missing (bitmap) points: the sanitiser fills from present neighbours; MISSING marks them.
     pl = cp.where(pl == MISSING, cp.float32(np.nan), pl)
+    if rec["pl_derive"]:
+        srec.derive_pl(rec, pl, plev, PL_ORDER)
+    if rec["sfc_derive"]:
+        srec.derive_sfc(rec, sfc, only=None if sfc_keys is None else rec["derive_columns"])
     s2 = cp.stack([sfc["PRES"], sfc["HGT"]])
     dec = gd.decode(pl, np.asarray(plev, np.float64), s2, stream=getattr(ctx, "stream", None))
-    grid = hin.Grid(lat0=-90.0 + j0 * dlat, lon0=0.0, dlat=dlat, dlon=dlon, lon_periodic=True)
+    # lon0 is the file's own first longitude (GFS 0, ECMWF open data 180 = -180); the kernel wraps mod 360.
+    grid = hin.Grid(lat0=-90.0 + j0 * dlat, lon0=float(r0["lon1"]), dlat=dlat, dlon=dlon, lon_periodic=True)
+    nrec = sum(len(x) for x in jobs.values())
+    print(f"{UNIT}: decoded {Path(path).name} ({Path(path).stat().st_size / 1e6:.0f} MB): {nrec} records, "
+          f"{len(jobs)} grib2_dump processes at once (one core each), rows {j0}..{j1 - 1} of {ny}, "
+          f"{len(plev)} levels, {time.perf_counter() - t_dec:.1f} s", flush=True)
     return dec, sfc, grid
 
 
@@ -242,7 +283,7 @@ def ensure_vcoord(ctx):
         ctx.tables.pop(k, None)
 
 
-def model_state(ctx, path, tmpdir, sfc_keys=None):
+def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None):
     """Decode, interpolate and vertically interpolate one isobaric file onto the model grid; the
     result is in ctx.st (PD, PINT, T, Q, CW, U, V grid-relative, FIS, PSFC_OUT, P3D_OUT).
     ctx.st must carry HGT_M (model terrain) and GLAT/GLON/VLAT/VLON."""
@@ -252,7 +293,8 @@ def model_state(ctx, path, tmpdir, sfc_keys=None):
     st = ctx.st
     ensure_vcoord(ctx)
     lat_min = float(cp.degrees(cp.minimum(st["GLAT"].min(), st["VLAT"].min())))
-    dec, sfc, grid = decode_source(ctx, path, tmpdir, lat_min, sfc_keys=sfc_keys)
+    lat_max = float(cp.degrees(cp.maximum(st["GLAT"].max(), st["VLAT"].max())))
+    dec, sfc, grid = decode_source(ctx, path, tmpdir, lat_min, sfc_keys=sfc_keys, rec=rec, lat_max_deg=lat_max)
     gi, soilhgt = columns(ctx, dec, sfc, grid)
     del dec
     st.add("SOILHGT", soilhgt.shape)[...] = soilhgt
@@ -266,6 +308,36 @@ def model_state(ctx, path, tmpdir, sfc_keys=None):
         ctx.tables.pop("gfs_hinterp", None)
     rotate_winds(ctx, st["U"], st["V"])
     return sfc, grid
+
+
+def check_valid(ctx, name, row):
+    """Refuse a cycle before the row's first published cycle (valid_from): the files do not exist, or (IFS 0.1 deg
+    2026-10-20 06Z) exist without the soil layers the start needs."""
+    if ctx.start is None:
+        return
+    t = ctx.start.strftime("%Y-%m-%dT%H")
+    if row.get("valid_from") and t < row["valid_from"]:
+        alt = f"; use init_source {row['before_use']}" if row.get("before_use") else ""
+        raise ValueError(f"{UNIT}: source {name!r} starts at {row['valid_from']}Z, not {t}Z{alt}")
+
+
+def decode_donor(ctx, spec, tmpdir):
+    """One donor field (source_records donors) from another source's file, on that file's own global grid."""
+    from namgpu.init import init_grib2_decode as g2
+    from namgpu.init import init_gfs_hinterp as hin
+    from namgpu.init.sources import _selsfc
+    cyc = int(ctx.start.hour) if ctx.start is not None else 0
+    path = Path(ctx.case_dir) / spec["file"].format(cyc=cyc)
+    if not path.is_file():
+        raise FileNotFoundError(f"{UNIT}: donor file {path} missing (run fetch_case --source)")
+    sel = _selsfc(spec["spec"])
+    inv = [r for r in g2.inventory(path) if sel(r)]
+    if len(inv) != 1 or int(inv[0]["gdt"]) != 0 or abs(abs(float(inv[0]["lat1"])) - 90.0) > 1e-6:
+        raise ValueError(f"{UNIT}: donor {path}: need exactly one global GDT 0 record for {spec['spec']}")
+    nx, ny = int(inv[0]["nx"]), int(inv[0]["ny"])
+    got = g2.run(ctx, path, {"X": sel}, missing_value=MISSING, tmpdir=tmpdir, expect_shape=(nx, ny))
+    return got["X"], hin.Grid(lat0=-90.0, lon0=float(inv[0]["lon1"]), dlat=180.0 / (ny - 1), dlon=360.0 / nx,
+                              lon_periodic=True)
 
 
 def load_static(ctx):
@@ -309,6 +381,8 @@ def stage(ctx, name, row):
 
     st, g = ctx.st, ctx.grid
     im, jm, lm = int(g.im), int(g.jm), int(g.lm)
+    rec = srec.table(row)
+    check_valid(ctx, name, row)
     path = srcmod.source_path(ctx, row)
     if not path.is_file():
         url = row.get("url", "").format(ymd=f"{ctx.start:%Y%m%d}", cyc=ctx.start.hour)
@@ -318,7 +392,18 @@ def stage(ctx, name, row):
     init_grid_geo.run(ctx)                 # the interpolation needs GLAT/GLON/VLAT/VLON first
     static, static_from = load_static(ctx)
     st.add("HGT_M", (jm, im))[...] = static["HGT_SFC"]
-    sfc, grid = model_state(ctx, path, tmpdir)
+    sfc, grid = model_state(ctx, path, tmpdir, rec=rec)
+    donor_grid = {}
+    for k, spec in rec["donors"].items():        # fields the source does not publish (source_records donors)
+        sfc[k], donor_grid[k] = decode_donor(ctx, spec, tmpdir)
+    fallback_used = {}
+    for k, spec in rec.get("donor_fallback", {}).items():   # optional records this file does not carry
+        if k not in sfc:
+            sfc[k], donor_grid[k] = decode_donor(ctx, spec, tmpdir)
+            fallback_used[k] = spec["file"].format(cyc=int(ctx.start.hour) if ctx.start is not None else 0)
+    if fallback_used:
+        print(f"{UNIT}: {name} file carries no {sorted(fallback_used)} source records; taken from "
+              f"{sorted(set(fallback_used.values()))}", flush=True)
 
     # Bind the names the chain reads after this stage (see module docstring).
     for a, b in (("TMP", "T"), ("SPFH", "Q"), ("UGRD", "U"), ("VGRD", "V"), ("PRES", "P3D_OUT")):
@@ -339,10 +424,10 @@ def stage(ctx, name, row):
         soil[k] = a
     from namgpu.init import init_gfs_hinterp as hin
 
-    def h2(a):
+    def h2(a, src_grid=None):
         a = cp.ascontiguousarray(a, dtype=cp.float32)[None]
         out, _ = hin.interp_full(a, cp.ones(a.shape, dtype=cp.uint8), st["GLAT"], st["GLON"],
-                                 grid=grid, stream=getattr(ctx, "stream", None))
+                                 grid=grid if src_grid is None else src_grid, stream=getattr(ctx, "stream", None))
         return out[0]
 
     def nonneg(a):
@@ -353,10 +438,10 @@ def stage(ctx, name, row):
         "SOILW": cp.ascontiguousarray(cp.stack([cp.clip(h2(soil[f"SOILW{k}"]), 0.02, 0.6)
                                                 for k in range(1, 5)])),
         "TMP_SFC": h2(sfc["TSK"]),
-        "ICEC": cp.clip(h2(nonneg(sfc["ICEC"])), 0.0, 1.0),
+        "ICEC": cp.clip(h2(nonneg(sfc["ICEC"]), donor_grid.get("ICEC")), 0.0, 1.0),
         "TSOIL_3M": h2(soil["TSOIL4"]),
-        "SNOD": h2(nonneg(sfc["SNOD"])),
-        "WEASD": h2(nonneg(sfc["WEASD"])),
+        "SNOD": h2(nonneg(sfc["SNOD"]), donor_grid.get("SNOD")),
+        "WEASD": h2(nonneg(sfc["WEASD"]), donor_grid.get("WEASD")),
         "CNWAT": h2(nonneg(soil["CNWAT"])),
         "LAND": static["LAND"], "ALBDO": static["ALBDO"], "VEG": static["VEG"], "SFCR": static["SFCR"],
         "VGTYP": cp.rint(static["VGTYP"]).astype(cp.int32),
@@ -377,7 +462,10 @@ def stage(ctx, name, row):
     ctx.tables["raw_sfc"] = raw
     ctx.tables["soil_hydraulics"] = {k: cp.asarray(v) for k, v in srcmod.soil_hydraulics().items()}
     ctx.tables["grid_source"] = {"source": name, "file": str(path), "static": static_from,
-                                 "levels": int(ctx.st["P3D_OUT"].shape[0])}
+                                 "levels": int(ctx.st["P3D_OUT"].shape[0]),
+                                 "attribution": row.get("attribution"), "licence": row.get("licence"),
+                                 "donors": {k: v["file"] for k, v in rec["donors"].items()},
+                                 "donors_used_for_missing_records": fallback_used}
     print(f"{UNIT}: {name} start from {path.name}: isobaric -> NMMB hybrid on the GPU; static surface "
           f"from {Path(static_from).name}", flush=True)
     return ctx.tables["grid_source"]

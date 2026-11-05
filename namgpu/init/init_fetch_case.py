@@ -24,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from namgpu.init.fetch_case import NAM, _mrms_hour, plan
+from namgpu.init.fetch_case import NAM, _mrms_hour, plan, plan_source
 
 UNIT = "init-fetch-case"
 DEFAULT_HOURS = 48
@@ -46,8 +46,12 @@ def _nam_cycle_exists(cycle: datetime) -> bool:
 
 
 def fetch(cycle: datetime, case_dir: Path, hours: int = DEFAULT_HOURS, workers: int = DEFAULT_WORKERS,
-          gfs_only: bool = False) -> int:
-    """Fetch every input of one case. Returns the number of failed requests (0 = complete)."""
+          gfs_only: bool = False, source: str | None = None) -> int:
+    """Fetch every input of one case. Returns the number of failed requests (0 = complete).
+    source: an init source row with its own fetch entry (sources.SOURCES: ifs, ifs-0p25): its start and boundary
+    leads, its donor fields and MRMS, instead of the NAM/GFS set."""
+    if source:
+        return _fetch_source(cycle, Path(case_dir), hours, workers, source)
     if not gfs_only and not _nam_cycle_exists(cycle):
         # NCEP retired the NAM on 2026-11-03 12Z: later cycles (and gaps in the archive) have no NAM files
         print(f"{UNIT}: no NAM files for cycle {cycle:%Y%m%d%H} on NODD; fetching GFS and MRMS only "
@@ -75,6 +79,34 @@ def fetch(cycle: datetime, case_dir: Path, hours: int = DEFAULT_HOURS, workers: 
     return bad
 
 
+def _fetch_source(cycle: datetime, case_dir: Path, hours: int, workers: int, source: str) -> int:
+    from namgpu.init.sources import SOURCES  # noqa: PLC0415
+    row = SOURCES.get(source)
+    if row is None or "fetch" not in row:
+        have = sorted(k for k, r in SOURCES.items() if "fetch" in r)
+        raise SystemExit(f"{UNIT}: --source {source!r} has no fetch entry (sources with one: {', '.join(have)}; "
+                         "native and gfs are the default set)")
+    if row.get("valid_from") and cycle.strftime("%Y-%m-%dT%H") < row["valid_from"]:
+        alt = f"; use --source {row['before_use']}" if row.get("before_use") else ""
+        raise SystemExit(f"{UNIT}: source {source!r} is published from {row['valid_from']}Z, "
+                         f"not {cycle:%Y-%m-%d %H}Z{alt}")
+    raw = Path(case_dir) / "raw"
+    (raw / "mrms").mkdir(parents=True, exist_ok=True)
+    jobs = plan_source(source, cycle, hours, raw)
+    bad = 0
+    with ThreadPoolExecutor(workers) as ex:
+        futs = [ex.submit(fn, *args) for fn, *args in jobs]
+        futs += [ex.submit(_mrms_hour, cycle + timedelta(hours=h), raw / "mrms") for h in range(0, hours + 1)]
+        for fu in as_completed(futs):
+            try:
+                print(fu.result(), flush=True)
+            except Exception as e:  # noqa: BLE001
+                bad += 1
+                print(f"FAILED {type(e).__name__}: {e}", flush=True)
+    print(f"{UNIT}: {source} done, {bad} failed ({row.get('attribution', '')})", flush=True)
+    return bad
+
+
 def run(ctx, hours: int = DEFAULT_HOURS, workers: int = DEFAULT_WORKERS) -> int:
     """Driver entry point: ctx.start is the cycle, ctx.case_dir the case folder."""
     if ctx.start is None or ctx.case_dir is None:
@@ -92,6 +124,7 @@ def main(argv=None) -> int:
         epilog="examples:\n"
                "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z\n"
                "  woof-nam fetch --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only\n"
+               "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --source ifs-0p25\n"
                "Name the case folder YYYY-MM-DD_HHz: woof-nam run reads the start time from it.",
         formatter_class=HelpFormatter)
     ap.add_argument("--cycle", required=True, help="start cycle, YYYYMMDDHH (00, 06, 12 or 18 UTC)")
@@ -103,8 +136,11 @@ def main(argv=None) -> int:
     ap.add_argument("--gfs-only", action="store_true",
                     help="GFS boundaries/start and MRMS only, no NAM files (for --source gfs; any cycle, "
                          "including after the NAM's 2026-11-03 retirement)")
+    ap.add_argument("--source", default=None,
+                    help="fetch another init source's start and boundaries instead: ifs (ECMWF open data IFS 0.1 deg, "
+                         "cycles from 2026-10-20 12Z) or ifs-0p25 (0.25 deg, from 2024-03-18 12Z); CC BY 4.0")
     a = ap.parse_args(argv)
-    bad = fetch(datetime.strptime(a.cycle, "%Y%m%d%H"), Path(a.case_dir), a.hours, a.workers, a.gfs_only)
+    bad = fetch(datetime.strptime(a.cycle, "%Y%m%d%H"), Path(a.case_dir), a.hours, a.workers, a.gfs_only, a.source)
     return 1 if bad else 0
 
 

@@ -11,6 +11,16 @@ What it gets:
   every 3 h covering the forecast, subset to the fields the boundary init needs.
 - MRMS MergedReflectivityQCComposite_00.50 (truth): the file nearest each hour.
 All requests run in a thread pool (I/O bound); nothing here is a single-core stage.
+
+Any other init source with a "fetch" entry in sources.SOURCES (ECMWF open data IFS 0.1 / 0.25 deg):
+
+    python -m namgpu.init.fetch_case --cycle 2026110312 --hours 48 --source ifs
+
+fetches that row's start and boundary leads (every 3 h, the row's own cycle) into cases/<case>/raw/, by the row's
+record selection on the ECMWF jsonl .index beside each object (byte ranges, adjacent records merged), its hosts in
+order (a host that refuses the index or an object is skipped), plus the row's donor fields (GFS f000 ICEC by .idx).
+One output file per lead: the selected records of the lead's objects concatenated, and the row's f000_only
+records (the surface geopotential z, published at step 0 only) appended to every later lead. Prints the bytes.
 """
 from __future__ import annotations
 
@@ -176,12 +186,133 @@ def _gfs_jobs(cycle: datetime, hours: int, raw: Path):
     return jobs
 
 
+def _jsonl_index(url: str) -> list[dict]:
+    import json
+    return [json.loads(l) for l in _get(url).decode().splitlines() if l.strip()]
+
+
+def _jsonl_pick(rows: list[dict], select: list[dict]) -> list[dict]:
+    out = []
+    for r in rows:
+        for sel in select:
+            if r.get("levtype") == sel["levtype"] and r.get("param") in sel["param"]:
+                out.append(r)
+                break
+    return out
+
+
+def _ranges(rows: list[dict]) -> list[tuple[int, int]]:
+    """Byte ranges [start, end] of the rows, adjacent records merged into one request."""
+    spans = sorted((int(r["_offset"]), int(r["_offset"]) + int(r["_length"]) - 1) for r in rows)
+    out = []
+    for a, b in spans:
+        if out and a == out[-1][1] + 1:
+            out[-1] = (out[-1][0], b)
+        else:
+            out.append((a, b))
+    return out
+
+
+def _era(fetch: dict, cycle: datetime) -> dict:
+    t = cycle.strftime("%Y-%m-%dT%H")
+    for e in fetch["eras"]:
+        if t >= e["from"] and (e["until"] is None or t < e["until"]) and cycle.hour in e["cycles"]:
+            return e
+    raise ValueError(f"fetch_case: no publication era of {fetch['route']} holds the {t}Z cycle")
+
+
+def _object_path(tmpl: str, cycle: datetime, lead: int) -> str:
+    return tmpl.format(ymd=cycle.strftime("%Y%m%d"), hh=cycle.strftime("%H"), lead=lead)
+
+
+def _jsonl_lead(fetch: dict, cycle: datetime, lead: int, dest: Path) -> str:
+    """One lead: every object of the era, its selected records (and the f000_only records of f000 for a later
+    lead), concatenated into dest. Hosts are tried in order per lead."""
+    if dest.exists() and dest.stat().st_size > 0:
+        return f"have {dest.name} {dest.stat().st_size / 1e6:.0f} MB"
+    era = _era(fetch, cycle)
+    errors = []
+    for host in fetch["hosts"]:
+        try:
+            parts = []
+            for tmpl in era["files"]:
+                obj = f"{host}/{_object_path(tmpl, cycle, lead)}"
+                rows = _jsonl_index(obj.rsplit(".grib2", 1)[0] + ".index")
+                want = _jsonl_pick(rows, fetch["select"])
+                if lead and fetch.get("f000_only"):
+                    o0 = f"{host}/{_object_path(tmpl, cycle, 0)}"
+                    r0 = _jsonl_pick(_jsonl_index(o0.rsplit(".grib2", 1)[0] + ".index"), fetch["f000_only"])
+                    parts += [(o0, rg) for rg in _ranges(r0)]
+                parts += [(obj, rg) for rg in _ranges(want)]
+            if not parts:
+                raise ValueError("no records selected")
+            tmp = dest.with_suffix(".part")
+            with open(tmp, "wb") as f:
+                for url, (a, b) in parts:
+                    f.write(_get(url, f"{a}-{b}", timeout=300))
+            tmp.rename(dest)
+            return f"got {dest.name} {len(parts)} ranges {dest.stat().st_size / 1e6:.0f} MB from {host.split('/')[2]}"
+        except (OSError, urllib.error.URLError, ValueError) as e:
+            errors.append(f"{host.split('/')[2]}: {type(e).__name__} {e}")
+    raise OSError(f"{dest.name}: every host failed: {errors}")
+
+
+def plan_source(name: str, cycle: datetime, hours: int, raw: Path):
+    """Jobs for an init source row with a "fetch" entry: its start and boundary leads plus its donor fields."""
+    from namgpu.init.sources import SOURCES
+    row = SOURCES[name]
+    fetch = row["fetch"]
+    if fetch["kind"] != "ecmwf-jsonl":
+        raise ValueError(f"fetch_case: source {name!r} fetch kind {fetch['kind']!r} has no fetcher")
+    last = max(s for s, _ in fetch["steps"])
+    if hours > last:
+        raise ValueError(f"fetch_case: source {name!r} publishes 3-hourly leads to {last} h, not {hours} h")
+    b = row["boundary"]
+    jobs = []
+    for lead in range(0, hours + 1, int(b["interval_h"])):
+        dest = raw.parent / b["file"].format(bcyc=cycle.hour, lead=lead)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        jobs.append((_jsonl_lead, fetch, cycle, lead, dest))
+    for d in fetch.get("donors", []):
+        dest = raw.parent / d["file"].format(hh=cycle.strftime("%H"))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        url = d["url"].format(ymd=cycle.strftime("%Y%m%d"), hh=cycle.strftime("%H"))
+        jobs.append((_subset, url, dest, re.compile(re.escape(d["idx_match"]))))
+    return jobs
+
+
+def main_source(a) -> int:
+    cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
+    raw = ROOT / "cases" / cycle.strftime("%Y-%m-%d_%Hz") / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    jobs = plan_source(a.source, cycle, a.hours, raw)
+    t0 = time.perf_counter()
+    bad = 0
+    with ThreadPoolExecutor(a.workers) as ex:
+        futs = {ex.submit(fn, *args): next(x for x in args if isinstance(x, Path)) for fn, *args in jobs}
+        for fu in as_completed(futs):
+            try:
+                print(fu.result(), flush=True)
+            except Exception as e:  # noqa: BLE001
+                bad += 1
+                print(f"FAILED {type(e).__name__}: {e}", flush=True)
+    total = sum(p.stat().st_size for p in futs.values() if p.exists())
+    wall = time.perf_counter() - t0
+    print(f"fetch {a.source} {a.cycle} +{a.hours} h: {len(jobs)} files, {total / 1e6:.0f} MB in {wall:.0f} s "
+          f"({total / 1e6 / max(wall, 1e-3):.0f} MB/s, {a.workers} threads), {bad} failed")
+    return 1 if bad else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--cycle", required=True, help="YYYYMMDDHH")
     ap.add_argument("--hours", type=int, default=48)
     ap.add_argument("--workers", type=int, default=16)
+    ap.add_argument("--source", default=None,
+                    help="an init source row with a fetch entry (ifs, ifs-0p25); default: the NAM case set")
     a = ap.parse_args(argv)
+    if a.source:
+        return main_source(a)
     cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
     from namgpu import paths
     case = paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")

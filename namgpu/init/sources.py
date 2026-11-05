@@ -6,6 +6,8 @@ NAM retirement"):
           retirement. Same grid and levels as the model: no interpolation.
   gfs     GFS 0.25 deg analysis (pgrb2.0p25 f000) for any date, interpolated onto the rotated B grid
           and the NMMB hybrid levels by the init-gfs-* units (nemsinterp port), gfs_start.py.
+  ifs     ECMWF open data IFS HRES 0.1 deg (from 2026-10-20 12Z), the same isobaric path; ifs-0p25 for
+          earlier cycles (from 2024-03-18 12Z). Record tables and conversions: source_records.py.
   hrrr, rrfs  table rows for the same isobaric path. They are refused by name today: their files are
           on Lambert-conformal grids (GRIB2 GDT 30) and init-grib2-decode places only GDT 0 and 32769
           (a Lambert grid read as lat-lon puts every point in the wrong cell). Not done.
@@ -37,9 +39,79 @@ SOURCES = {
     "native": {"kind": "nam_native", "file": "raw/nam/bgrd3d00.grib2", "gdt": 32769,
                "valid_before": "2026-11-03T12"},
     "gfs":    {"kind": "isobaric", "file": "raw/gfs/gfs.t{cyc:02d}z.pgrb2.0p25.f000", "gdt": 0,
-               "grid": "gfs_0p25",
+               "grid": "gfs_0p25", "records": "gfs_0p25",
                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{cyc:02d}/atmos/"
-                      "gfs.t{cyc:02d}z.pgrb2.0p25.f000"},
+                      "gfs.t{cyc:02d}z.pgrb2.0p25.f000",
+               # boundaries: the 6-h-old cycle every 3 h, as operational NAM (CONTRACT section 5)
+               "boundary": {"age_h": 6, "interval_h": 3, "file": "raw/gfs/gfs.t{bcyc:02d}z.f{lead:03d}.grib2"},
+               "attribution": "NOAA/NCEP GFS (public domain)", "licence": "public-domain"},
+    # ECMWF open data IFS HRES (CC BY 4.0). Rows copied from gpuwm authorities/rw-wps-fetch-routes.v1.json
+    # (routes ecmwf-open-data-0p1 measured 2026-10-24/29, ecmwf-open-data measured 2026-09-28/30): hosts, file
+    # templates, cycles, publication lag and the ECMWF jsonl .index record selection. One file per lead here: the
+    # selected records of the pl and sfc objects concatenated (fetch_case.plan_source), with the f000 surface
+    # geopotential z appended to every later lead (published at step 0 only). No sea-ice concentration in
+    # ECMWF open data: ICEC comes from the same cycle's GFS f000 (source_records.IFS donors). Boundaries are the
+    # same cycle's leads every 3 h (age 0: the start and the boundaries are one forecast).
+    "ifs":    {"kind": "isobaric", "file": "raw/ifs/ifs.t{cyc:02d}z.0p1.f000.grib2", "gdt": 0, "grid": "ifs_0p1",
+               "records": "ifs", "valid_from": "2026-10-20T12", "before_use": "ifs-0p25",
+               "boundary": {"age_h": 0, "interval_h": 3, "file": "raw/ifs/ifs.t{bcyc:02d}z.0p1.f{lead:03d}.grib2"},
+               "attribution": "ECMWF open data, CC BY 4.0", "licence": "CC-BY-4.0",
+               "fetch": {
+                   "kind": "ecmwf-jsonl", "route": "gpuwm rw-wps-fetch-routes.v1.json ecmwf-open-data-0p1",
+                   "hosts": ["https://storage.googleapis.com/ecmwf-open-data",        # 90 MB/s, 72 h rolling
+                             "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",  # every cycle
+                             "https://data.ecmwf.int/forecasts"],                       # publisher, 72 h
+                   "eras": [{"from": "2026-10-20T12", "until": None, "cycles": [0, 6, 12, 18],
+                             "files": ["{ymd}/{hh}z/ifs/0p1/oper/{ymd}{hh}0000-{lead}h-oper-fc-pl.grib2",
+                                       "{ymd}/{hh}z/ifs/0p1/oper/{ymd}{hh}0000-{lead}h-oper-fc-sfc.grib2"]}],
+                   "steps": [[144, 3]],
+                   "publication_lag_h": {"0": 9.6, "12": 9.6, "6": 8.5, "18": 8.5},
+                   "select": [{"levtype": "pl", "param": ["gh", "q", "t", "u", "v"]},
+                              {"levtype": "sfc", "param": ["10u", "10v", "2d", "2t", "lsm", "skt", "sp", "z",
+                                                           "sd", "rsn", "msl"]},
+                              {"levtype": "sol", "param": ["sot", "vsw"]}],
+                   "f000_only": [{"levtype": "sfc", "param": ["z"]}],
+                   "donors": [{"file": "raw/ifs/gfs.t{hh}z.icec.f000.grib2",
+                               "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                      "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":ICEC:surface:"},
+                               {"file": "raw/ifs/gfs.t{hh}z.weasd.f000.grib2",
+                                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                       "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":WEASD:surface:"},
+                               {"file": "raw/ifs/gfs.t{hh}z.snod.f000.grib2",
+                                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                       "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":SNOD:surface:"}]}},
+    "ifs-0p25": {"kind": "isobaric", "file": "raw/ifs/ifs.t{cyc:02d}z.0p25.f000.grib2", "gdt": 0, "grid": "ifs_0p25",
+                 "records": "ifs", "valid_from": "2024-03-18T12",
+                 "boundary": {"age_h": 0, "interval_h": 3,
+                              "file": "raw/ifs/ifs.t{bcyc:02d}z.0p25.f{lead:03d}.grib2"},
+                 "attribution": "ECMWF open data, CC BY 4.0", "licence": "CC-BY-4.0",
+                 "fetch": {
+                     "kind": "ecmwf-jsonl", "route": "gpuwm rw-wps-fetch-routes.v1.json ecmwf-open-data",
+                     "hosts": ["https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
+                               "https://data.ecmwf.int/forecasts"],
+                     # the 4-soil-layer eras (from 2024-03-18 12Z); 06/18Z were 'scda' until 2026-05-12 06Z
+                     "eras": [{"from": "2024-03-18T12", "until": None, "cycles": [0, 12],
+                               "files": ["{ymd}/{hh}z/ifs/0p25/oper/{ymd}{hh}0000-{lead}h-oper-fc.grib2"]},
+                              {"from": "2024-03-18T12", "until": "2026-05-12T06", "cycles": [6, 18],
+                               "files": ["{ymd}/{hh}z/ifs/0p25/scda/{ymd}{hh}0000-{lead}h-scda-fc.grib2"]},
+                              {"from": "2026-05-12T06", "until": None, "cycles": [6, 18],
+                               "files": ["{ymd}/{hh}z/ifs/0p25/oper/{ymd}{hh}0000-{lead}h-oper-fc.grib2"]}],
+                     "steps": [[90, 3]],
+                     "publication_lag_h": {"0": 7.5, "12": 7.5, "6": 6.4, "18": 6.4},
+                     "select": [{"levtype": "pl", "param": ["gh", "q", "t", "u", "v"]},
+                                {"levtype": "sfc", "param": ["10u", "10v", "2d", "2t", "lsm", "skt", "sp", "z",
+                                                             "sd", "rsn", "msl"]},
+                                {"levtype": "sol", "param": ["sot", "vsw"]}],
+                     "f000_only": [{"levtype": "sfc", "param": ["z"]}],
+                     "donors": [{"file": "raw/ifs/gfs.t{hh}z.icec.f000.grib2",
+                                 "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                        "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":ICEC:surface:"},
+                               {"file": "raw/ifs/gfs.t{hh}z.weasd.f000.grib2",
+                                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                       "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":WEASD:surface:"},
+                               {"file": "raw/ifs/gfs.t{hh}z.snod.f000.grib2",
+                                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
+                                       "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":SNOD:surface:"}]}},
     "hrrr":   {"kind": "isobaric", "file": "raw/hrrr/hrrr.t{cyc:02d}z.wrfprsf00.grib2", "gdt": 30,
                "grid": "hrrr_lambert"},
     "rrfs":   {"kind": "isobaric", "file": "raw/rrfs/rrfs.t{cyc:02d}z.prslev.f000.conus.grib2",

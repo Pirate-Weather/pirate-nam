@@ -76,7 +76,9 @@ def main(argv=None):
                     help="the case folder woof-nam fetch wrote (cases/2025-03-14_12z), or its bare name, looked up "
                          "under <work root>/cases/; the name gives the start time (YYYY-MM-DD_HHz)")
     ap.add_argument("--source", default="native",
-                    help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z) or GFS (gfs)")
+                    help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z), GFS (gfs) or "
+                         "ECMWF open data IFS (ifs from 2026-10-20 12Z, ifs-0p25 from 2024-03-18 12Z; start and "
+                         "boundaries from the same IFS cycle, CC BY 4.0)")
     ap.add_argument("--hours", type=float, default=1.0, help="forecast length in hours (default 1)")
     ap.add_argument("--out", type=Path, required=True, help="output folder (relative paths are under the work root)")
     ap.add_argument("--skip-init", default="init-fetch-case",
@@ -176,6 +178,8 @@ def main(argv=None):
             rec["init"] = init_case_driver.run(ctx, only=chain)
     ctx.stream.synchronize()
     rec["init_s"] = round(time.perf_counter() - t0, 2)
+    # the start source row as staged (file, static, levels, attribution and licence: ECMWF open data is CC BY 4.0)
+    rec["init_source"] = ctx.tables.get("grid_source")
     print(f"init done {rec['init_s']} s, state {st.nbytes() / 2**30:.2f} GiB", flush=True)
     # Init temporaries (GWD terrain, table builds) stay cached in the CuPy pool and showed up as 40-55 GB on
     # card 3 for a forecast whose step loop needs ~17 GB. Return them.

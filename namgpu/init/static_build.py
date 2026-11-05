@@ -36,6 +36,8 @@ analysis-time state). Every stage is on the GPU except tile reads, which run on 
 """
 from __future__ import annotations
 
+from namgpu import cores as _cores
+
 import argparse
 import os
 import time
@@ -154,7 +156,7 @@ class Source:
                     out[n] = a[b:b + ty, b:b + tx]
             return out
 
-        with ThreadPoolExecutor(max_workers=os.cpu_count() or 8) as ex:
+        with ThreadPoolExecutor(max_workers=_cores.usable()) as ex:
             got = list(ex.map(read, keys))
         packed = np.stack(got) if got else np.zeros((0, len(self.planes), ty, tx), self.dtype.newbyteorder("="))
         self.tiles = cp.asarray(packed)
