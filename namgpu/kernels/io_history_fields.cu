@@ -154,8 +154,8 @@ extern "C" __global__ void hist_surface(
 // CPRATE * 3.6e6 / (DT*NPHS), from the convective cloud top (CNVTOP, a bottom-up layer number, 1 = lowest) down
 // to the ground: full strength at and below the freezing level (the highest level with T >= 273.15 K, else the
 // lowest level), falling off above it as 10**(-2 dz / max(1000 m, zct - zfrz)), i.e. 20 dBZ weaker at the cloud
-// top. REFC is the column maximum of that sum, REFD its value at a level. Written from that description (our own
-// offline check, tools in the study folder), not from the post's source.
+// top. REFC is the column maximum of that sum, REFD its value at a level. Written from that description and the
+// published Z-R constants, not from the post source.
 // Levels with no convective term keep REFL_10CM exactly (no dBZ -> Z -> dBZ round trip), so a column without
 // convective rain is byte-identical to the plain microphysics field.
 // One thread per column. write3 != 0: OUT3 [LM,JM,IM] gets every level; COMP [JM,IM] always gets the maximum.
