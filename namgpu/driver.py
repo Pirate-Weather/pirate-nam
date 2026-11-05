@@ -544,6 +544,7 @@ class Driver:
         # A resumed run (woof-nam run --resume) starts at the restart set's step count and runs to the same end.
         n0 = int(ctx.ntimestep)
         rw = getattr(ctx, "restart_writer", None)
+        mons = list(getattr(ctx, "move_monitors", None) or ())   # namgpu/nest/move.py Monitor (moving nests only)
         for _ in range(max(0, nsteps - n0)):
             self.step()
             # Fortran: the clock is advanced inside the step, then history is written on the
@@ -553,15 +554,28 @@ class Driver:
             if rw is not None and not ctx.filter_active and rw.due(ctx.ntimestep):
                 timing.stamp(ctx, "restart/stage")
                 rw.write(ctx)                        # stream-ordered copy to pinned memory; files on a thread
+            for mon in mons:                         # moving-nest shock numbers (device scalars, no sync)
+                mon.after_step(ctx)
             if ctx.ntimestep % steps_per_hour == 0:
                 # once per forecast hour: the only host sync, for the progress line
                 if ctx.stream is not None:
                     ctx.stream.synchronize()
                 timing.drain(ctx)                    # timing stamps, read at the sync we already pay
+                for mon in mons:
+                    mon.drain()
                 devmem.release(ctx.stream)           # unused pool blocks back to the driver once an hour
                 wall = time.perf_counter() - t0
                 log(f"fh {ctx.ntimestep * ctx.cfg.dt / 3600.0:6.2f}  step {ctx.ntimestep}"
                     f"  wall {wall:8.1f} s  {wall / max(1, ctx.ntimestep - n0) * 1e3:7.1f} ms/step")
+                # moving nest (woof-nam nest --follow): at a landable time, the controller's decision; stop = this
+                # segment writes its restart set here and ends (namgpu/nest/segment.py). Static runs: no attribute.
+                fc = getattr(ctx, "follow_control", None)
+                if fc is not None and not ctx.filter_active and fc.is_landing(ctx.ntimestep):
+                    if fc.decide(ctx.ntimestep, log):
+                        if rw is not None and not rw.due(ctx.ntimestep):
+                            timing.stamp(ctx, "restart/stage")
+                            rw.write(ctx)
+                        break
         if ctx.stream is not None:
             ctx.stream.synchronize()
         from .io import io_history

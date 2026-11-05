@@ -63,6 +63,21 @@ def _host(a):
     return a.get() if hasattr(a, "get") else np.asarray(a)
 
 
+_FOLLOW: dict = {}
+
+
+def _follow(ctx):
+    """FOLLOW_* attributes of a storm-following window (configfile key follow_meta, namgpu/nest/window.py), else
+    None (a static run's file is unchanged). Read once per process (one generation per segment process)."""
+    p = getattr(ctx.cfg, "raw", {}).get("follow_meta")
+    if not p:
+        return None
+    if p not in _FOLLOW:
+        from namgpu.nest import window  # noqa: PLC0415
+        _FOLLOW[p] = window.history_attrs(ctx.cfg)
+    return _FOLLOW[p]
+
+
 def prepare_history(ctx, fields: dict, start: datetime) -> dict:
     """Device->host copy of every field plus the attributes.  Returns a host-only payload."""
     g, cfg = ctx.grid, ctx.cfg
@@ -91,6 +106,7 @@ def prepare_history(ctx, fields: dict, start: datetime) -> dict:
         "dy": float(g.dyh),
         "fields": arrays,
         **({"handoff": ho} if (ho := _handoff(ctx)) is not None else {}),
+        **({"follow": fo} if (fo := _follow(ctx)) is not None else {}),
     }
 
 
@@ -154,6 +170,7 @@ def stage_history(ctx, fields: dict, start: datetime) -> dict:
         "pole_lat": float(cfg.tph0d), "pole_lon": float(cfg.tlm0d),
         "dx": float(np.asarray(g.dxh)[jm // 2]), "dy": float(g.dyh),
         **({"handoff": ho} if (ho := _handoff(ctx)) is not None else {}),
+        **({"follow": fo} if (fo := _follow(ctx)) is not None else {}),
     }
 
 
@@ -221,6 +238,8 @@ def write_payload(path: Path, payload: dict) -> Path:
         nc.TITLE = history_title(_res_from_dy(payload["dy"]), bool(payload.get("handoff")))
         for k, v in (payload.get("handoff") or {}).items():
             setattr(nc, k, v)                      # parent grid keys (io_history_fields.handoff_attrs)
+        for k, v in (payload.get("follow") or {}).items():
+            setattr(nc, k, v)                      # storm-following window (window.history_attrs)
     return path
 
 

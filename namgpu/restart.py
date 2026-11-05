@@ -125,10 +125,12 @@ def transient(ctx) -> dict:
 class Writer:
     """Writes a restart set every `every_hours` of forecast (after that step's history)."""
 
-    def __init__(self, root, every_hours: float, dt: float, meta: dict, keep: int = 1):
+    def __init__(self, root, every_hours: float, dt: float, meta: dict, keep: int = 1, at_hours=()):
         self.root = Path(root)
         self.every_hours = float(every_hours)
         self.every = steps_for(every_hours, dt)
+        # also at these forecast hours (a moving nest's landing hours, run_forecast --restart-at)
+        self.at = {steps_for(h, dt) for h in at_hours if float(h) > 0}
         self.meta = dict(meta)
         self.keep = max(1, int(keep))
         self._exec = ThreadPoolExecutor(max_workers=1, thread_name_prefix="restart")
@@ -138,7 +140,7 @@ class Writer:
         self._boco_done = False
 
     def due(self, ntimestep: int) -> bool:
-        return self.every > 0 and ntimestep > 0 and ntimestep % self.every == 0
+        return (self.every > 0 and ntimestep > 0 and ntimestep % self.every == 0) or ntimestep in self.at
 
     def drain(self) -> None:
         """Wait for the set in flight (if any) and re-raise its error."""
@@ -236,7 +238,8 @@ class Writer:
 
     def receipt(self) -> dict:
         latest = self.root / LATEST
-        return {"every_hours": self.every_hours, "every_steps": self.every, "root": str(self.root),
+        return {"every_hours": self.every_hours, "every_steps": self.every, "at_steps": sorted(self.at),
+                "root": str(self.root),
                 "keep": self.keep, "sets": self.log,
                 "latest": str(self.root / latest.read_text().strip()) if latest.exists() else None}
 

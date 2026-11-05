@@ -238,8 +238,10 @@ def _run(ctx, *, restart, noah_tbl_dir):
     # recorded here (single precision, Fortran operation order); phys-fer-init reads DT_MICRO itself.
     f32 = np.float32
     dt_micro = f32(cfg.nprecip) * f32(cfg.dt)
-    delx = (f32(-2.0) * f32(cfg.wbd)) * f32(111.3) / f32(im)   # DX at rotated equator (km)
-    dely = (f32(-2.0) * f32(cfg.sbd)) * f32(111.3) / f32(slab.rows(ctx)[1])   # DY (km), GLOBAL JM
+    # NAM's formula from the domain's west/south edge; a moving-nest window uses its reference grid's edge (the
+    # same grid spacing at every move, so FERRIER_INIT gets the same DELX/DELY; = wbd/sbd without window keys)
+    delx = (f32(-2.0) * f32(cfg.ref_wbd)) * f32(111.3) / f32(im)   # DX at rotated equator (km)
+    dely = (f32(-2.0) * f32(cfg.ref_sbd)) * f32(111.3) / f32(slab.rows(ctx)[1])   # DY (km), GLOBAL JM
     ctx.tables["fer_hires_caller"] = {"dt_micro": float(dt_micro), "delx": float(delx), "dely": float(dely)}
     phys_fer_init.run(ctx, restart=restart)
 

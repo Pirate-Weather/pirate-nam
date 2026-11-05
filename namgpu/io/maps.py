@@ -74,6 +74,8 @@ QPF1H_COLORS = [[139, 205, 132], [66, 170, 72], [21, 120, 36], [255, 250, 140], 
                 [255, 130, 0], [230, 30, 0], [150, 0, 30], [200, 0, 200]]
 # 6 h precipitation (in): the same nine colours on evenly spaced edges, 0.05 to 2.0 in.
 QPF6H_LEVELS = [0.05, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25]
+# column max |W| (m/s), the same nine colours: 0.1 m/s (gravity-wave noise) to 4 m/s (3 km convection)
+WMAX_LEVELS = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0]
 
 # The wind ladder past 60 kt. The renderer's own 10 m wind ladder (recipe 10m_wind_speed_and_direction: 0-60 kt in
 # 2.5 kt steps on its 13-anchor winds palette) ends at 60 kt, so a hurricane core was one flat top colour (Helene 3 km
@@ -161,12 +163,18 @@ TABLE = {
                          "recipe": "total_qpf", "default_units": "kg m-2", "display_units": "in",
                          "unit_factors": {"kg m-2": 0.0393700787},
                          "scale": {"levels": QPF6H_LEVELS, "colors": QPF1H_COLORS, "mask_below": QPF6H_LEVELS[0]}}),
+    # column maximum |W| (m/s): a moving nest's first steps after a move are checked for spurious waves on it
+    # (namgpu/nest/move.py); not in DEFAULT_PRODUCTS
+    "w_max": ("wmax", {"names": ["wmax"], "standard_names": [], "product": "w_max", "title": "Column max |W|",
+                       "recipe": "total_qpf", "default_units": "m s-1", "display_units": "m s-1",
+                       "unit_factors": {"m s-1": 1.0},
+                       "scale": {"levels": WMAX_LEVELS, "colors": QPF1H_COLORS, "mask_below": WMAX_LEVELS[0]}}),
 }
 
 # history variables each product reads (the read takes only these, not every 3-D field of the file)
 NEEDS = {"composite_reflectivity": ("COMPOSITE",), "t2m": ("T2",), "d2m": ("Q2", "PSFC"),
          "wind10": ("U10", "V10"), "wind850": ("U", "V", "PRES"), "mslp": ("MSLP",),
-         "qpf_1h": ("RAINNC", "RAINC"), "qpf_6h": ("RAINNC", "RAINC")}
+         "qpf_1h": ("RAINNC", "RAINC"), "qpf_6h": ("RAINNC", "RAINC"), "w_max": ("W",)}
 WINDOW_H = {"qpf_1h": 1, "qpf_6h": 6}   # accumulation products: hours back to the frame they difference
 
 
@@ -189,7 +197,9 @@ def _parse(argv):
     ap.add_argument("--label", default=None,
                     help="panel source label (default: 'WOOF-NAM <res> km', res from the history's DY)")
     ap.add_argument("--bounds", default="auto",
-                    help="map frame W,E,S,N (E may pass 180 for a dateline frame); auto: from XLAT/XLONG")
+                    help="map frame W,E,S,N (E may pass 180 for a dateline frame); auto: from XLAT/XLONG (each "
+                         "frame its own when a storm-following window moves); union: one frame holding every "
+                         "file's window (the window is seen moving across it)")
     return ap.parse_args(argv)
 
 
@@ -455,6 +465,12 @@ def fields_for(prevs, cur, products):
                 skipped.append((prod, f"{cur[3].name}: no MSLP in the history (io-quasipost-driver did not run for it)"))
                 continue
             out[var] = (f["MSLP"] / 100.0, "hPa")
+        elif prod == "w_max":
+            if "W" not in f:
+                skipped.append((prod, f"{cur[3].name}: no W in the history"))
+                continue
+            w = np.max(np.abs(f["W"]), axis=0) if f["W"].ndim == 3 else np.abs(f["W"])
+            out[var] = (np.where(w >= WMAX_LEVELS[0], w, 0.0), "m s-1")
         elif prod in WINDOW_H:
             n = WINDOW_H[prod]
             prev = prevs.get(n)
@@ -500,26 +516,44 @@ def _write_cf(path, lat, lon, valid, fields, label):
             v[0] = arr.astype(np.float32)
 
 
+def _follow_of(path):
+    """FOLLOW_* attributes of a history file (namgpu.nest.window.read_follow), None for a static run."""
+    import netCDF4  # noqa: PLC0415
+    from namgpu.nest import window  # noqa: PLC0415
+    with netCDF4.Dataset(path) as nc:
+        return window.read_follow(nc)
+
+
 def _prep_frame(job):
     """One drawn frame: read the variables its products need (and the earlier frames' rain for the
     accumulation products), derive the CF fields and write the frame's CF file and its CF table (the table
     carries the panel titles, which name init, valid and lead). Runs in a worker process.
-    job = (path, {hours back: earlier frame path}, need, products, work dir, label).
+    job = (path, {hours back: earlier frame path}, need, products, work dir, label[, gens]); gens, optional, is a
+    storm-following run's windows (window.gens_from_frames).
     Returns (cf path or None, valid, start, CF variables written, skipped, table path, frame bounds).
 
     The 0.1.0 call still works: the earlier frame as one path (the frame one hour back) or None in place of the
     dict. That call gets the 0.1.0 return, (cf path or None, valid, start, CF variables written, skipped), and the
     0.1.0 CF source line naming init and lead, and no table is written (the caller writes its own). Origin: the
     hosted service worker makes that call; 0.1.1.dev6 took only the dict, so maps there failed."""
-    path, prev_paths, need, products, work, label = job
+    path, prev_paths, need, products, work, label = job[:6]
+    gens = job[6] if len(job) > 6 else None        # a storm-following run's windows (window.gens_from_frames)
     old_call = not isinstance(prev_paths, dict)
     if old_call:
         prev_paths = {1: prev_paths} if prev_paths is not None else {}
     path = Path(path)
     valid, start, f = _read(path, set(need))
     prevs = {}
+    fol = _follow_of(path) if prev_paths else None
     for n, pp in (prev_paths or {}).items():
         pv, ps, pf = _read(Path(pp), {"RAINNC", "RAINC"})
+        pfol = _follow_of(pp)
+        if fol is not None or pfol is not None:
+            # a storm-following window: the earlier frame's accumulators onto this frame's window; the strip a move
+            # added inside the window is NaN (blank on the map), not a difference of two places
+            from namgpu.nest import window  # noqa: PLC0415
+            tp, tc = ((pv - ps).total_seconds() / 3600.0, (valid - start).total_seconds() / 3600.0)
+            pf = {k: window.accum_prev_on(fol, pfol, pf[k], tp, tc, gens) for k in ("RAINNC", "RAINC")}
         prevs[int(n)] = (pv, ps, pf, Path(pp))
     flds, sk = fields_for(prevs, (valid, start, f, path), products)
     lat, lon = f.get("XLAT"), f.get("XLONG")
@@ -574,11 +608,19 @@ def render(argv=None) -> dict:
     valids = [times[k][0] for k in order]
     by_valid = dict(zip(valids, files))
     windows = sorted({WINDOW_H[p] for p in products if p in WINDOW_H})
+    gens = None
+    if windows:
+        # a storm-following run: its windows in time order from the files' own FOLLOW_* attributes (header reads)
+        fols = [_follow_of(f) for f in files]
+        if any(f is not None for f in fols):
+            from namgpu.nest import window  # noqa: PLC0415
+            gens = window.gens_from_frames(fols)
     preps = []
     for k in range(first, len(files)):
         back = {n: str(by_valid[valids[k] - timedelta(hours=n)]) for n in windows
                 if (valids[k] - timedelta(hours=n)) in by_valid}
-        preps.append((str(files[k]), back, sorted(need), products, str(work), label))
+        preps.append((str(files[k]), back, sorted(need), products, str(work), label)
+                     + ((gens,) if gens is not None else ()))
     written, failures, skipped = [], [], []
     jobs = []
     workers = max(1, min(len(preps), _cores.usable() // 2, 48))
@@ -591,19 +633,26 @@ def render(argv=None) -> dict:
         with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as ex:
             results = list(ex.map(_prep_frame, preps))
     frame = None
-    if a.bounds != "auto":
+    moving = len({r[6] for r in results}) > 1          # a storm-following window: each frame has its own
+    if a.bounds == "union" and results:
+        from namgpu.nest import window  # noqa: PLC0415
+        frame = window.frame_union([r[6] for r in results])
+    elif a.bounds not in ("auto", "union"):
         frame = tuple(float(v) for v in a.bounds.split(","))
     elif results:
-        frame = results[-1][6]                 # the domain does not move between frames
+        frame = results[-1][6]                 # a static domain: every frame has the same bounds
         if frame[1] - frame[0] >= 359.0 and legacy_frame(frame) is not None:
             # a domain that holds the pole (the 12 km parent) gets the whole longitude circle, which gpuwm 2.9.12's
             # renderer draws as a world map with the polar rows smeared across Eurasia (fresh pip install,
             # 2026-11-05): draw it on the CONUS frame, as 0.1.0 did, on every renderer
             frame = legacy_frame(frame)
+    frames = {}
     from namgpu.io.referee_rows import ROWS, _overlaps  # noqa: PLC0415
     mrms_region = next(r["region"] for r in ROWS if r["name"] == "mrms")
     for cf, valid, start, have, sk, table, _frame in results:
         skipped += [[p, r] for p, r in sk]
+        fr = _frame if (moving and a.bounds == "auto") else frame
+        frames[f"{valid:%Y-%m-%dT%H:%M}"] = list(fr)
         if cf is None:
             continue
         cf = Path(cf)
@@ -613,23 +662,27 @@ def render(argv=None) -> dict:
             if var not in have:
                 continue
             obs = None
-            if prod == "composite_reflectivity" and a.mrms is not None and _overlaps(frame, mrms_region):
+            if prod == "composite_reflectivity" and a.mrms is not None and _overlaps(fr, mrms_region):
                 src = a.mrms / f"mrms_refc_{valid:%Y%m%d%H}.grib2"
                 if src.is_file():
                     obs = work / f"MRMS_MergedReflectivityQCComposite_00.50_{valid:%Y%m%d-%H}0000.grib2"
                     if not obs.exists():
                         obs.symlink_to(src.resolve())
-            dst = a.out / prod / f"namgpu_{start:%Y%m%d_%H}z_f{fhr:03d}_{prod}.png"
-            jobs.append((cf, var, valid, obs, dst, prod, table))
+            # a frame off the hour (a moving run's extra frames 15 and 30 min after a move) gets its minutes in the
+            # name, so it never overwrites the hour's panel
+            tmin = int(round((valid - start).total_seconds() / 60))
+            tag = f"f{fhr:03d}" if tmin % 60 == 0 else f"f{tmin // 60:03d}m{tmin % 60:02d}"
+            dst = a.out / prod / f"namgpu_{start:%Y%m%d_%H}z_{tag}_{prod}.png"
+            jobs.append((cf, var, valid, obs, dst, prod, table, fr))
 
     legacy = legacy_frame(frame) if frame else None
     used_legacy = []
 
     def one(job):
-        cf, var, valid, obs, dst, prod, table = job
+        cf, var, valid, obs, dst, prod, table, fr = job
         od = work / f"r_{var}_{valid:%Y%m%d%H%M}"
         cmd = [rw, "--cf", cf, "--variable", var, "--out-dir", od, "--valid",
-               valid.strftime("%Y-%m-%dT%H:%M:%SZ"), "--bounds", bounds_arg(frame), "--cf-table", table,
+               valid.strftime("%Y-%m-%dT%H:%M:%SZ"), "--bounds", bounds_arg(fr), "--cf-table", table,
                "--width", str(a.width), "--height", str(a.height)]
         if obs is not None:
             cmd += ["--observation", obs]
@@ -676,6 +729,8 @@ def render(argv=None) -> dict:
         frame = legacy
     result = {"written": written, "failures": failures, "skipped": skipped,
               "frame": list(frame) if frame else None, "renderer": str(rw), "label": label}
+    if moving:
+        result["frames"] = frames                # valid time -> the bounds that frame was drawn on
     receipt = os.environ.get(RECEIPT_ENV)
     if receipt:
         Path(receipt).write_text(json.dumps(result))

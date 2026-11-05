@@ -360,14 +360,17 @@ class Domain:
         self.im, self.jm, self.halo = int(cfg.im), int(cfg.jm), halo
         self.ie, self.je = self.im + 2 * halo, self.jm + 2 * halo
         self.tph0, self.tlm0 = cfg.tph0d * DTR, cfg.tlm0d * DTR
-        self.wb, self.sb = cfg.wbd * DTR, cfg.sbd * DTR
+        # the reference origin and the moving-nest window offset (0, 0 without window keys): H(i, j) of this grid is
+        # reference cell (i + i0, j + j0), so a ground point shared by two windows samples the same source pixels
+        self.wb, self.sb = cfg.ref_wbd * DTR, cfg.ref_sbd * DTR
+        self.i0, self.j0 = int(getattr(cfg, "win_i0", 0)), int(getattr(cfg, "win_j0", 0))
         self.dlm, self.dph = cfg.dlmd * DTR, cfg.dphd * DTR
         self.dy_m = self.dph / DTR * M_PER_DEG
 
     def latlon(self, xp, ii, jj):
         """Geographic lat/lon (deg) at fractional extended-grid indices."""
-        tlm = self.wb + (ii - self.halo) * self.dlm
-        tph = self.sb + (jj - self.halo) * self.dph
+        tlm = self.wb + (ii - self.halo + self.i0) * self.dlm
+        tph = self.sb + (jj - self.halo + self.j0) * self.dph
         st0, ct0 = np.sin(self.tph0), np.cos(self.tph0)
         sphi = xp.clip(st0 * xp.cos(tph) * xp.cos(tlm) + ct0 * xp.sin(tph), -1.0, 1.0)
         lat = xp.arcsin(sphi)
@@ -420,8 +423,8 @@ def _launch_gcell(dom, src, plane, ncat):
         k(((n + 255) // 256,), (256,),
           (src.tiles, src.slot_xs, src.slot_ys, np.int32(src.nslot), np.int32(plane), np.int32(len(src.planes)),
            sd, si, np.float64(dom.tph0), np.float64(dom.tlm0), np.float64(dom.wb), np.float64(dom.sb),
-           np.float64(dom.dlm), np.float64(dom.dph), np.int32(dom.halo), np.int32(dom.ie), np.int32(dom.je),
-           np.int32(ncat), sums, counts))
+           np.float64(dom.dlm), np.float64(dom.dph), np.int32(dom.halo), np.int32(dom.i0), np.int32(dom.j0),
+           np.int32(dom.ie), np.int32(dom.je), np.int32(ncat), sums, counts))
     if ncat:
         return counts.reshape(ncat, dom.je, dom.ie)
     return sums.reshape(dom.je, dom.ie), counts.reshape(dom.je, dom.ie)
@@ -438,8 +441,8 @@ def _launch_sample(dom, src, plane, seq, need, search_r=1200):
     k(kernels.grid_2d(dom.ie, dom.je), kernels.BLOCK_2D,
       (src.tiles, src.lut, np.int32(plane), np.int32(len(src.planes)), sd, si,
        np.float64(dom.tph0), np.float64(dom.tlm0), np.float64(dom.wb), np.float64(dom.sb),
-       np.float64(dom.dlm), np.float64(dom.dph), np.int32(dom.halo), np.int32(dom.ie), np.int32(dom.je),
-       methods, np.int32(len(seq)), np.int32(search_r), cp.ascontiguousarray(need.astype(cp.uint8)), out, got))
+       np.float64(dom.dlm), np.float64(dom.dph), np.int32(dom.halo), np.int32(dom.i0), np.int32(dom.j0),
+       np.int32(dom.ie), np.int32(dom.je), methods, np.int32(len(seq)), np.int32(search_r), cp.ascontiguousarray(need.astype(cp.uint8)), out, got))
     return out, got.astype(bool)
 
 
@@ -642,6 +645,9 @@ def write(res, rec, out: Path, cfg):
     out.parent.mkdir(parents=True, exist_ok=True)
     meta = dict(rec, im=int(cfg.im), jm=int(cfg.jm), tph0d=cfg.tph0d, tlm0d=cfg.tlm0d, wbd=cfg.wbd, sbd=cfg.sbd,
                 dlmd=cfg.dlmd, dphd=cfg.dphd, unit=UNIT)
+    if int(getattr(cfg, "win_i0", 0)) or int(getattr(cfg, "win_j0", 0)) or getattr(cfg, "wbd0", None) is not None:
+        meta.update(window_i0=int(cfg.win_i0), window_j0=int(cfg.win_j0), window_wbd0=cfg.ref_wbd,
+                    window_sbd0=cfg.ref_sbd)
     import json
     np.savez_compressed(out, **res, META=np.array(json.dumps(meta)))
     prov = {"static": out.name, "unit": UNIT, "grid": meta["grid"], "valid": meta["valid"],

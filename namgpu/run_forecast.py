@@ -157,6 +157,22 @@ def main(argv=None):
     ap.add_argument("--resume", type=Path, default=None,
                     help="continue a run from a restart set, or from a restart root (its newest set), to the run's "
                          "original end (or --hours). Case, source and output folder come from the set")
+    ap.add_argument("--restart-at", default="",
+                    help="also write a restart set at these forecast hours (comma list, e.g. 3,6): the landing hours "
+                         "of a moving nest (namgpu/nest/move.py), right after that hour's history")
+    ap.add_argument("--move-from", type=Path, default=None,
+                    help="moving nest: lay this restart set (the previous window, or a restart root: its newest set) "
+                         "over the --init-from fresh start of this configfile's window, shifted by the windows' "
+                         "offset, and step on from the set's step count (no TDFI). namgpu/nest/move.py")
+    ap.add_argument("--follow-control", type=Path, default=None,
+                    help="moving nest segment (woof-nam nest --follow): read the controller's control.json at every "
+                         "landable time and stop there (restart set written) when it says stop. namgpu/nest/segment.py")
+    ap.add_argument("--follow-wait-s", type=float, default=900.0,
+                    help="--follow-control: the longest wait for a decision at a landable time before continuing")
+    ap.add_argument("--move-check", action="store_true",
+                    help="--move-from: read every carried array back from the card and compare its overlap with the "
+                         "set bit for bit, and the two windows' static files on their shared cells (receipt "
+                         "move.check)")
     ap.add_argument("--history-fields", default=None,
                     help="fields in each hourly history file: products (default: what the maps, side-by-side, the "
                          "column store and woof-nam products read), full (every field), state (3-D model state), "
@@ -186,6 +202,8 @@ def main(argv=None):
             a.restart_dir = Path(resume_meta["restart_dir"])
         if a.init_from is not None:
             raise SystemExit("--resume and --init-from: a restart set already holds the whole state; give one")
+    if a.move_from is not None and (a.init_from is None or a.resume is not None):
+        raise SystemExit("--move-from needs --init-from <fresh start of the new window> (and no --resume)")
     if a.case is None or a.out is None:
         ap.error("--case and --out are required (or --resume <restart>)")
     a.hours = 1.0 if a.hours is None else a.hours
@@ -199,7 +217,11 @@ def main(argv=None):
     except ValueError as e:
         ap.error(str(e))
     _hs.parse(a.history_fields)                          # an unknown field name stops here, before the init
-    if a.cards > 1 and (a.restart_every_h > 0 or a.resume is not None):
+    try:
+        a.restart_at_h = [float(x) for x in str(a.restart_at).split(",") if x.strip()]
+    except ValueError:
+        ap.error(f"--restart-at {a.restart_at!r}: want hours, e.g. 3,6")
+    if a.cards > 1 and (a.restart_every_h > 0 or a.resume is not None or a.restart_at_h or a.move_from is not None):
         raise SystemExit("--restart-every / --resume run on one card in this release: with --cards N every rank "
                          "would write its own rows and the resume would have to load them on the same N cards, "
                          "which is not written yet")
@@ -304,6 +326,26 @@ def main(argv=None):
         _reserve_step_lmem(rec)
         rec["init"] = {"loaded_from": str(a.init_from), "load": slab_init.load(ctx, a.init_from)}
         rec["skipped_init"] = "all (loaded)"
+        if a.move_from is not None:
+            # moving nest: the fresh start of this window is loaded; lay the previous window's restart set over it
+            from namgpu import restart as rstmod
+            from namgpu.nest import move as movemod
+            mset = rstmod.resolve(a.move_from if a.move_from.is_absolute() else paths.work_root() / a.move_from)
+            mmeta = rstmod.read_meta(mset)
+            if not mmeta.get("window"):
+                raise SystemExit(f"--move-from {mset}: the set records no window (written before namgpu/nest/move.py)")
+            dj, di = movemod.shift_between(mmeta["window"], cfg)
+            fresh_attrs = {k: getattr(ctx, k, None) for k in movemod.FRESH_ATTRS}
+            rec["move"] = {"from": str(mset), "from_window": mmeta["window"], "window": movemod.window_meta(cfg),
+                           "shift_dj_di": [dj, di]}
+            mrec = movemod.overlay(ctx, mset, dj, di, out_dir=out, log=lambda m: print(m, flush=True))
+            for k, v in fresh_attrs.items():
+                if v is not None:
+                    setattr(ctx, k, v)
+            ctx.case_dir = a.case_dir.resolve() if a.case_dir is not None else paths.case_dir(a.case)
+            rec["move"]["overlay"] = {k: v for k, v in mrec.items() if k not in ("carried",)}
+            rec["resumed_at_fhr"] = round(int(ctx.ntimestep) * float(cfg.dt) / 3600.0, 4)
+            ctx.move_landing = (int(ctx.ntimestep), dj, di, mset, mrec)
         # The saved ctx attributes are the init process's (one card: comm/slab/decomp None); this rank's win.
         if multi is not None:
             ctx.slab, ctx.comm, ctx.hist_geo_global = multi["slab"], multi["comm"], multi["geo"]
@@ -326,6 +368,18 @@ def main(argv=None):
         rec["init_saved"] = {"path": str(out / "init"), **slab_init.save(ctx, out / "init")}
         rec["init_saved"]["save_s"] = round(time.perf_counter() - ts, 2)
         print(f"initial state saved to {out / 'init'} ({rec['init_saved']['gib']} GiB)", flush=True)
+    if getattr(ctx, "move_landing", None) is not None and a.move_check:
+        from namgpu.nest import move as movemod
+        n_, dj_, di_, mset_, mrec_ = ctx.move_landing
+        chk = movemod.carried_check(ctx, mset_, dj_, di_, mrec_["carried"])
+        old_static = (mmeta.get("static_npz") or "")
+        from namgpu import config as _cfgm
+        new_static = _cfgm.static_npz(cfg)
+        if old_static and new_static is not None and Path(old_static).is_file() and Path(new_static).is_file():
+            chk["static"] = movemod.static_alignment(Path(old_static), Path(new_static), dj_, di_)
+        rec["move"]["check"] = chk
+        print(f"move check: {chk['arrays']} carried arrays, {chk['mismatched_arrays']} with mismatches; static "
+              f"{ {k: v for k, v in (chk.get('static') or {}).items() if v['interior'] or v['band']} }", flush=True)
     rec["init_s"] = round(time.perf_counter() - t0, 2)
     # the start source row as staged (file, static, levels, attribution and licence: ECMWF open data is CC BY 4.0)
     rec["init_source"] = ctx.tables.get("grid_source")
@@ -351,7 +405,7 @@ def main(argv=None):
     ctx.history_select = history_select.Selection(a.history_fields, rstmod.steps_for(a.full_every_h, cfg.dt))
     rec["history"] = dict(ctx.history_select.receipt(), full_every=a.full_every)
     ctx.restart_writer = None
-    if a.restart_every_h > 0:
+    if a.restart_every_h > 0 or a.restart_at_h or a.follow_control is not None:
         rroot = a.restart_dir or (out / "restart")
         rroot = rroot if rroot.is_absolute() else paths.work_root() / rroot
         ctx.restart_writer = rstmod.Writer(rroot, a.restart_every_h, cfg.dt, keep=a.restart_keep, meta={
@@ -359,9 +413,47 @@ def main(argv=None):
             "out": str(out), "start": f"{ctx.start:%Y-%m-%d_%H:%M:%S}", "dt": float(cfg.dt),
             "restart_every": a.restart_every, "restart_dir": str(rroot), "memory_path": mp["path"],
             "history": {"fields": a.history_fields, "full_every": a.full_every},
-            "woof_nam": __import__("namgpu").__version__})
-        print(f"restart sets every {a.restart_every_h:g} h -> {rroot}", flush=True)
+            "woof_nam": __import__("namgpu").__version__,
+            "window": __import__("namgpu.nest.move", fromlist=["window_meta"]).window_meta(cfg),
+            "configfile": str(config.configfile_path()), "static_npz": str(config.static_npz(cfg) or "")},
+            at_hours=a.restart_at_h)
+        print(f"restart sets every {a.restart_every_h:g} h" + (f" and at {a.restart_at_h} h" if a.restart_at_h else "")
+              + f" -> {rroot}", flush=True)
+    # moving nest shock numbers (namgpu/nest/move.py Monitor): after a landing, and before the segment's last restart
+    ctx.move_monitors = []
+    if getattr(ctx, "move_landing", None) is not None:
+        from namgpu.nest import move as movemod
+        n_, dj_, di_, _s, _r = ctx.move_landing
+        per_min = 60.0 / float(cfg.dt)
+        frames = [n_ + int(round(m * per_min)) for m in movemod.EXTRA_FRAMES_MIN]
+        ctx.move_monitors.append(movemod.Monitor(ctx, n_ + 1, movemod.MONITOR_STEPS,
+                                                 movemod.masks(int(g.jm), int(g.im), dj_, di_), "after move",
+                                                 frames=frames))
+    if a.restart_at_h:
+        # before every landing hour (30 min), and after it when this run goes on through it (the same numbers with no
+        # move, the reference for a moved run's first hour)
+        from namgpu.nest import move as movemod
+        pre = int(round(30 * 60.0 / float(cfg.dt)))
+        n_stop = rstmod.steps_for(a.hours, cfg.dt)
+        for h_ in a.restart_at_h:
+            n_end = rstmod.steps_for(h_, cfg.dt)
+            if n_end - pre > int(ctx.ntimestep):
+                ctx.move_monitors.append(movemod.Monitor(ctx, n_end - pre + 1, pre, None, f"before {h_:g} h"))
+            if n_end + movemod.MONITOR_STEPS <= n_stop:
+                ctx.move_monitors.append(movemod.Monitor(ctx, n_end + 1, movemod.MONITOR_STEPS, None,
+                                                         f"after {h_:g} h, no move"))
 
+    ctx.follow_control = None
+    if a.follow_control is not None:
+        # a moving-nest segment: the controller's decision at every landable time, and the shock numbers of the
+        # 30 min before each one (the reference for the first hour after a move), as --restart-at does
+        from namgpu.nest import move as movemod, segment as segmod
+        ctx.follow_control = segmod.FollowStop(a.follow_control, float(cfg.dt), wait_s=a.follow_wait_s)
+        pre = int(round(30 * 60.0 / float(cfg.dt)))
+        for n_end in ctx.follow_control.landing_steps(int(ctx.ntimestep), rstmod.steps_for(a.hours, cfg.dt)):
+            if n_end - pre > int(ctx.ntimestep):
+                ctx.move_monitors.append(movemod.Monitor(ctx, n_end - pre + 1, pre, None,
+                                                         f"before {n_end * float(cfg.dt) / 3600.0:g} h"))
     from namgpu.steps.drv_physics_initialize import in_run_dir
     rd = in_run_dir(ctx)
     rd.__enter__()
@@ -389,8 +481,8 @@ def main(argv=None):
             return out
         rec["filter_method"] = int(cfg.filter_method)
         with ctx.stream:
-            if a.resume is not None:
-                ctx.filter_active = False             # the filter ran before the first restart set
+            if a.resume is not None or getattr(ctx, "move_landing", None) is not None:
+                ctx.filter_active = False             # the filter ran before the first restart set / the move
                 n = drv.run(a.hours, log=log)
             else:
                 n = drv_time_loop._run(ctx, a.hours, SimpleNamespace(run=_tdfi), log=log)
@@ -409,7 +501,13 @@ def main(argv=None):
             rec["error"] = rec["error"] or f"restart write: {type(e).__name__}: {e}"
         rec["restart"] = ctx.restart_writer.receipt()
         rec["restart_latest"] = rec["restart"]["latest"]     # the set a worker resumes from (woof-nam run --resume)
-    n0 = int(rec.get("resumed_at_fhr", 0) * 3600.0 / cfg.dt + 0.5) if a.resume is not None else 0
+    if getattr(ctx, "follow_control", None) is not None:
+        rec["follow_segment"] = ctx.follow_control.receipt()
+    n0 = int(rec.get("resumed_at_fhr", 0) * 3600.0 / cfg.dt + 0.5) if "resumed_at_fhr" in rec else 0
+    if getattr(ctx, "move_monitors", None):
+        for m in ctx.move_monitors:
+            m.drain()
+        rec.setdefault("move", {})["monitors"] = [m.receipt() for m in ctx.move_monitors]
     rec["steps_done"] = int(ctx.ntimestep)
     rec["run_s"] = round(wall, 2)
     # per forecast step: the filter's 300 half-steps are timed apart (tdfi_s), not spread over the forecast steps

@@ -38,7 +38,8 @@ PER_RANK_TABLES = ("NMMB_LIMITS", "NMMB_LIMITS_LOCAL", "NMMB_LIMITS_HOST", "DIVC
                    "HALO_BUFS", "HALO_MISSING", "UNIT_HASH")
 CTX_SKIP = {"cfg", "grid", "st", "stream", "driver", "bc", "tables", "timings", "slab", "halo",
             "out_dir", "forecast_hours", "comm", "decomp", "hist_geo_global",
-            "restart_writer", "history_future", "history_select"}   # the forecast process keeps its own
+            "restart_writer", "history_future", "history_select",
+            "move_monitors", "move_landing"}   # the forecast process keeps its own (moving nests: namgpu/nest/move.py)
 FORMAT = 1
 
 
@@ -442,19 +443,54 @@ def _save_main(a) -> int:
     ctx.init_source = a.source
     ctx.forecast_hours = max(6, int(a.hours + 0.999))
     ctx.out_dir = Path(a.out)
+    run_boco = None
+    if a.boco_dir:
+        # a moving nest's fresh start at a landing time: the boundaries are the new window's, built for the whole
+        # run and named in hours from the RUN start (namgpu/nest/move.py); init-gfs-bocos is skipped. The init and
+        # the TDFI of this start read them through a folder of links named in hours from THIS start (--from-hour);
+        # the saved start points at the run's own folder, where the next segment reads boco.<landing hour> on.
+        run_boco = Path(a.boco_dir).resolve()
+        ctx.boco_dir = str(run_boco)
+        if a.from_hour:
+            link = Path(str(Path(a.out).resolve()) + ".boco")
+            link.mkdir(parents=True, exist_ok=True)
+            for f in sorted(run_boco.glob("boco.*")):
+                k = int(f.name.split(".")[1]) - int(a.from_hour)
+                if k >= 0 and not (link / f"boco.{k:04d}").exists():
+                    (link / f"boco.{k:04d}").symlink_to(f)
+            ctx.boco_dir = str(link)
     drv = Driver(ctx)
     ctx.driver = drv
     ctx.dt = cfg.dt
-    skip = [x for x in a.skip_init.split(",") if x]
+    skip = [x for x in a.skip_init.split(",") if x] + (["init-gfs-bocos"] if a.boco_dir else [])
     chain = [u for u in init_case_driver.CHAIN if u not in skip]
     t0 = time.perf_counter()
     with ctx.stream:
         init_case_driver.run(ctx, only=chain)
     ctx.stream.synchronize()
+    tdfi_s = None
+    if a.tdfi and int(cfg.filter_method) > 0:
+        # the start's own TDFI (as a cold start runs it): a moving nest's strip is then a filtered state, not the
+        # raw source interpolation (the unfiltered strip gave a 16x domain-mean dPD/dt transient)
+        from namgpu.steps import drv_dfi_tdfi_driver
+        t_ = time.perf_counter()
+        ctx.filter_active = True
+        try:
+            with ctx.stream:
+                drv_dfi_tdfi_driver.run(ctx)
+        finally:
+            ctx.filter_active = False
+        ctx.ntimestep = 0
+        ctx.first_step = True
+        ctx.stream.synchronize()
+        tdfi_s = round(time.perf_counter() - t_, 2)
+    if run_boco is not None:
+        ctx.boco_dir = str(run_boco)
     t1 = time.perf_counter()
     import importlib
     mod = importlib.import_module("namgpu.init.slab_init")   # pickle the classes under their module name
     rec = mod.save(ctx, a.out)
+    rec.update(tdfi_s=tdfi_s, from_hour=a.from_hour)
     rec.update(init_s=round(t1 - t0, 2), save_s=round(time.perf_counter() - t1, 2), case=a.case,
                source=a.source, chain=chain, managed=bool(a.managed))
     (Path(a.out) / "save-receipt.json").write_text(json.dumps(rec, indent=1))
@@ -475,6 +511,11 @@ def main(argv=None) -> int:
     s.add_argument("--out", required=True)
     s.add_argument("--skip-init", default="init-fetch-case")
     s.add_argument("--managed", action="store_true", help="CUDA managed memory: a domain bigger than the card")
+    s.add_argument("--boco-dir", default=None, help="use this boundary folder (skip init-gfs-bocos): a moving "
+                   "nest's fresh start, whose boundaries are named in hours from the run start")
+    s.add_argument("--from-hour", type=int, default=0, help="--boco-dir: this start's hour in the run (the init "
+                   "and TDFI read the boundaries from that hour on)")
+    s.add_argument("--tdfi", action="store_true", help="run the start's TDFI (filter_method 3) before saving")
     a = ap.parse_args(argv)
     return _save_main(a)
 

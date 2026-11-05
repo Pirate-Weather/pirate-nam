@@ -188,7 +188,7 @@ template <typename T>
 __device__ void gcell_body(const T* __restrict__ tiles, const int* __restrict__ slot_xs,
                            const int* __restrict__ slot_ys, int nslot, int plane, int nplane,
                            SrcDesc s, double tph0, double tlm0, double wb, double sb, double dlm,
-                           double dph, int halo, int ie, int je, int ncat,
+                           double dph, int halo, int ioff, int joff, int ie, int je, int ncat,
                            long long* __restrict__ sums, int* __restrict__ counts)
 {
     const size_t npx = (size_t)s.tx * s.ty;
@@ -207,8 +207,9 @@ __device__ void gcell_body(const T* __restrict__ tiles, const int* __restrict__ 
     const double glon = (s.known_lon + (xg - s.known_x) * s.dx) * r;
     double tlm, tph;
     geo_to_rot(glat, glon, tph0, tlm0, &tlm, &tph);
-    const int i = (int)floor((tlm - wb) / dlm + 0.5) + halo;
-    const int j = (int)floor((tph - sb) / dph + 0.5) + halo;
+    // wb/sb: the reference grid's origin; ioff/joff: the moving-nest window's whole-cell offset (0 otherwise)
+    const int i = (int)floor((tlm - wb) / dlm + 0.5) - ioff + halo;
+    const int j = (int)floor((tph - sb) / dph + 0.5) - joff + halo;
     if (i < 0 || i >= ie || j < 0 || j >= je) return;
     const size_t cell = (size_t)j * ie + i;
     if (ncat > 0) {
@@ -225,7 +226,7 @@ __device__ void gcell_body(const T* __restrict__ tiles, const int* __restrict__ 
 template <typename T>
 __device__ void sample_body(const T* __restrict__ tiles, const int* __restrict__ lut, int plane,
                             int nplane, SrcDesc s, double tph0, double tlm0, double wb, double sb,
-                            double dlm, double dph, int halo, int ie, int je,
+                            double dlm, double dph, int halo, int ioff, int joff, int ie, int je,
                             const int* __restrict__ methods, int nmethod, int search_r,
                             const unsigned char* __restrict__ need, double* __restrict__ out,
                             unsigned char* __restrict__ got)
@@ -237,7 +238,7 @@ __device__ void sample_body(const T* __restrict__ tiles, const int* __restrict__
     got[cell] = 0;
     if (!need[cell]) return;
     double glat, glon;
-    rot_to_geo(wb + (i - halo) * dlm, sb + (j - halo) * dph, tph0, tlm0, &glat, &glon);
+    rot_to_geo(wb + (i - halo + ioff) * dlm, sb + (j - halo + joff) * dph, tph0, tlm0, &glat, &glon);
     const double d = 57.29577951308232;
     const double lat = glat * d;
     double dlon = glon * d - s.known_lon;
@@ -260,22 +261,22 @@ __device__ void sample_body(const T* __restrict__ tiles, const int* __restrict__
 extern "C" __global__ void NAME(const T* tiles, const int* slot_xs, const int* slot_ys, int nslot,  \
                                 int plane, int nplane, const double* sd, const int* si,             \
                                 double tph0, double tlm0,                                          \
-                                double wb, double sb, double dlm, double dph, int halo, int ie,     \
+                                double wb, double sb, double dlm, double dph, int halo, int ioff, int joff, int ie,     \
                                 int je, int ncat, long long* sums, int* counts)                    \
 {                                                                                                  \
     gcell_body<T>(tiles, slot_xs, slot_ys, nslot, plane, nplane, load_desc(sd, si), tph0, tlm0, wb, sb, dlm, dph, \
-                  halo, ie, je, ncat, sums, counts);                                               \
+                  halo, ioff, joff, ie, je, ncat, sums, counts);                                               \
 }
 
 #define SAMPLE_KERNEL(NAME, T)                                                                     \
 extern "C" __global__ void NAME(const T* tiles, const int* lut, int plane, int nplane,              \
                                 const double* sd, const int* si,                                   \
                                 double tph0, double tlm0, double wb, double sb, double dlm,        \
-                                double dph, int halo, int ie, int je, const int* methods,          \
+                                double dph, int halo, int ioff, int joff, int ie, int je, const int* methods,          \
                                 int nmethod, int search_r, const unsigned char* need, double* out, \
                                 unsigned char* got)                                                \
 {                                                                                                  \
-    sample_body<T>(tiles, lut, plane, nplane, load_desc(sd, si), tph0, tlm0, wb, sb, dlm, dph, halo, ie, je,      \
+    sample_body<T>(tiles, lut, plane, nplane, load_desc(sd, si), tph0, tlm0, wb, sb, dlm, dph, halo, ioff, joff, ie, je,      \
                    methods, nmethod, search_r, need, out, got);                                    \
 }
 

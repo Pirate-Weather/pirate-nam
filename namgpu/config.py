@@ -162,21 +162,41 @@ class NamConfig:
     co2usr_file: str = "co2userdata.txt"             # physparam.f:135
     co2cyc_file: str = "co2monthlycyc.txt"           # physparam.f:136
     lfdncmp: bool = True         # swrad always fills FDNCMP: grrad_nmmb.f:1910 scmpsw is unconditional (phys-rrtm-grrad-sw)
+    # Moving-nest window (port keys window_i0/window_j0/window_wbd0/window_sbd0, namgpu/nest/move.py): this grid is the
+    # reference grid (the first window, symmetric about the fixed pole tph0d/tlm0d) shifted by win_i0 columns and
+    # win_j0 rows. Every geometry kernel takes the reference origin and the offsets and computes rotated
+    # coordinates as wb0 + (i + win_i0) dlm, so a point of two windows that is the same ground point gets the same
+    # bits. No window keys: win_i0 = win_j0 = 0 and wbd0/sbd0 = wbd/sbd, the same operations and values as before.
+    win_i0: int = 0
+    win_j0: int = 0
+    wbd0: float | None = None
+    sbd0: float | None = None
+
+    @property
+    def ref_wbd(self) -> float:
+        """West edge of the reference (first) window, degrees: the origin every geometry kernel offsets from."""
+        return self.wbd if self.wbd0 is None else self.wbd0
+
+    @property
+    def ref_sbd(self) -> float:
+        return self.sbd if self.sbd0 is None else self.sbd0
 
     # A grid-associated nest (module_NESTING.F90:4263-4592 SET_NEST_GRIDS) sits off centre on its parent's pole, so its
     # spacing cannot be derived from wbd/sbd: its configfile carries the port keys dlmd/dphd (namgpu/nest/domain.py
     # nest_grid_associated). Without them a grid is symmetric about its pole and the derived value is used, as before.
     @property
     def dlmd(self) -> float:
-        if "dlmd" in self.raw:
-            return float(self.raw["dlmd"])
-        return -2.0 * self.wbd / (self.im - 1)
+        v = self.raw.get("dlmd")
+        if v is not None:
+            return float(v)
+        return -2.0 * self.ref_wbd / (self.im - 1)
 
     @property
     def dphd(self) -> float:
-        if "dphd" in self.raw:
-            return float(self.raw["dphd"])
-        return -2.0 * self.sbd / (self.jm - 1)
+        v = self.raw.get("dphd")
+        if v is not None:
+            return float(v)
+        return -2.0 * self.ref_sbd / (self.jm - 1)
 
 
 def static_npz(cfg) -> Path | None:
@@ -249,8 +269,51 @@ def row_window(r: dict) -> dict:
     return r
 
 
+# Window envelope (moving nests): a window centre must stay inside the rotated-latitude/longitude range NAM's own
+# 12 km grid runs with one dt (parm/nam_configfile sbd -45.036, wbd -60.039). dx = a cos(rotated lat) dlmd, so past
+# 45 deg dx falls below anything NAM runs at that step.
+WINDOW_ENVELOPE = {"tph_deg": 45.0, "tlm_deg": 60.0, "src": "parm/nam_configfile sbd -45.036, wbd -60.039 (NAM 12 km)"}
+WINDOW_KEYS = ("window_i0", "window_j0", "window_wbd0", "window_sbd0")
+
+
+def window(r: dict) -> dict:
+    """Moving-nest window keys -> the window's own wbd/sbd (namgpu/nest/move.py writes them).
+
+    window_wbd0/window_sbd0 are the reference grid's west/south edges (degrees, repr-exact) and window_i0/window_j0
+    the window's offset from it in whole H cells. dlmd/dphd stay the reference spacing (-2 wbd0/(im-1)); the window
+    edges are wbd = wbd0 + i0 dlmd, sbd = sbd0 + j0 dphd (the configfile's own wbd/sbd must agree to 1e-6 deg). A
+    centre past WINDOW_ENVELOPE is refused by name. No window keys: r unchanged."""
+    if not any(k in r for k in WINDOW_KEYS):
+        return r
+    missing = [k for k in WINDOW_KEYS if k not in r]
+    if missing:
+        raise ValueError(f"configfile window keys: {missing} missing (a window needs all of {WINDOW_KEYS})")
+    if r.get("global"):
+        raise ValueError("configfile window keys on a global grid: a window is a regional nest only")
+    if r.get("row_window"):
+        raise ValueError("configfile window keys with NAMGPU_ROW_WINDOW: give one of the two")
+    i0, j0 = int(r["window_i0"]), int(r["window_j0"])
+    wbd0, sbd0 = float(r["window_wbd0"]), float(r["window_sbd0"])
+    im, jm = int(r["im"]), int(r["jm"])
+    dlmd = float(r["dlmd"]) if "dlmd" in r else -2.0 * wbd0 / (im - 1)
+    dphd = float(r["dphd"]) if "dphd" in r else -2.0 * sbd0 / (jm - 1)
+    wbd, sbd = wbd0 + i0 * dlmd, sbd0 + j0 * dphd
+    for k, v in (("wbd", wbd), ("sbd", sbd)):
+        if k in r and abs(float(r[k]) - v) > 1e-6:
+            raise ValueError(f"configfile {k} {r[k]} != window {k}0 + offset x spacing = {v!r} (window keys "
+                             f"{ {kk: r[kk] for kk in WINDOW_KEYS} })")
+    ctr_lat = sbd + 0.5 * (jm - 1) * dphd
+    ctr_lon = wbd + 0.5 * (im - 1) * dlmd
+    env = WINDOW_ENVELOPE
+    if abs(ctr_lat) > env["tph_deg"] or abs(ctr_lon) > env["tlm_deg"]:
+        raise ValueError(f"window centre at rotated ({ctr_lon:.3f}, {ctr_lat:.3f}) deg: the window would leave NAM's "
+                         f"rotated envelope (|tph| <= {env['tph_deg']}, |tlm| <= {env['tlm_deg']} deg; {env['src']}): "
+                         f"dx below NAM's own minimum for this dt. Refused: a move this far needs a new pole")
+    return dict(r, wbd=wbd, sbd=sbd, win_i0=i0, win_j0=j0, wbd0=wbd0, sbd0=sbd0)
+
+
 def load(configfile: Path | None = None, npsfile: Path | None = None) -> NamConfig:
-    r = row_window(parse_configfile(configfile or PARM / "nam_configfile"))
+    r = window(row_window(parse_configfile(configfile or PARM / "nam_configfile")))
     pt, ptsgm, levs = parse_nps_coord_levs(npsfile or PARM / "nam_namelist.nps")
     flags = parse_nps_flags(npsfile or PARM / "nam_namelist.nps")
     dt = r["dt_int"] + (r["dt_num"] / r["dt_den"] if r["dt_den"] else 0.0)
@@ -266,6 +329,7 @@ def load(configfile: Path | None = None, npsfile: Path | None = None) -> NamConf
         land_surface=r["land_surface"], shortwave=r["shortwave"], longwave=r["longwave"],
         gwdflg=r["gwdflg"], rhgrd=r["rhgrd"], np3d=r["np3d"],
         filter_method=int(r["filter_method"]), pt=pt, ptsgm=ptsgm, coord_levs=levs,
+        win_i0=int(r.get("win_i0", 0)), win_j0=int(r.get("win_j0", 0)), wbd0=r.get("wbd0"), sbd0=r.get("sbd0"),
         **flags,
     )
 

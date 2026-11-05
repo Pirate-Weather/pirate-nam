@@ -63,6 +63,10 @@ class BGrid:
     dsg2: np.ndarray | None = None
     sgml1: np.ndarray | None = None
     sgml2: np.ndarray | None = None
+    # moving-nest window (config.NamConfig.win_i0/win_j0): wb/sb are the REFERENCE grid's origin and H(i, j) sits at
+    # (wb + (i + win_i0) dlm, sb + (j + win_j0) dph); 0/0 for every grid without window keys
+    win_i0: int = 0
+    win_j0: int = 0
 
     @property
     def psgml1(self):
@@ -106,10 +110,10 @@ def rotated_to_geographic(tlm, tph, tlm0, tph0):
 def build(cfg: NamConfig) -> BGrid:
     im, jm, lm = cfg.im, cfg.jm, cfg.lm
     dlm, dph = cfg.dlmd * DTR, cfg.dphd * DTR
-    wb, sb = cfg.wbd * DTR, cfg.sbd * DTR
+    wb, sb = cfg.ref_wbd * DTR, cfg.ref_sbd * DTR       # the reference origin (= wbd/sbd without window keys)
     tph0, tlm0 = cfg.tph0d * DTR, cfg.tlm0d * DTR
-    ii = np.arange(im)
-    jj = np.arange(jm)
+    ii = np.arange(im) + int(cfg.win_i0)                  # window offset in whole cells (0 without window keys)
+    jj = np.arange(jm) + int(cfg.win_j0)
     tlm_h = np.broadcast_to(wb + ii * dlm, (jm, im)).copy()
     tph_h = np.broadcast_to((sb + jj * dph)[:, None], (jm, im)).copy()
     glon_h, glat_h = rotated_to_geographic(tlm_h, tph_h, tlm0, tph0)
@@ -120,7 +124,7 @@ def build(cfg: NamConfig) -> BGrid:
     g = BGrid(im=im, jm=jm, lm=lm, dlm=dlm, dph=dph, wb=wb, sb=sb, tph0=tph0, tlm0=tlm0,
               tlm_h=tlm_h, tph_h=tph_h, glat_h=glat_h, glon_h=glon_h, glat_v=glat_v,
               glon_v=glon_v, dxh=dxh, dxv=dxv, dyh=float(A_EARTH * dph),
-              dyv=float(A_EARTH * dph))
+              dyv=float(A_EARTH * dph), win_i0=int(cfg.win_i0), win_j0=int(cfg.win_j0))
     vcoord_from_config(g, cfg)
     return g
 

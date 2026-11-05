@@ -529,6 +529,75 @@ at +48 h, within 1-9 hPa of the nest at every hour; without it the parent stayed
 910.5 hPa at +48 h against 931.6 with the feedback off and 937 in the best track, with a wider core and a track
 further west. No seam shows at the nest edge.
 
+### Moving nests
+
+`woof-nam nest --follow TRACKER` runs a nest that follows a storm. It runs one-way from its boundary source: a
+finished WOOF-NAM 12 km run (`--source parent --parent-run DIR`) or GFS / IFS.
+
+```
+woof-nam nest --follow tc --storm-id 2024225N22135 --size-km 1000 --res-km 3 --source gfs \
+    --start 2024081512 --hours 48 --out runs/ampil-follow
+```
+
+- `--follow tc | low | object:refl | object:uh | path`. `tc` follows a tropical cyclone's pressure minimum and
+  `low` an extratropical low. `object:refl` and `object:uh` follow a reflectivity or updraft-helicity object.
+  `path` follows a track you give in `--follow-config`.
+- Give the start position with `--storm LAT,LON` or `--storm-id SID`, an IBTrACS v04r01 storm id; the door then
+  reads that storm's best-track point at `--start`. `--center` is optional here and overrides the start centre.
+- `--check-minutes` sets how often the tracker reads a finished hourly frame (default 60). `--follow-config`
+  (inline JSON or a file) overrides the tracker's settings, e.g. `{"core_margin_km": 300}`.
+- How a move works:
+  - The tracker fixes the feature on every hourly frame.
+  - When the feature nears the edge, the controller plans a move. A move lands on a boundary time of the source:
+    every 3 h for GFS and IFS, every hour for a parent run.
+  - While the forecast runs, up to 2 background workers (`NAMGPU_FOLLOW_PREP_MAX`) build the next window: its
+    static fields, start and boundaries.
+  - The new window is the old one shifted by whole grid cells. Where the two overlap, the nest keeps its own
+    state. The new strip starts from the source, filtered by the same digital filter a fresh start gets.
+- The receipt's `follow` block records every fix, every move, and the first 6 steps after each move. Maps and
+  sheets follow the window. `tools/follow_lead_sheets.py` draws a lead's maps beside the move history up to it, and
+  `tools/follow_score.py` scores a run against IBTrACS.
+- The `tc` tracker keeps the storm at least max(150 km, 0.62 x the window's half-width) from the edge, which is about
+  300 km on a 1000 km nest. That keeps the rain shield inside the window, not only the eye.
+- A live two-way parent (`--two-way`, `--concurrent`, `--parent-*`) does not move its nest, and `--follow` is
+  refused there.
+- Memory: the forecast and a background worker share the card, so a 1000 km moving nest at 3 km peaked at
+  45-57 GiB on an RTX PRO 6000 (96 GB).
+
+48 h runs from GFS 0.25, 1000 km at 3 km on one RTX PRO 6000, scored every 6 h (f06-f48) against IBTrACS
+best track. "Static" is the same nest without `--follow`:
+
+| storm, start | run | mean track error | mean central-pressure error | track error f24 / f36 / f48 | leads with the storm at the edge |
+|---|---|---|---|---|---|
+| Typhoon Ampil, 2024-08-15 12Z | moving, `tc` | **62.0 km** | **8.5 hPa** | 56 / 91 / 110 km | none |
+| | static, centred on the storm at the start | 95.4 km | 23.5 hPa | 56 / 117 / 258 km | +30 to +48 h |
+| | static, centred at 35.7N 139.7E | 68.8 km | 12.5 hPa | 46 / 74 / 228 km | +48 h |
+| Cyclone Gabrielle, 2023-02-13 00Z | moving, `low` | 69.8 km | 1.9 hPa | 98 / 24 / 198 km | none |
+| | static, centred on the storm at the start | 68.5 km | 1.9 hPa | 90 / 16 / 285 km | +42 to +48 h |
+| | static, centred at 37.5S 175.5E | 81.9 km | 1.6 hPa | 84 / 33 / 280 km | +36 to +48 h |
+
+The moving nest held both storms at every lead. The static nests lost them between +30 and +48 h, and lost
+their intensity with them. While a static nest still holds the storm, its track error is close to the moving
+nest's. After +36 h, the model's Gabrielle turns south where the best track goes east-south-east; the window
+followed the model's low. Each 48 h forecast took 18-20 min on the card, including its moves.
+
+On the first step after a move, the window-mean surface-pressure tendency is 5-9x what it was before the move.
+It is back to 1.1-1.7x within the hour. Vertical motion along the old edge and in the new strip stays at its
+level before the move, and no waves spread inward from the old edge.
+
+![Typhoon Ampil, WOOF-NAM 3 km moving nest at +48 h: composite reflectivity, MSLP, every window with the best track, track and pressure error](docs/nests/ampil-follow-f48.png)
+
+*Typhoon Ampil from GFS, 2024-08-15 12Z, +48 h. The window moved four times (+6, +18, +30 and +42 h). At +48 h
+the storm and its rain shield are near the centre of the window.*
+
+![Ampil track and central pressure: best track, two moving nests and two static nests](docs/nests/ampil-follow-vs-static-track.png)
+
+*Ampil track and central pressure every 6 h. The static nest centred on the storm at the start loses it at
++30 h; from then on its pressure minimum is on the window edge (1004 hPa at +48 h). The static nest centred near
+Tokyo holds it until +42 h. Both moving runs keep the storm to +48 h; their central pressure is 18-19 hPa too deep
+at +18 h and 4-6 hPa too deep at +48 h. In the legend, "moving follow/all" is the default margin and "F1" is a
+150 km margin.*
+
 ### Data sources for nests
 
 Static fields come from the WPS_GEOG datasets `gpuwm fetch-geog` installs, read by
@@ -570,6 +639,8 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 - **Nests:** the NAM's own fixed nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
   ported as such; `woof-nam nest` ("3 km nests anywhere" above) runs a 3 km domain of your choice instead.
   Its `--cards N` path and its sheets on several cards have not run on two physical cards yet.
+- **Moving nests:** for the first 1-3 h after a move, the new strip holds the source's smooth rain, with a
+  visible join along the old edge. The strip starts from GFS or IFS, not from the model's own state.
 - **Multi-card:** one machine only (no multi-node runs). The 5 km and band configfiles are not rows of
   `domains.json` (not measured as a whole run); they run from a checkout through `tools/run_nam_domain.sh`.
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full

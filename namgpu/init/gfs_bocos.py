@@ -166,8 +166,11 @@ def write_boco(path: Path, t0, old, new, tboco: float = TBOCO):
     tmp.replace(path)
 
 
-def build(ctx, hours: int, out_dir: Path | None = None, log=print):
-    """Write every boco file for a run of `hours` hours. Returns the folder."""
+def build(ctx, hours: int, out_dir: Path | None = None, log=print, from_hour: int = 0, generation: int | None = None):
+    """Write every boco file for a run of `hours` hours. Returns the folder.
+    from_hour (a storm-following window that lands at that hour, namgpu/nest/prepare.py): only the intervals from
+    from_hour on, still named in hours from the run start (READ_BC names a file from the step count, which a
+    moving run keeps from its start); generation is recorded in the folder's BOCO-SOURCE.json with the grid."""
     import cupy as cp
     from types import SimpleNamespace
     from namgpu import state as statemod
@@ -183,6 +186,13 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     age_h = srcmod.boco_age_h(brow, cfg)
     interval_h = int(brow["boundary"]["interval_h"])
     files = source_files(ctx.case_dir, ctx.start, hours, brow, cfg)
+    if from_hour:
+        if int(from_hour) % interval_h:
+            raise ValueError(f"{UNIT}: from_hour {from_hour}: a window can land only on a {bname} boundary time "
+                             f"(every {interval_h} h from the start)")
+        files = [(fh, p) for fh, p in files if fh >= int(from_hour)]
+        if len(files) < 2:
+            raise ValueError(f"{UNIT}: from_hour {from_hour} leaves no boundary interval before +{hours} h")
     missing = [str(p) for _, p in files if not p.is_file()]
     if missing:
         raise FileNotFoundError(f"{UNIT}: {bname} boundary files missing: {missing[:3]} (run init-fetch-case)")
@@ -234,8 +244,15 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
         reads.close()
     import json
     from namgpu import config as configmod
-    (out_dir / "BOCO-SOURCE.json").write_text(json.dumps(_marker(ctx.start, hours, files, age_h, interval_h,
-                                                                  bname, configmod.grid_stamp(ctx.cfg))))
+    mk = _marker(ctx.start, hours, files, age_h, interval_h, bname, configmod.grid_stamp(ctx.cfg))
+    if from_hour or generation is not None:
+        mk.update(from_hour=int(from_hour), generation=generation)
+    # The case folder boco-<domain> is shared by every source of the cycle with that domain name. Breakage this
+    # prevents: a parent nest (hourly files, SOURCE.json) overwrote a GFS nest's boco.0000 while the GFS marker
+    # BOCO-SOURCE.json still matched, so the next GFS run of that domain reused the parent's hourly boco.0000
+    # (tboco 3600 instead of 10800) and its moving segment asked for boco.0016 (P1 Ampil, 2026-11-05 06:29Z).
+    (out_dir / "SOURCE.json").unlink(missing_ok=True)          # parent_bocos' marker: its files are gone
+    (out_dir / "BOCO-SOURCE.json").write_text(json.dumps(mk))
     log(f"{UNIT}: {len(files) - 1} boco files from the {age_h} h old cycle "
         f"({ctx.start - timedelta(hours=age_h):%Y-%m-%d %HZ}) in {out_dir}")
     del st, bctx
@@ -277,6 +294,8 @@ def run(ctx, hours: int | None = None):
         have = json.loads(mk.read_text())
     except (OSError, ValueError):
         have = None
+    if have is not None and (out_dir / "SOURCE.json").is_file():
+        have = None                    # a parent build wrote this folder after the GFS marker (see build)
     if have is None:
         # a folder from before the marker: kept if complete only for the fixed NAM grid (folder "boco"); a
         # boco-<domain> folder is shared by every grid of that name, so without a grid record it is rebuilt

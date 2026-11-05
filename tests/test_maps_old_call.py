@@ -38,6 +38,7 @@ def _write_cf(path, lat, lon, valid, fields, label):
 
 def main() -> int:
     maps._read, maps._write_cf = _read, _write_cf
+    maps._follow_of = lambda path: None                    # static frames (the moving-nest attribute read is a file open)
     work = tempfile.mkdtemp()
     need = sorted({"XLAT", "XLONG", "T2", "RAINNC", "RAINC"})
     prods = ["t2m", "qpf_1h"]
