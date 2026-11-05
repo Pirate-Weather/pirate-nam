@@ -2,7 +2,7 @@
 
 # Pirate NAM
 
-Keeping the retired North American Mesoscale model sailing, on one GPU machine.
+Keeping the retired North American Mesoscale model sailing, on one GPU machine. Pirate Weather was founded on the idea of keeping legacy weather alive, so this is exactly what we like to do!
 
 > **Experimental.** Not an official forecast, and not a NOAA or NCEP product. Runs may stop or change without notice, and there's no regular schedule yet. Don't use it for decisions that affect safety.
 
