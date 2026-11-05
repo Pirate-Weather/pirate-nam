@@ -19,6 +19,9 @@ A record table has:
   donors        name -> {"file": template under the case dir, "spec": sfc selector}: a field the source does not
                 publish, taken from another source's file on its own grid (e.g. ECMWF open data has no sea-ice
                 concentration; the same cycle's GFS f000 ICEC is the donor, as gpuwm's fix/ifs-open-data-sea-ice).
+  container     "grib2" (default: init_grib2_decode; pl and sfc are (d, c, p, ...) record specs) or "regular-netcdf"
+                (gpuwm's regular-forcing NetCDF reader, gpuwm.ingest.regular_netcdf, the files gpuwm.era5_arco writes:
+                pl and sfc map each slot to the file's field name; levels in hPa; missing points are NaN).
   lat_crop      "south": keep source rows north of the domain's south edge (the GFS path as it has always been);
                 "both": keep only the domain's latitude band plus the margin (0.1 deg global fields are 6.5 M points
                 per record; the band keeps the device copy small).
@@ -123,7 +126,42 @@ IFS = {
     "lat_crop": "both",
 }
 
-TABLES = {"gfs_0p25": GFS, "ifs": IFS}
+# ERA5 reanalysis as gpuwm.era5_arco writes it (fields named by gpuwm's regular-forcing schema, REGULAR_FIELD_UNITS:
+# Z and SOILGEO m2 s-2, SNOW_EC m of water equivalent, ST/SM the four ERA5 layers 0-7, 7-28, 28-100, 100-289 cm, the
+# same HTESSEL layers as IFS; Q2 is gpuwm's specific humidity from the 2 m dewpoint). Snow depth: gpuwm's ERA5 field
+# list has the water equivalent only (no snow density), so the physical depth takes WRF real.exe's fixed 5:1
+# depth-to-water ratio (200 kg m-3, module_initialize_real.F), as gpuwm's ingest/soil.py does for SNOW_EC.
+ERA5 = {
+    "container": "regular-netcdf",
+    "pl": {"HGT": "Z", "TMP": "T", "SPFH": "SPFH", "UGRD": "U", "VGRD": "V"},
+    "pl_need": ("HGT", "TMP", "SPFH", "UGRD", "VGRD"),
+    # applied in this order: geopotential height from geopotential, then RH from q
+    "pl_derive": {"HGT": ("scale", ("HGT", 1.0 / G0)), "RH": ("rh_from_q", ("SPFH", "TMP", "@p"))},
+    "sfc": {
+        "PRES": "PSFC", "Z": "SOILGEO", "TSK": "SKINTEMP", "T2": "T2", "Q2": "Q2",
+        "U10": "U10", "V10": "V10",
+        "SOT1": "ST000007", "SOT2": "ST007028", "SOT3": "ST028100", "SOT4": "ST100289",
+        "VSW1": "SM000007", "VSW2": "SM007028", "VSW3": "SM028100", "VSW4": "SM100289",
+        "SNOW_EC": "SNOW_EC", "ICEC": "SEAICE", "LANDSRC": "LANDSEA",
+    },
+    "sfc_derive": [
+        ("HGT", "scale", ("Z", 1.0 / G0)),
+        ("RH2", "rh_from_q", ("Q2", "T2", "PRES")),
+        (("TSOIL1", "TSOIL2", "TSOIL3", "TSOIL4"), "layer_remap",
+         (("SOT1", "SOT2", "SOT3", "SOT4"), IFS_SOIL_LAYERS, NOAH_SOIL_LAYERS)),
+        (("SOILW1", "SOILW2", "SOILW3", "SOILW4"), "layer_remap",
+         (("VSW1", "VSW2", "VSW3", "VSW4"), IFS_SOIL_LAYERS, NOAH_SOIL_LAYERS)),
+        ("WEASD", "scale", ("SNOW_EC", 1000.0)),             # m of water -> kg m-2
+        ("SNOD", "scale", ("SNOW_EC", 5.0)),                 # physical depth (m) at 200 kg m-3
+        ("CNWAT", "const", (0.0,)),                          # canopy water is not in gpuwm's ERA5 field list
+    ],
+    "sfc_columns": ("PRES", "Z", "T2", "Q2", "U10", "V10"),
+    "derive_columns": ("HGT", "RH2"),
+    "donors": {},
+    "lat_crop": "both",
+}
+
+TABLES = {"gfs_0p25": GFS, "ifs": IFS, "era5": ERA5}
 
 
 def table(row: dict) -> dict:
@@ -201,6 +239,9 @@ def derive_pl(rec: dict, pl, plev, order) -> None:
     """Apply rec['pl_derive'] in place on pl [nslot, nlev, ny, nx]; '@p' is the level pressure (Pa)."""
     import cupy as cp
     for slot, (op, args) in rec["pl_derive"].items():
+        if op == "scale":
+            pl[order.index(slot)] = pl[order.index(args[0])] * cp.float32(args[1])
+            continue
         if op != "rh_from_q":
             raise ValueError(f"source_records: unknown pl_derive op {op!r}")
         q, t = pl[order.index(args[0])], pl[order.index(args[1])]

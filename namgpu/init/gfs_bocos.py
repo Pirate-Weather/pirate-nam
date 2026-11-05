@@ -1,5 +1,5 @@
 """init-gfs-bocos: lateral boundary files boco.NNNN from GFS (or any isobaric SOURCES row with a "boundary"
-entry: IFS open data), in the format NPS writes and READ_BC reads.
+entry: IFS open data, ERA5), in the format NPS writes and READ_BC reads.
 
 The NPS boundary step (nam_nps.fd nemsinterp module_boundary.F90:630-1366), on the GPU. For every
 boundary time (GFS every 3 h, the 6-h-old cycle as operational NAM: CONTRACT section 5) the GFS file
@@ -100,6 +100,31 @@ def boco_dir(ctx) -> Path:
     return Path(ctx.case_dir) / (d if name == "gfs" else f"{d}-{name}")
 
 
+class ReadAhead:
+    """Host reads of a regular-netcdf source's boundary files (gfs_start.read_regular_netcdf), `depth` files at
+    once ahead of the GPU work. Each read is one single-core Rust process (~20 s for an ERA5 hour of the NAM band),
+    so one at a time left the card idle for 9 x 20 s of a 24 h ERA5 build (189 s, 2026-11-05; 49 s with 6 ahead);
+    the values are the same file reads. Host memory: up to depth + 1 decoded files (~1 GB each for the NAM 12 km band)."""
+
+    def __init__(self, paths, depth):
+        from concurrent.futures import ThreadPoolExecutor
+        from namgpu.init import gfs_start
+        self._read = gfs_start.read_regular_netcdf
+        self.paths, self.depth = list(paths), max(1, int(depth))
+        self.ex = ThreadPoolExecutor(self.depth)
+        self.fut = {k: self.ex.submit(self._read, self.paths[k]) for k in range(min(self.depth, len(self.paths)))}
+
+    def get(self, k):
+        res = self.fut.pop(k).result()
+        nxt = k + self.depth
+        if nxt < len(self.paths) and nxt not in self.fut:
+            self.fut[nxt] = self.ex.submit(self._read, self.paths[nxt])
+        return res
+
+    def close(self):
+        self.ex.shutdown(wait=False, cancel_futures=True)
+
+
 def strips(st, lm, lnsh, lnsv):
     """Device strips of one boundary time: dict name -> (south, north, west, east)."""
     import cupy as cp
@@ -173,17 +198,24 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     # device placement, on bctx.stream) while this thread interpolates the current one: the decodes of one time
     # used ~5 of 24 cores and the boundary stage was a series of them (58 s for 17 times, nests 2026-11-04).
     from concurrent.futures import ThreadPoolExecutor
+    # A regular-netcdf source (era5): its host read is the slow part (one single-core process per file, ~20 s per
+    # ERA5 hour of the NAM band), so those reads go further ahead than the PREFETCH device decodes (ReadAhead).
+    reads = None
+    if rec.get("container") == "regular-netcdf":
+        from namgpu import cores
+        reads = ReadAhead([p for _, p in files], min(len(files), 6, max(1, cores.usable() // 2)))
 
-    def _decode(path):
+    def _decode(k, path):
         scope = bctx.stream if bctx.stream is not None else contextlib.nullcontext()
         with scope:
-            return gfs_start.decode_source(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec)
+            return gfs_start.decode_source(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec,
+                                           host=reads.get(k) if reads is not None else None)
     pool = ThreadPoolExecutor(max_workers=PREFETCH)
-    ahead = [pool.submit(_decode, p) for _, p in files[:PREFETCH]]
+    ahead = [pool.submit(_decode, k, p) for k, (_, p) in enumerate(files[:PREFETCH])]
     for k, (fh, path) in enumerate(files):
         dec = ahead[k].result()
         if k + PREFETCH < len(files):
-            ahead.append(pool.submit(_decode, files[k + PREFETCH][1]))
+            ahead.append(pool.submit(_decode, k + PREFETCH, files[k + PREFETCH][1]))
         gfs_start.model_state(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec, decoded=dec)
         del dec
         ahead[k] = None
@@ -198,6 +230,8 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
             log(f"{UNIT}: {name.name} (+{files[k - 1][0]} h -> +{fh} h)")
         prev = cur
     pool.shutdown()
+    if reads is not None:
+        reads.close()
     import json
     from namgpu import config as configmod
     (out_dir / "BOCO-SOURCE.json").write_text(json.dumps(_marker(ctx.start, hours, files, age_h, interval_h,

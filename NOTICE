@@ -25,6 +25,9 @@ Origins
 | NOAA fix files (radiation)     | namgpu/data/fix/*.txt                               | US Government data            |
 | Data fetched at run time       | case inputs, GMTED2010 terrain                      | US Government data;           |
 |                                | (not in this repository)                            | public domain                 |
+| Data fetched at run time       | --source ifs, ifs-0p25: ECMWF open data             | CC BY 4.0 (ECMWF)             |
+|                                | --source era5: ERA5 (Copernicus C3S), read from     | CC BY 4.0 (Copernicus);       |
+|                                | Google's public ARCO-ERA5 copy                      | attribution below             |
 
 ==========================================================================
 NOAA / NCEP NAM
@@ -43,6 +46,13 @@ path is dormant in the NAM configuration (ISUBCLW = ISUBCSW = 0).
 
 NOAA data used as model inputs (NOAA Open Data Dissemination) is used as distributed. It is not
 permissible to state or imply endorsement by or affiliation with NOAA.
+
+ECMWF data fetched at run time is not in this repository. IFS open data (--source ifs, ifs-0p25) is
+licensed by ECMWF under CC BY 4.0. ERA5 (--source era5) is licensed under CC BY 4.0 by the Copernicus
+Climate Change Service; forecasts started from it carry the attribution "Contains modified Copernicus
+Climate Change Service information" (Hersbach, H. et al. 2020, The ERA5 global reanalysis, Q. J. R.
+Meteorol. Soc. 146, 1999-2049), which every run receipt records with the start source. Neither the European
+Commission nor ECMWF is responsible for any use of that information.
 
 ==========================================================================
 RRTMG radiation (Atmospheric and Environmental Research, Inc.)

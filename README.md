@@ -94,6 +94,29 @@ The forecast (`woof-nam run`) needs the card above; every other line runs withou
 in the machine, add `--cards N` to the run (see "Running on more than one card") and check it against a
 one-card run with `woof-nam compare runs/<one card> runs/<N cards>`.
 
+## Start sources
+
+`--source` on `woof-nam fetch` and `woof-nam run` picks the analysis the forecast starts from. Every source
+goes through the same init (interpolation onto the NAM grid and its 60 levels on the GPU); only the table row
+that says where the files are and which fields to read differs.
+
+| `--source` | analysis | start times | ready after the start time | boundaries (every 3 h) | licence | for |
+|---|---|---|---|---|---|---|
+| `native` | archived NAM native analysis | cycles before 2026-11-03 12Z | archive only | GFS cycle 6 h older | US Government | the NAM's own start |
+| `gfs` | GFS 0.25 degree | from 2021-01-01 00Z | about 3.5 h | GFS cycle 6 h older | US Government | real time and recent dates |
+| `ifs-0p25` | ECMWF open data IFS HRES 0.25 degree | from 2025-03-14 12Z | about 7.5 h (00/12Z), 6.4 h (06/18Z) | same IFS cycle | CC BY 4.0 | real time and recent dates |
+| `ifs` | ECMWF open data IFS HRES 0.1 degree | from 2026-10-20 12Z | about 9.6 h (00/12Z), 8.5 h (06/18Z) | same IFS cycle | CC BY 4.0 | real time and recent dates |
+| `era5` | ECMWF ERA5 reanalysis 0.25 degree, hourly | 00, 06, 12 or 18Z from 1940-01-01 00Z | about 6 days | ERA5 analyses | CC BY 4.0 (Copernicus) | hindcasts and case studies |
+
+ERA5 is read without an account from Google's public ARCO-ERA5 copy, through gpuwm's own ERA5 reader.
+The store publishes its last day itself, and `woof-nam fetch` refuses a run that ends past it and names
+that day. On 2026-11-04 the last day was 2026-10-29: recent days are the preliminary ERA5T, and the final
+ERA5 runs about four months behind. The few days ERA5 does not cover yet are what `gfs` and `ifs` are for. ERA5
+has no forecast leads: the start and every boundary time are analyses, so the boundaries are as good as
+the reanalysis at every hour of the run. A 24 h case fetches 9 hours, about 11.5 GB (1.3 GB per hour for
+the NAM 12 km grid's latitude band, every longitude), in about 1.5 min on a fast link. The fields read and how
+they are mapped to the NAM's: `namgpu/init/source_records.py` (`ERA5`).
+
 ## Get the input data
 
 Every input comes from NOAA's open data on AWS. `woof-nam fetch` writes it to `<case-dir>/raw/` and
@@ -134,6 +157,16 @@ woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --s
 woof-nam run --case 2025-03-14_12z --source ifs-0p25 --hours 24 --out runs/2025-03-14_12z-ifs
 ```
 
+**ERA5 start (hindcasts, CC BY 4.0).** `--source era5` fetches the ERA5 analysis at the start and every 3 h
+after it, and MRMS where it exists (MRMS on NOAA's bucket starts in October 2020; older dates have no
+reflectivity to compare with). ERA5 carries its own sea ice, snow, soil and sea-surface temperature, so
+nothing comes from another model. An ERA5 start uses the same static fields as a GFS start.
+
+```
+woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --source era5
+woof-nam run --case 2025-03-14_12z --source era5 --hours 24 --out runs/2025-03-14_12z-era5
+```
+
 ## Run one forecast
 
 ```
@@ -141,7 +174,8 @@ woof-nam run --case 2025-03-14_12z --source native --hours 24 --out runs/2025-03
 ```
 
 `--case` is the case folder from `woof-nam fetch` (a bare name is looked up under `cases/`).
-`--source gfs` starts from GFS instead, `--source ifs-0p25` or `--source ifs` from the IFS. The run writes:
+`--source gfs` starts from GFS instead, `--source ifs-0p25` or `--source ifs` from the IFS, `--source era5`
+from ERA5. The run writes:
 - hourly history `wrfout_d01_<valid time>` (wrfout-shaped NetCDF);
 - maps in `<out>/maps/<product>/` (composite reflectivity, 2 m temperature and dewpoint, 10 m and
   850 hPa wind, MSLP, 1 h precipitation);
@@ -305,9 +339,10 @@ For the 12 km grid, per forecast hour:
   - RRTM longwave and shortwave (NCEP's RRTMG, hourly);
   - Janjic gravity-wave drag (GMTED2010 terrain).
 - **Start sources:** the archived NAM native analysis (`bgrd3d00`, for cycles before the
-  retirement), GFS 0.25 degree for any date from 2021, or ECMWF open data IFS (0.25 degree from 2025-03-14 12Z,
-  0.1 degree from 2026-10-20 12Z). On the NAM and GFS starts the lateral boundaries come from the
-  GFS cycle 6 hours older, as in the operational NAM; on an IFS start they come from the same IFS cycle.
+  retirement), GFS 0.25 degree for any date from 2021, ECMWF open data IFS (0.25 degree from 2025-03-14 12Z,
+  0.1 degree from 2026-10-20 12Z) or the ERA5 reanalysis (from 1940). On the NAM and GFS starts the lateral
+  boundaries come from the GFS cycle 6 hours older, as in the operational NAM; on an IFS start they come
+  from the same IFS cycle; on an ERA5 start they are ERA5 analyses ("Start sources" above).
 - **Not bitwise with the NAM.** The port runs in single precision with fast numerics. It is judged
   by whole wet forecasts beside the archived NAM forecast of the same cycle and MRMS reflectivity.
 

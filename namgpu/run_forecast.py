@@ -94,9 +94,10 @@ def main(argv=None):
                     help="the case folder woof-nam fetch wrote (cases/2025-03-14_12z), or its bare name, looked up "
                          "under <work root>/cases/; the name gives the start time (YYYY-MM-DD_HHz)")
     ap.add_argument("--source", default="native",
-                    help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z), GFS (gfs) or "
+                    help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z), GFS (gfs), "
                          "ECMWF open data IFS (ifs from 2026-10-20 12Z, ifs-0p25 from 2025-03-14 12Z; start and "
-                         "boundaries from the same IFS cycle, CC BY 4.0)")
+                         "boundaries from the same IFS cycle, CC BY 4.0) or the ERA5 reanalysis (era5, from 1940 to "
+                         "about 6 days ago; start and boundaries are ERA5 analyses; for hindcasts, CC BY 4.0)")
     ap.add_argument("--case-dir", type=Path, default=None,
                     help="the case folder (raw/, boco-<domain>/) when --case is only its name; the nest door passes a "
                          "cache on a data disk shared by every domain of that cycle")

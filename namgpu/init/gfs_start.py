@@ -1,4 +1,4 @@
-"""Start the NAM from an isobaric analysis (GFS 0.25 deg, IFS open data; HRRR/RRFS rows once their grids are placed).
+"""Start the NAM from an isobaric analysis (GFS 0.25 deg, IFS open data, ERA5; HRRR/RRFS rows once their grids are placed).
 
 The NPS replacement for any date (NAM retired 2026-11-03 12Z, CONTRACT "Init after NAM retirement").
 Same order as NPS: metgrid-style columns (a surface level, then the isobaric levels ground up) on the
@@ -117,7 +117,7 @@ def source_window(lat_deg, lon_deg, nx, ny, dlat, dlon, margin=SRC_MARGIN_DEG):
     return j0, j1, cols, False
 
 
-def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None):
+def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None, host=None):
     """Decode one isobaric source file (GDT 0, regular lat-lon, global) into init-gfs-decode's GfsDecoded, cut to
     the window around the domain (source_window of pts = [(lat, lon) radians device arrays], default the state's
     H and V points; columns counted from the file's own first longitude), plus the surface fields on the same
@@ -134,6 +134,19 @@ def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None):
     rec = srec.GFS if rec is None else rec
     pl_dcp, sfc_tab = rec["pl"], rec["sfc"]
     t_dec = time.perf_counter()
+    if rec.get("container", "grib2") == "regular-netcdf":
+        # the latitude band of the points (default the state's H and V points), every longitude (the fetch
+        # writes full-longitude bands: fetch_case.domain_band)
+        if pts is None:
+            pts = [(ctx.st["GLAT"], ctx.st["GLON"]), (ctx.st["VLAT"], ctx.st["VLON"])]
+        la = cp.concatenate([cp.degrees(a.ravel()) for a, _ in pts])
+        pl, plev, sfc, grid, what = decode_regular_netcdf(path, rec, float(la.min()), float(la.max()), sfc_keys,
+                                                          host=host)
+        del la
+        dec = _derive_and_decode(ctx, rec, pl, plev, sfc, sfc_keys)
+        print(f"{UNIT}: decoded {Path(path).name} ({Path(path).stat().st_size / 1e6:.0f} MB): {what}, "
+              f"{len(plev)} levels, {time.perf_counter() - t_dec:.1f} s", flush=True)
+        return dec, sfc, grid
     inv = g2.inventory(path)
     r0 = inv[0]
     if int(r0["gdt"]) != 0:
@@ -245,6 +258,101 @@ def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None):
           f"{len(jobs)} grib2_dump processes at once (one core each), rows {j0}..{j1 - 1} of {ny}, "
           f"{ncol} of {nx} columns, {len(plev)} levels, {time.perf_counter() - t_dec:.1f} s", flush=True)
     return dec, sfc, grid
+
+
+def _derive_and_decode(ctx, rec, pl, plev, sfc, sfc_keys):
+    """The record table's derived slots and surface fields, then init-gfs-decode (every container alike)."""
+    import cupy as cp
+    from namgpu.init import init_gfs_decode as gd
+    # Missing (bitmap) points: the sanitiser fills from present neighbours; MISSING marks them.
+    pl = cp.where(pl == MISSING, cp.float32(np.nan), pl)
+    if rec["pl_derive"]:
+        srec.derive_pl(rec, pl, plev, PL_ORDER)
+    if rec["sfc_derive"]:
+        srec.derive_sfc(rec, sfc, only=None if sfc_keys is None else rec["derive_columns"])
+    s2 = cp.stack([sfc["PRES"], sfc["HGT"]])
+    return gd.decode(pl, np.asarray(plev, np.float64), s2, stream=getattr(ctx, "stream", None))
+
+
+def read_regular_netcdf(path):
+    """Host half of decode_regular_netcdf: gpuwm's reader on one file (one Rust bridge process, one core; about
+    20 s for an ERA5 hour of the NAM band). gfs_bocos runs several at once ahead of the GPU work."""
+    try:
+        from gpuwm.ingest.regular_netcdf import decode_regular_netcdf_files
+    except ImportError as e:            # gpuwm is a package dependency; a bare checkout may not have it
+        raise ImportError(f"{UNIT}: a regular-netcdf source (era5) is read by gpuwm's reader: pip install "
+                          "'gpuwm>=2.9.11'") from e
+    return decode_regular_netcdf_files((Path(path),))
+
+
+def decode_regular_netcdf(path, rec, lat_min_deg, lat_max_deg=None, sfc_keys=None, host=None):
+    """One regular lat-lon NetCDF in gpuwm's regular-forcing schema (container "regular-netcdf": the files
+    gpuwm.era5_arco writes), read by gpuwm's own reader (gpuwm.ingest.regular_netcdf, Rust NetCDF bridge), into the
+    arrays decode_source makes from GRIB2: pl [len(PL_ORDER), nlev, nrow, nx] float32 on the device, rows south to
+    north, levels ground up (Pa); sfc {name: [nrow, nx]} with missing points = MISSING; the init-gfs-hinterp Grid.
+    Rows are the domain band lat_min-LAT_MARGIN .. lat_max+LAT_MARGIN (lat_max None: to the file's north edge).
+
+    Refusals (each names the breakage it prevents):
+      - more than one valid time in the file: the start and every boundary time are one file each; reading the
+        first of several would put the wrong hour into the run silently.
+      - an irregular grid, or a longitude span other than 360 deg: init-gfs-hinterp places rows and columns by
+        lat0 + j dlat, lon0 + i dlon and wraps longitude mod 360, so either would misplace points.
+      - a latitude band that does not cover the domain's band: the interpolation would read rows the file does not
+        have (a file fetched for another domain)."""
+    import cupy as cp
+    from namgpu.init import init_gfs_hinterp as hin
+    res = read_regular_netcdf(path) if host is None else host      # host: read_regular_netcdf(path), read ahead
+    if len(res.snapshots) != 1:
+        raise ValueError(f"{UNIT}: {path} holds {len(res.snapshots)} valid times; one file per start or boundary "
+                         "time is read")
+    snap = res.snapshots[0]
+    lat = np.asarray(snap.latitude, np.float64)
+    lon = np.asarray(snap.longitude, np.float64)
+    ny, nx = lat.size, lon.size
+    dlat, dlon = abs(float(lat[1] - lat[0])), float(lon[1] - lon[0])
+    if (dlon <= 0.0 or not np.allclose(np.abs(np.diff(lat)), dlat, atol=1e-6)
+            or not np.allclose(np.diff(lon), dlon, atol=1e-6)):
+        raise ValueError(f"{UNIT}: {path} is not a regular lat-lon grid with increasing longitudes")
+    if abs(nx * dlon - 360.0) > 1e-6:
+        raise ValueError(f"{UNIT}: {path} spans {nx * dlon:g} deg of longitude; the isobaric path wraps longitude "
+                         "mod 360 and places full-longitude bands only")
+    north_first = lat[0] > lat[-1]
+    lat_s = lat[::-1] if north_first else lat
+    lo = max(-90.0, lat_min_deg - LAT_MARGIN)
+    hi = 90.0 if lat_max_deg is None else min(90.0, lat_max_deg + LAT_MARGIN)
+    if lat_s[0] > lo + 1e-6 or lat_s[-1] < hi - 1e-6:
+        raise ValueError(f"{UNIT}: {path} covers latitudes {lat_s[0]:g}..{lat_s[-1]:g}; this domain needs "
+                         f"{lo:g}..{hi:g} (fetch the source again for this domain)")
+    j0 = max(0, int(np.floor((lo - lat_s[0]) / dlat)))
+    j1 = min(ny, int(np.ceil((hi - lat_s[0]) / dlat)) + 1)
+    missing = getattr(res, "bitmap_missing", {}) or {}
+
+    def rows(name):
+        """The field south to north, band rows only, float32, NaN where the file marks it missing."""
+        a = np.asarray(snap.fields[name], np.float64)
+        m = missing.get((snap.valid_time, name))
+        if m is not None and np.any(m):
+            a = np.where(m, np.nan, a)
+        if north_first:
+            a = a[..., ::-1, :]
+        return np.ascontiguousarray(a[..., j0:j1, :], dtype=np.float32)
+
+    lev = np.asarray(snap.levels_hpa, np.float64) * 100.0           # hPa -> Pa
+    order = [int(k) for k in np.argsort(-lev, kind="stable") if lev[k] >= 100.0]   # ground up, 1 hPa and below
+    plev = [float(lev[k]) for k in order]
+    pl = cp.zeros((len(PL_ORDER), len(plev), j1 - j0, nx), dtype=cp.float32)
+    for v, slot in enumerate(PL_ORDER):
+        if slot in rec["pl"]:            # a slot this source does not publish stays 0
+            pl[v] = cp.asarray(rows(rec["pl"][slot])[order])
+    sfc = {}
+    for n in (tuple(rec["sfc"]) if sfc_keys is None else tuple(sfc_keys)):
+        a = rows(rec["sfc"][n])
+        a[~np.isfinite(a)] = MISSING
+        sfc[n] = cp.asarray(a)
+    grid = hin.Grid(lat0=float(lat_s[j0]), lon0=float(lon[0]), dlat=dlat, dlon=dlon, lon_periodic=True)
+    what = (f"{snap.valid_time:%Y-%m-%d %HZ}, gpuwm regular-netcdf reader, {len(snap.fields)} fields, "
+            f"rows {j0}..{j1 - 1} of {ny} (south first)")
+    return pl, plev, sfc, grid, what
 
 
 def _shift(a, dj, di, lon_periodic, fill):
@@ -379,7 +487,7 @@ def ensure_vcoord(ctx):
         ctx.tables.pop(k, None)
 
 
-def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None, decoded=None):
+def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None, decoded=None, host=None):
     """Decode, interpolate and vertically interpolate one isobaric file onto the model grid; the
     result is in ctx.st (PD, PINT, T, Q, CW, U, V grid-relative, FIS, PSFC_OUT, P3D_OUT).
     ctx.st must carry HGT_M (model terrain) and GLAT/GLON/VLAT/VLON. decoded: decode_source's result for
@@ -390,7 +498,7 @@ def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None, decoded=None):
     st = ctx.st
     ensure_vcoord(ctx)
     dec, sfc, grid = (decoded if decoded is not None
-                      else decode_source(ctx, path, tmpdir, sfc_keys=sfc_keys, rec=rec))
+                      else decode_source(ctx, path, tmpdir, sfc_keys=sfc_keys, rec=rec, host=host))
     gi, soilhgt = columns(ctx, dec, sfc, grid)
     del dec
     st.add("SOILHGT", soilhgt.shape)[...] = soilhgt

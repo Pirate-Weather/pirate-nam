@@ -11,6 +11,11 @@ NAM retirement"):
   ifs     ECMWF open data IFS HRES 0.1 deg (from 2026-10-20 12Z), the same isobaric path; ifs-0p25 for
           earlier cycles (from 2025-03-14 12Z; snow from the same-cycle GFS where the file has no sd/rsn).
           Record tables and conversions: source_records.py.
+  era5    ECMWF ERA5 reanalysis 0.25 deg, hourly, 00/06/12/18Z starts from 1940-01-01 00Z to about 6 days before
+          today, the same isobaric path: start and boundaries are ERA5 analyses (hindcasts and case studies). Read
+          without an account from Google's public ARCO-ERA5 store by gpuwm's own ERA5 route (gpuwm.era5_arco, Rust
+          Zarr bridge) and decoded by gpuwm's regular-forcing NetCDF reader (source_records container
+          "regular-netcdf").
   hrrr, rrfs  table rows for the same isobaric path. They are refused by name today: their files are
           on Lambert-conformal grids (GRIB2 GDT 30) and init-grib2-decode places only GDT 0 and 32769
           (a Lambert grid read as lat-lon puts every point in the wrong cell). Not done.
@@ -133,6 +138,29 @@ SOURCES = {
                                {"file": "raw/ifs/gfs.t{hh}z.snod.f000.grib2",
                                 "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
                                        "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":SNOD:surface:"}]}},
+    # ECMWF ERA5 reanalysis (Copernicus C3S, CC BY 4.0: the CDS catalogue lists the ERA5 pressure- and single-level
+    # sets under CC-BY-4.0, checked 2026-11-05). gpuwm's route reused as it is: provider "arco" of gpuwm's era5 source
+    # (gpuwm/era5_arco.py ARCO_STORE and its field list; gpuwm/source_adapters.py _ERA5_ARCO_ARCHIVE: from 1940-01-01
+    # 00Z, the store's own .zattrs names its last preliminary ERA5T day). One NetCDF per boundary time, written by
+    # gpuwm.era5_arco.retrieve_era5_arco into its own folder (the name is gpuwm's era5_combined_name("arco")).
+    # Every boundary time is an analysis (age 0): the start and the boundaries are one reanalysis, every 3 h (the NAM's
+    # boco interval, tboco 10800 s) out of the hourly record. No donors: ERA5 carries sea ice, snow, soil and SST.
+    "era5":   {"kind": "isobaric", "file": "raw/era5/t{cyc:02d}z.f000/era5-combined.nc", "gdt": 0, "grid": "era5_0p25",
+               "records": "era5", "valid_from": "1940-01-01T00",
+               "boundary": {"age_h": 0, "interval_h": 3, "file": "raw/era5/t{bcyc:02d}z.f{lead:03d}/era5-combined.nc"},
+               "attribution": "Contains modified Copernicus Climate Change Service information (ERA5 reanalysis, "
+                              "Hersbach et al. 2020, CC BY 4.0), read from Google's public ARCO-ERA5 copy",
+               "licence": "CC-BY-4.0",
+               "fetch": {
+                   "kind": "arco-zarr", "route": "gpuwm era5 provider arco (gpuwm.era5_arco.retrieve_era5_arco)",
+                   "provider": "arco",
+                   "bounds_url": "https://storage.googleapis.com/gcp-public-data-arco-era5/ar/"
+                                 "full_37-1h-0p25deg-chunk-1.zarr-v3/.zattrs",
+                   "bounds_stop_keys": ["valid_time_stop_era5t", "valid_time_stop"],
+                   # source rows kept around the domain (the decode's own margin, gfs_start.LAT_MARGIN), every longitude
+                   "lat_margin_deg": 2.0,
+                   # gpuwm Rust Zarr readers at once (one per boundary time, ~1.5 GB of host memory each on the NAM band)
+                   "max_parallel": 4}},
     "hrrr":   {"kind": "isobaric", "file": "raw/hrrr/hrrr.t{cyc:02d}z.wrfprsf00.grib2", "gdt": 30,
                "grid": "hrrr_lambert", "attribution": "NOAA/NCEP HRRR (public domain)",
                "licence": "public-domain (US government work, AWS NODD noaa-hrrr-bdp-pds)"},

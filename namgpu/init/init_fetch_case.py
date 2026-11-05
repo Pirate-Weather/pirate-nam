@@ -140,6 +140,7 @@ def main(argv=None) -> int:
                "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z\n"
                "  woof-nam fetch --cycle 2026110412 --hours 24 --case-dir cases/2026-11-04_12z --gfs-only\n"
                "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --source ifs-0p25\n"
+               "  woof-nam fetch --cycle 2025031412 --hours 24 --case-dir cases/2025-03-14_12z --source era5\n"
                "Name the case folder YYYY-MM-DD_HHz: woof-nam run reads the start time from it. Any domain: "
                "woof-nam nest fetches for its own grid.",
         formatter_class=HelpFormatter)
@@ -158,7 +159,8 @@ def main(argv=None) -> int:
     ap.add_argument("--source", default=None,
                     help="native (default: the NAM set when the cycle has it), gfs, or another init source's start "
                          "and boundaries: ifs (ECMWF open data IFS 0.1 deg, cycles from 2026-10-20 12Z) or ifs-0p25 "
-                         "(0.25 deg, from 2025-03-14 12Z); CC BY 4.0")
+                         "(0.25 deg, from 2025-03-14 12Z), or era5 (ECMWF ERA5 reanalysis, from 1940 to about 6 days "
+                         "ago, from Google's public ARCO-ERA5 copy, no account); CC BY 4.0")
     ap.add_argument("--config", type=Path, default=None,
                     help="domain configfile (default NAMGPU_CONFIGFILE, else the NAM 12 km grid)")
     ap.add_argument("--boco-age", type=int, default=None,

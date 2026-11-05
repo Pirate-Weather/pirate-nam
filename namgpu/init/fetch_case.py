@@ -31,6 +31,11 @@ record selection on the ECMWF jsonl .index beside each object (byte ranges, adja
 order (a host that refuses the index or an object is skipped), plus the row's donor fields (GFS f000 ICEC by .idx).
 One output file per lead: the selected records of the lead's objects concatenated, and the row's f000_only
 records (the surface geopotential z, published at step 0 only) appended to every later lead. Prints the bytes.
+
+A row whose fetch kind is "arco-zarr" (era5) is fetched by gpuwm's own ERA5 route, gpuwm.era5_arco.retrieve_era5_arco
+(Google's public ARCO-ERA5 Zarr store, no account): one NetCDF per boundary time into the row's per-time folder, the
+latitude band of the run's domain (the configfile grid, plus the row's margin) and every longitude. The store's own
+bounds document is read first, so an hour past its last published day is refused with that day.
 """
 from __future__ import annotations
 
@@ -38,6 +43,7 @@ import argparse
 import gzip
 import re
 import shutil
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -476,11 +482,81 @@ def _jsonl_lead(fetch: dict, cycle: datetime, lead: int, dest: Path) -> str:
     raise OSError(f"{dest.name}: every host failed: {errors}")
 
 
+def domain_band(margin_deg: float) -> str:
+    """'lat_s,-180,lat_n,180': the latitude band of the run's domain (the configfile grid's H and V points, on the
+    host; NAMGPU_CONFIGFILE moves it with the run) widened by margin_deg, every longitude (gpuwm's area string)."""
+    import numpy as np
+    from namgpu import config, grid
+    g = grid.build(config.load())
+    lat = np.degrees(np.concatenate([g.glat_h.ravel(), g.glat_v.ravel()]))
+    south = max(-90.0, float(np.floor(lat.min() - margin_deg)))
+    north = min(90.0, float(np.ceil(lat.max() + margin_deg)))
+    return f"{south:g},-180,{north:g},180"
+
+
+def store_stop(fetch: dict) -> datetime | None:
+    """The last hour a store publishes, from its bounds document (the first of bounds_stop_keys it carries, a day:
+    the store grows in whole days), or None when the document cannot be read."""
+    import json
+    try:
+        doc = json.loads(_get(fetch["bounds_url"], timeout=60))
+    except (OSError, ValueError):
+        return None
+    for k in fetch.get("bounds_stop_keys", ()):
+        if doc.get(k):
+            return datetime.strptime(str(doc[k])[:10], "%Y-%m-%d") + timedelta(hours=23)
+    return None
+
+
+_ARCO_SLOTS: dict[int, threading.BoundedSemaphore] = {}
+_ARCO_LOCK = threading.Lock()
+
+
+def _arco_time(fetch: dict, valid: datetime, area: str, dest: Path) -> str:
+    """One ERA5 analysis hour through gpuwm's route (gpuwm.era5_arco.retrieve_era5_arco) into dest's own folder, at
+    most fetch["max_parallel"] at once. The folder keeps gpuwm's acquisition receipt beside the file."""
+    if dest.exists() and dest.stat().st_size > 0:
+        return f"have {dest.parent.name}/{dest.name} {dest.stat().st_size / 1e6:.0f} MB"
+    try:
+        from gpuwm.era5_arco import retrieve_era5_arco
+    except ImportError as e:
+        raise ImportError("fetch_case: the era5 source is fetched by gpuwm's ERA5 route: pip install "
+                          "'gpuwm>=2.9.11'") from e
+    with _ARCO_LOCK:
+        slot = _ARCO_SLOTS.setdefault(int(fetch["max_parallel"]), threading.BoundedSemaphore(int(fetch["max_parallel"])))
+    t0 = time.perf_counter()
+    with slot:
+        got = Path(retrieve_era5_arco(cycle=valid, hours=0, area=area, out=dest.parent, cadence=1,
+                                      progress=lambda s: None))
+    if got.resolve() != dest.resolve():
+        raise ValueError(f"fetch_case: gpuwm wrote {got}, the source row reads {dest}")
+    return (f"got {dest.parent.name}/{dest.name} {valid:%Y-%m-%d %HZ} {dest.stat().st_size / 1e6:.0f} MB "
+            f"in {time.perf_counter() - t0:.0f} s (gpuwm ARCO-ERA5, area {area})")
+
+
+def _arco_jobs(name: str, row: dict, cycle: datetime, hours: int, raw: Path):
+    fetch, b = row["fetch"], row["boundary"]
+    last = cycle + timedelta(hours=hours)
+    stop = store_stop(fetch)
+    if stop is not None and last > stop:
+        raise ValueError(f"fetch_case: source {name!r}: the store's last published hour is {stop:%Y-%m-%d %H}Z, "
+                         f"this run needs {last:%Y-%m-%d %H}Z")
+    area = domain_band(float(fetch["lat_margin_deg"]))
+    jobs = []
+    for lead in range(0, hours + 1, int(b["interval_h"])):
+        dest = raw.parent / b["file"].format(bcyc=cycle.hour, lead=lead)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        jobs.append((_arco_time, fetch, cycle + timedelta(hours=lead), area, dest))
+    return jobs
+
+
 def plan_source(name: str, cycle: datetime, hours: int, raw: Path):
     """Jobs for an init source row with a "fetch" entry: its start and boundary leads plus its donor fields."""
     from namgpu.init.sources import SOURCES
     row = SOURCES[name]
     fetch = row["fetch"]
+    if fetch["kind"] == "arco-zarr":
+        return _arco_jobs(name, row, cycle, hours, raw)
     if fetch["kind"] != "ecmwf-jsonl":
         raise ValueError(f"fetch_case: source {name!r} fetch kind {fetch['kind']!r} has no fetcher")
     last = max(s for s, _ in fetch["steps"])
@@ -531,8 +607,8 @@ def main(argv=None):
     ap.add_argument("--hours", type=int, default=48)
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--config", type=Path, default=None, help="domain configfile (default NAMGPU_CONFIGFILE)")
-    ap.add_argument("--source", default="gfs", help="init source row (its init/boco rows are required; ifs, ifs-0p25 "
-                    "fetch through the row's own fetch entry)")
+    ap.add_argument("--source", default="gfs", help="init source row (its init/boco rows are required; ifs, ifs-0p25, "
+                    "era5 fetch through the row's own fetch entry)")
     ap.add_argument("--boco-age", type=int, default=None, help="boundary cycle age, h (default: the row's)")
     ap.add_argument("--case-dir", type=Path, default=None)
     ap.add_argument("--dry-run", action="store_true")

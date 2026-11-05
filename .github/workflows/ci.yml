@@ -31,6 +31,7 @@ jobs:
           python tests/test_cli.py
           python tests/test_restart_output.py
           python tests/test_products_spec.py
+          python tests/test_era5_source.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist
