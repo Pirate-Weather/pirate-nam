@@ -104,12 +104,12 @@ def history_files(ctx, products: str = DEFAULT_PRODUCTS) -> list[Path]:
 def _expected_skip(slug: str, reason: str, first_name: str) -> bool:
     if slug not in EXPECTED_SKIPS:
         return False
-    if slug in FIRST_FRAME_SKIPS:
-        return first_name in reason
     if slug in WINDOW_H and "dry window" in reason:
         # maps.py skips a rain window with no rain instead of painting zeros domain-wide; a 3 km nest's first hour is
         # often dry, and the nest door exited rc 1 here after a finished forecast (2026-11-05)
         return True
+    if slug in FIRST_FRAME_SKIPS:
+        return first_name in reason
     if slug in WINDOW_SKIPS:
         return "earlier to difference" in reason
     return True
