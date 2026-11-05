@@ -92,6 +92,12 @@ def run(ctx):
             f["IVGTYP"], f["ISLTYP"],
             np.int32(im), np.int32(jm),
         ))
+        # A source that carries the model's own liquid soil water (the parent hand-off, parent_start.py) keeps it
+        # on land instead of the kernel's frozen-fraction split, capped at the total. No other source sets this.
+        ov = ctx.tables.get("sfc_override") if getattr(ctx, "tables", None) is not None else None
+        if ov and "SH2O" in ov:
+            land = (f["SM"] < 0.5)[None]
+            f["SH2O"][...] = cp.where(land, cp.minimum(cp.maximum(ov["SH2O"], 0.0), f["SMC"]), f["SH2O"])
     return st
 
 

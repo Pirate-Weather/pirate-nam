@@ -83,8 +83,13 @@ def main(argv=None):
                          "under <work root>/cases/; the name gives the start time (YYYY-MM-DD_HHz)")
     ap.add_argument("--source", default="native",
                     help="start from the archived NAM analysis (native, cycles before 2026-11-03 12Z), GFS (gfs) or "
-                         "ECMWF open data IFS (ifs from 2026-10-20 12Z, ifs-0p25 from 2024-03-18 12Z; start and "
+                         "ECMWF open data IFS (ifs from 2026-10-20 12Z, ifs-0p25 from 2025-03-14 12Z; start and "
                          "boundaries from the same IFS cycle, CC BY 4.0)")
+    ap.add_argument("--case-dir", type=Path, default=None,
+                    help="the case folder (raw/, boco-<domain>/) when --case is only its name; the nest door passes a "
+                         "cache on a data disk shared by every domain of that cycle")
+    ap.add_argument("--parent-run", type=Path, default=None,
+                    help="--source parent: the parent run directory (its hourly wrfout with the hand-off set)")
     ap.add_argument("--hours", type=float, default=None, help="forecast length in hours (default 1)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (relative paths are under the work root)")
     ap.add_argument("--skip-init", default="init-fetch-case",
@@ -165,7 +170,7 @@ def main(argv=None):
                          "would write its own rows and the resume would have to load them on the same N cards, "
                          "which is not written yet")
     if a.maps_only:
-        return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out)
+        return maps_only(a.case, a.out if a.out.is_absolute() else paths.work_root() / a.out, a.case_dir)
     if a.products and "NAMGPU_RANK" not in os.environ:
         _start_products(a.out if a.out.is_absolute() else paths.work_root() / a.out)
     if a.cards > 1 and "NAMGPU_RANK" not in os.environ:
@@ -204,10 +209,13 @@ def main(argv=None):
         print(f"rank {ctx.slab.rank}/{ctx.slab.nranks}: rows {ctx.slab.jts}..{ctx.slab.jte} of {ctx.slab.jmg}, "
               f"memory {ctx.slab.jms}..{ctx.slab.jme} ({g.jm} rows), card {os.environ.get('CUDA_VISIBLE_DEVICES')}",
               flush=True)
-    ctx.case_dir = paths.case_dir(a.case)
-    ctx.start = datetime.strptime(ctx.case_dir.name[:14], "%Y-%m-%d_%Hz")
+    # --case-dir (nest door): the case cache on a data disk shared by every domain of that cycle; --case names it
+    ctx.case_dir = a.case_dir.resolve() if a.case_dir is not None else paths.case_dir(a.case)
+    ctx.start = datetime.strptime((Path(a.case).name if a.case_dir is not None else ctx.case_dir.name)[:14],
+                                  "%Y-%m-%d_%Hz")
     ctx.start_time = ctx.start
     ctx.init_source = a.source
+    ctx.parent_run = a.parent_run
     ctx.out_dir = out if multi is None else out / f"rank{ctx.slab.rank}"   # history goes via NAMGPU_HIST_SHM
     Path(ctx.out_dir).mkdir(parents=True, exist_ok=True)
     ctx.forecast_hours = max(6, int(a.hours + 0.999))
@@ -385,7 +393,9 @@ def main(argv=None):
         os.execv(sys.executable, [sys.executable, "-c",
                                   "import sys; sys.path.insert(0, %r); from namgpu.run_forecast import main; "
                                   "sys.exit(main(sys.argv[1:]))" % PKG_PARENT,
-                                  "--maps-only", "--case", str(ctx.case_dir), "--out", str(out)])
+                                  "--maps-only", "--case", a.case if a.case_dir is not None else str(ctx.case_dir),
+                                  "--out", str(out)]
+                 + (["--case-dir", str(ctx.case_dir)] if a.case_dir is not None else []))
     rp = out / "forecast-receipt.json" if multi is None else out / f"forecast-receipt.r{ctx.slab.rank}.json"
     if multi is not None:
         rec["rank"] = {"rank": ctx.slab.rank, "nranks": ctx.slab.nranks, "jts": ctx.slab.jts, "jte": ctx.slab.jte,
@@ -548,11 +558,11 @@ def launch(a, argv) -> int:
     print(f"ranks exit {codes}, history pool {wcode}, wall {rec['wall_s']} s -> {out / 'forecast-receipt.json'}",
           flush=True)
     if ok and not a.no_maps:
-        return maps_only(str(a.case), out)
+        return maps_only(str(a.case), out, a.case_dir)
     return 0 if ok else 1
 
 
-def maps_only(case: str, out: Path) -> int:
+def maps_only(case: str, out: Path, case_dir: Path | None = None) -> int:
     """Post-run maps in a process with no CUDA context: render every history frame of <out> not yet drawn
     (frames an hourly watcher rendered are skipped) across all cores, then finish the receipt."""
     from types import SimpleNamespace
@@ -560,12 +570,15 @@ def maps_only(case: str, out: Path) -> int:
     from namgpu.io import io_maps
     rp = out / "forecast-receipt.json"
     rec = json.loads(rp.read_text())
-    cdir = paths.case_dir(case)
-    ctx = SimpleNamespace(out_dir=out, case_dir=cdir, start=datetime.strptime(cdir.name[:14], "%Y-%m-%d_%Hz"))
+    cdir = Path(case_dir).resolve() if case_dir else paths.case_dir(case)
+    ctx = SimpleNamespace(out_dir=out, case_dir=cdir,
+                          start=datetime.strptime((Path(case).name if case_dir else cdir.name)[:14], "%Y-%m-%d_%Hz"))
     t2 = time.perf_counter()
     try:
         rec["maps"] = str(io_maps.run(ctx))[:2000]
-    except Exception as e:  # noqa: BLE001
+    except (Exception, SystemExit) as e:  # noqa: BLE001
+        # SystemExit too: maps.renderer() raises it when the renderer or its basemap is missing, and before this the
+        # receipt was never finished (no maps_error, no maps_s; review round 3, #3)
         rec["maps_error"] = f"{type(e).__name__}: {e}"
         print("MAPS ERROR", rec["maps_error"], flush=True)
     rec["maps_s"] = round(time.perf_counter() - t2, 2)

@@ -44,6 +44,7 @@ BLOCK = 64
 ITBL = 401
 JTBL = 1201
 KERFM = 301
+TT_WORK = 7 * (JTBL + 1)     # floats of spline work per TABLETT column (kernel MYJ_TT_WORK)
 
 _SCAL_RDXE = 0
 _SCAL_RDTH = 1
@@ -76,7 +77,10 @@ def build_tables(stream=None) -> dict:
 
         k_tt = kernels.get(UNIT, "phys_myj_tablett")
         grid_tt = ((ITBL + BLOCK - 1) // BLOCK, 1, 1)
-        k_tt(grid_tt, (BLOCK, 1, 1), (ttbl, the0, sthe, scal))
+        # per-column spline work arrays in global memory (13.5 MB), not 28.8 KB/thread of local stack that
+        # the driver reserved for every resident thread of the card (~7.5 GB; kernel header)
+        work = cp.empty((ITBL * TT_WORK,), dtype=cp.float32)
+        k_tt(grid_tt, (BLOCK, 1, 1), (ttbl, the0, sthe, scal, work))
 
     return {
         "myj_herff": herff,

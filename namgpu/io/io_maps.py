@@ -37,8 +37,10 @@ from .maps import DEFAULT_PRODUCTS, render as render_series
 EXPECTED_SKIPS = {
     "qpf_1h": "run's first frame has no earlier frame to difference against",
     "composite_reflectivity": "the 0 h frame precedes the first microphysics call (no REFL_10CM yet)",
+    "qpf_6h": "frames of the run's first 6 h have no history frame 6 h earlier to difference against",
 }
 FIRST_FRAME_SKIPS = {"qpf_1h", "composite_reflectivity"}
+WINDOW_SKIPS = {"qpf_6h"}      # expected while the frame is inside the first window (maps.WINDOW_H)
 
 
 def _candidates(ctx) -> list[Path]:
@@ -104,6 +106,8 @@ def _expected_skip(slug: str, reason: str, first_name: str) -> bool:
         return False
     if slug in FIRST_FRAME_SKIPS:
         return first_name in reason
+    if slug in WINDOW_SKIPS:
+        return "earlier to difference" in reason
     return True
 
 

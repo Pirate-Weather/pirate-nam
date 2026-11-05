@@ -166,6 +166,9 @@ def run(ctx, only=None, log=print) -> dict:
         if uid == "init-vcoord-recover":
             from namgpu.init import sources  # noqa: PLC0415
             sources.release_staged(ctx, keep=())     # staged decode inputs are dead from here on
+        if uid == "drv-physics-initialize":
+            from namgpu.init import init_native_atm  # noqa: PLC0415
+            init_native_atm.apply_parent_warm(ctx)  # one-way nest: parent Ferrier fractions over the cold fill
         dt = time.perf_counter() - t0
         stages.append({"unit": uid, "host_s": round(dt, 3), "status": "ok"})
         log(f"{UNIT}: {uid:<26} {dt:9.2f} s")

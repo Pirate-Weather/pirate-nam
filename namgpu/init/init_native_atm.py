@@ -95,4 +95,25 @@ def warm_start(ctx):
     module_INIT_READ_BIN.F90:237-240). Sources without these records (GFS) keep the cold-start values.
     """
     from namgpu.init import sources  # noqa: PLC0415
+    if ctx.tables.get("parent_warm"):
+        # One-way nest from our own history (parent_start.species): the parent's Ferrier fractions on the nest
+        # levels; CW is the cold rule's species sum, which is the parent's CWM. Applied after drv-physics-initialize
+        # (apply_parent_warm), because phys-fer-init's cold-start fill (F_ICE = F_RAIN = 0, F_RIMEF = 1) runs there.
+        return ["F_ICE", "F_RAIN"]
     return sources.decode_warm(ctx)
+
+
+def apply_parent_warm(ctx):
+    """After drv-physics-initialize: put the parent's F_ICE / F_RAIN back over phys-fer-init's cold-start zeros.
+
+    Without this the parent's snow and rain start as cloud water: the first 3 km nest from the real 12 km parent
+    (2026-11-04) had QSNOW = QRAIN = 0 and no echo at f00 where the parent had 48.8 dBZ, and 26 dBZ at f01.
+    F_RIMEF stays at the fill's 1 (unrimed; the history has no rime field). One-way nests from our history only.
+    """
+    pw = ctx.tables.pop("parent_warm", None)
+    if not pw:
+        return []
+    st = ctx.st
+    st["F_ICE"][...] = pw["F_ICE"]
+    st["F_RAIN"][...] = pw["F_RAIN"]
+    return ["F_ICE", "F_RAIN"]

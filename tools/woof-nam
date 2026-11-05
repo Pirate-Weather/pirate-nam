@@ -1,0 +1,13 @@
+#!/bin/bash
+# woof-nam: the WOOF-NAM door (namgpu/nest/cli.py).
+#   tools/woof-nam nest --center LAT,LON --size-km 1000 --res-km 3 --source auto|gfs|ifs|parent [--parent-run DIR] \
+#       --start YYYYMMDDHH --hours 48 --out DIR [--cards N]
+# Python: NAMGPU_PYTHON, else this tree's .venv, else the .venv of NAMGPU_ROOT (env.sh), else python3.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY=${NAMGPU_PYTHON:-}
+for c in "$ROOT/.venv/bin/python" "${NAMGPU_ROOT:+$NAMGPU_ROOT/.venv/bin/python}"; do
+  if [ -z "$PY" ] && [ -n "$c" ] && [ -x "$c" ]; then PY=$c; fi
+done
+PY=${PY:-python3}
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m namgpu.nest.cli "$@"

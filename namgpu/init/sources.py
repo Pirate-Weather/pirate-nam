@@ -6,8 +6,11 @@ NAM retirement"):
           retirement. Same grid and levels as the model: no interpolation.
   gfs     GFS 0.25 deg analysis (pgrb2.0p25 f000) for any date, interpolated onto the rotated B grid
           and the NMMB hybrid levels by the init-gfs-* units (nemsinterp port), gfs_start.py.
+  parent  our own WOOF-NAM history (a run with history_handoff: true): a one-way nest on its own grid,
+          parent_start.py (start) and parent_bocos.py (boundaries).
   ifs     ECMWF open data IFS HRES 0.1 deg (from 2026-10-20 12Z), the same isobaric path; ifs-0p25 for
-          earlier cycles (from 2024-03-18 12Z). Record tables and conversions: source_records.py.
+          earlier cycles (from 2025-03-14 12Z; snow from the same-cycle GFS where the file has no sd/rsn).
+          Record tables and conversions: source_records.py.
   hrrr, rrfs  table rows for the same isobaric path. They are refused by name today: their files are
           on Lambert-conformal grids (GRIB2 GDT 30) and init-grib2-decode places only GDT 0 and 32769
           (a Lambert grid read as lat-lon puts every point in the wrong cell). Not done.
@@ -37,13 +40,25 @@ NCLASS = 30                           # soil_hydraulics table length (init-nativ
 # One row per source. "file" is relative to the case directory; {cyc} is the cycle hour.
 SOURCES = {
     "native": {"kind": "nam_native", "file": "raw/nam/bgrd3d00.grib2", "gdt": 32769,
-               "valid_before": "2026-11-03T12"},
+               "valid_before": "2026-11-03T12",
+               "attribution": "NOAA/NCEP NAM analysis (public domain)",
+               "licence": "public-domain (US government work, NOAA NOMADS / AWS NODD noaa-nam-pds)"},
     "gfs":    {"kind": "isobaric", "file": "raw/gfs/gfs.t{cyc:02d}z.pgrb2.0p25.f000", "gdt": 0,
                "grid": "gfs_0p25", "records": "gfs_0p25",
+               # the noaa-gfs-bdp-pds archive the fetch reads begins 2021-01-01 00Z (fetch_case.GFS_ERAS)
+               "valid_from": "2021-01-01T00",
                "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{cyc:02d}/atmos/"
                       "gfs.t{cyc:02d}z.pgrb2.0p25.f000",
-               # boundaries: the 6-h-old cycle every 3 h, as operational NAM (CONTRACT section 5)
-               "boundary": {"age_h": 6, "interval_h": 3, "file": "raw/gfs/gfs.t{bcyc:02d}z.f{lead:03d}.grib2"},
+               # Lateral boundaries (init-gfs-bocos, fetch_case row gfs-boco): forecast leads every
+               # boco_interval_h of the cycle boco_age_h hours older than the start. 6 h is what
+               # operational NAM uses (CONTRACT section 5); 0 h (the start cycle itself) is the knob for
+               # past cases (NAMGPU_BOCO_AGE_H, configfile key boco_age_h, or --boco-age).
+               "boco_age_h": 6, "boco_interval_h": 3,
+               "boco_file": "raw/gfs/gfs.t{bcyc:02d}z.f{lead:03d}.grib2",
+               # published_after_h: every lead the door asks for (f000-f120) is on the bucket by then (GFS posts
+               # f000 about 3.5 h after the cycle and f384 by about 5 h); the door takes age 0 after it
+               "boundary": {"age_h": 6, "interval_h": 3, "file": "raw/gfs/gfs.t{bcyc:02d}z.f{lead:03d}.grib2",
+                            "published_after_h": 6},
                "attribution": "NOAA/NCEP GFS (public domain)", "licence": "public-domain"},
     # ECMWF open data IFS HRES (CC BY 4.0). Rows copied from gpuwm authorities/rw-wps-fetch-routes.v1.json
     # (routes ecmwf-open-data-0p1 measured 2026-10-24/29, ecmwf-open-data measured 2026-09-28/30): hosts, file
@@ -81,7 +96,12 @@ SOURCES = {
                                 "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
                                        "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":SNOD:surface:"}]}},
     "ifs-0p25": {"kind": "isobaric", "file": "raw/ifs/ifs.t{cyc:02d}z.0p25.f000.grib2", "gdt": 0, "grid": "ifs_0p25",
-                 "records": "ifs", "valid_from": "2024-03-18T12",
+                 # valid_from: the first cycle whose step-0 .index lists every record "select" reads, counting
+                 # snow (sd, rsn) as optional: a file without them takes snow from the same-cycle GFS f000
+                 # (source_records donor_fallback). ECMWF's own .index files: sol sot/vsw from 2024-11-15, sfc z by
+                 # 2025-03-15 (present in the 2025-03-14 12Z file, which ran the IFS start), sd by 2025-12-01, rsn
+                 # from 2026-02-11 12Z. Was 2024-03-18 12Z, whose files lack sot/vsw; earlier cycles take gfs.
+                 "records": "ifs", "valid_from": "2025-03-14T12",
                  "boundary": {"age_h": 0, "interval_h": 3,
                               "file": "raw/ifs/ifs.t{bcyc:02d}z.0p25.f{lead:03d}.grib2"},
                  "attribution": "ECMWF open data, CC BY 4.0", "licence": "CC-BY-4.0",
@@ -89,10 +109,11 @@ SOURCES = {
                      "kind": "ecmwf-jsonl", "route": "gpuwm rw-wps-fetch-routes.v1.json ecmwf-open-data",
                      "hosts": ["https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
                                "https://data.ecmwf.int/forecasts"],
-                     # the 4-soil-layer eras (from 2024-03-18 12Z); 06/18Z were 'scda' until 2026-05-12 06Z
-                     "eras": [{"from": "2024-03-18T12", "until": None, "cycles": [0, 12],
+                     # from the first cycle with every required record (valid_from); 06/18Z were 'scda' until
+                     # 2026-05-12 06Z
+                     "eras": [{"from": "2025-03-14T12", "until": None, "cycles": [0, 12],
                                "files": ["{ymd}/{hh}z/ifs/0p25/oper/{ymd}{hh}0000-{lead}h-oper-fc.grib2"]},
-                              {"from": "2024-03-18T12", "until": "2026-05-12T06", "cycles": [6, 18],
+                              {"from": "2025-03-14T12", "until": "2026-05-12T06", "cycles": [6, 18],
                                "files": ["{ymd}/{hh}z/ifs/0p25/scda/{ymd}{hh}0000-{lead}h-scda-fc.grib2"]},
                               {"from": "2026-05-12T06", "until": None, "cycles": [6, 18],
                                "files": ["{ymd}/{hh}z/ifs/0p25/oper/{ymd}{hh}0000-{lead}h-oper-fc.grib2"]}],
@@ -113,9 +134,18 @@ SOURCES = {
                                 "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{ymd}/{hh}/atmos/"
                                        "gfs.t{hh}z.pgrb2.0p25.f000", "idx_match": ":SNOD:surface:"}]}},
     "hrrr":   {"kind": "isobaric", "file": "raw/hrrr/hrrr.t{cyc:02d}z.wrfprsf00.grib2", "gdt": 30,
-               "grid": "hrrr_lambert"},
+               "grid": "hrrr_lambert", "attribution": "NOAA/NCEP HRRR (public domain)",
+               "licence": "public-domain (US government work, AWS NODD noaa-hrrr-bdp-pds)"},
     "rrfs":   {"kind": "isobaric", "file": "raw/rrfs/rrfs.t{cyc:02d}z.prslev.f000.conus.grib2",
-               "gdt": 30, "grid": "rrfs_lambert"},
+               "gdt": 30, "grid": "rrfs_lambert", "attribution": "NOAA/NCEP RRFS (public domain)",
+               "licence": "public-domain (US government work, AWS NODD noaa-rrfs-pds)"},
+    # One-way nest from our own WOOF-NAM history (offline, like WRF ndown): the parent run directory comes from
+    # --parent-run / configfile parent_run / NAMGPU_PARENT_RUN; the run must have written the hand-off set
+    # (configfile history_handoff: true). Start: parent_start.py; boundaries: parent_bocos.py.
+    # Its licence is the parent run's own start source: the history's DATA_LICENCES attribute (nest.cli.parent_credit).
+    "parent": {"kind": "nam_history", "file": "{parent_run}/wrfout_d01_{valid}", "grid": "parent_rotated",
+               "attribution": "our own WOOF-NAM run (its start source's credit is read from its history)",
+               "licence": "inherits the parent run's start source (history attribute DATA_LICENCES)"},
 }
 
 # NAM native analysis records (UPP output of the NMMB analysis, GDT 32769, UPP resolution flags 56:
@@ -208,6 +238,21 @@ def source_row(ctx) -> tuple[str, dict]:
     return name, SOURCES[name]
 
 
+def boco_age_h(row: dict, cfg=None, override=None) -> int:
+    """Hours between the start and the cycle the boundaries come from, for one SOURCES row. First set
+    wins: override (a CLI value), NAMGPU_BOCO_AGE_H, configfile key boco_age_h, the row's boco_age_h."""
+    import os
+    for v in (override, os.environ.get("NAMGPU_BOCO_AGE_H"),
+              (cfg.raw.get("boco_age_h") if cfg is not None else None), row.get("boco_age_h"),
+              (row.get("boundary") or {}).get("age_h")):
+        if v is not None and str(v).strip() != "":
+            h = int(v)
+            if h < 0 or h % 6:
+                raise ValueError(f"{UNIT}: boundary age {h} h: must be a non-negative multiple of 6 (GFS and IFS cycles)")
+            return h
+    raise ValueError(f"{UNIT}: source row has no boco_age_h")
+
+
 def source_path(ctx, row) -> Path:
     cyc = int(ctx.start.hour) if ctx.start is not None else 0
     return Path(ctx.case_dir) / row["file"].format(cyc=cyc)
@@ -257,6 +302,9 @@ def stage(ctx):
     name, row = source_row(ctx)
     if row["kind"] == "nam_native":
         return stage_native(ctx, row)
+    if row["kind"] == "nam_history":
+        from namgpu.init import parent_start
+        return parent_start.stage(ctx, name, row)
     if row["gdt"] not in (0, 32769):
         raise NotImplementedError(
             f"{UNIT}: source {name!r} is on GRIB2 GDT {row['gdt']} (Lambert conformal); init-grib2-decode "

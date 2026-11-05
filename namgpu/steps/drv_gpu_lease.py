@@ -35,10 +35,13 @@ import numpy as np
 
 UNIT = "drv_gpu_lease"
 KERNEL = "lease_probe"
-_POOL_HOME = Path(os.environ.get("NAMGPU_POOL_HOME", Path.home() / "gpuwm-work"))
-POOL_RUN = _POOL_HOME / "pool-v3/run.sh"
-OWNER = _POOL_HOME / "gpu-mutex/OWNER"
-OWNER_LOCK = _POOL_HOME / "gpu-mutex/OWNER.lock"
+# the pool-v3 / gpu-mutex tree of the node (NAMGPU_GPUWM_WORK, or the older NAMGPU_POOL_HOME; default ~/gpuwm-work);
+# no user home is written into the package
+GPUWM_WORK = Path(os.environ.get("NAMGPU_GPUWM_WORK") or os.environ.get("NAMGPU_POOL_HOME") or Path.home() / "gpuwm-work")
+_POOL_HOME = GPUWM_WORK
+POOL_RUN = GPUWM_WORK / "pool-v3" / "run.sh"
+OWNER = GPUWM_WORK / "gpu-mutex" / "OWNER"
+OWNER_LOCK = GPUWM_WORK / "gpu-mutex" / "OWNER.lock"
 DEFAULT_LANE = "nam-gpu-drv-gpu-lease"
 DEFAULT_VRAM_MIB = 12000
 DEFAULT_EST_S = 900

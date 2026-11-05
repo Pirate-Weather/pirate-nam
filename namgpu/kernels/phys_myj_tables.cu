@@ -231,10 +231,16 @@ extern "C" __global__ void phys_myj_tablept(float* __restrict__ ptbl,
 
 // TABLETT: one thread per kp column (kp = 1..ITBL). ttbl[kp, kth] at IDX2(kth-1, kp-1, JTBL),
 // the0[kp-1], sthe[kp-1]. Thread kp = 1 also writes scal[3] = RDP and scal[4] = RDTHE.
+// work: MYJ_TT_WORK floats per column (seven 1-based arrays of JTBL+1), in global memory. They were local
+// arrays (28,848 B/thread): the driver reserves that stack for every resident thread of the device, ~7.5 GB on
+// a 170-SM card, for a 401-thread table build, so the init failed with CUDA_ERROR_OUT_OF_MEMORY whenever a
+// shared card had less than ~12 GB free (nest init on a shared 32 GB card, 2026-11-04). Same arithmetic, same order.
+#define MYJ_TT_WORK (7 * (MYJ_JTBL + 1))
 extern "C" __global__ void phys_myj_tablett(float* __restrict__ ttbl,
                                             float* __restrict__ the0,
                                             float* __restrict__ sthe,
-                                            float* __restrict__ scal)
+                                            float* __restrict__ scal,
+                                            float* __restrict__ work)
 {
     const int kp = blockIdx.x * blockDim.x + threadIdx.x + 1;
     if (kp > MYJ_ITBL) return;
@@ -247,8 +253,14 @@ extern "C" __global__ void phys_myj_tablett(float* __restrict__ ttbl,
     float p = MYJ_PL - dp;
     for (int i = 1; i <= kp; ++i) p = p + dp;
 
-    float told[MYJ_JTBL + 1], theold[MYJ_JTBL + 1], thenew[MYJ_JTBL + 1];
-    float tnew[MYJ_JTBL + 1], y2t[MYJ_JTBL + 1], apt[MYJ_JTBL + 1], aqt[MYJ_JTBL + 1];
+    float* const w = work + (size_t)(kp - 1) * MYJ_TT_WORK;
+    float* const told = w;
+    float* const theold = w + 1 * (MYJ_JTBL + 1);
+    float* const thenew = w + 2 * (MYJ_JTBL + 1);
+    float* const tnew = w + 3 * (MYJ_JTBL + 1);
+    float* const y2t = w + 4 * (MYJ_JTBL + 1);
+    float* const apt = w + 5 * (MYJ_JTBL + 1);
+    float* const aqt = w + 6 * (MYJ_JTBL + 1);
 
     // TH=THL-DTH once per KP, then TH=TH+DTH per KTH.
     float th = MYJ_THL - dth;

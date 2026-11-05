@@ -1385,7 +1385,7 @@
       "id": "init-static-build",
       "group": "init",
       "fortran": "-",
-      "purpose": "NPS geogrid + nemsinterp static step for any rotated lat-lon B grid, on the GPU (never Fortran geogrid): HGT (GMTED 30 s average_gcell + smth-desmth_special x3), LAND/VGTYP (MODIS IGBP 20-class with lakes), SOTYP (STATSGO top), SFCR (NPS VGZ0TBL_IGBP + Z0LAND), VEG/ALBDO monthly to the valid date, MXSNAL, TG, slope, EPSR, STDH. Writes the nam12_static.npz layout (gfs_start.STATIC_KEYS) for a domain configfile's static_npz. Offline builder, not an init-chain stage. Proof: the 12 km grid vs NAM's own bgrd3d00 static (tools/check_static_build.py).",
+      "purpose": "NPS geogrid + nemsinterp static step for any rotated lat-lon B grid, on the GPU (never Fortran geogrid): HGT (GMTED 30 s average_gcell + smth-desmth_special x3), LAND/VGTYP (MODIS IGBP 20-class with lakes), SOTYP (SoilGrids250m texture_top, CC BY 4.0; land ice 16), SFCR (NPS VGZ0TBL_IGBP + Z0LAND), VEG/ALBDO monthly to the valid date, MXSNAL, TG (ERA5 1990-2019 sea-level climatology, soiltemp_era5_1deg), slope, EPSR, STDH. Writes the nam12_static.npz layout (gfs_start.STATIC_KEYS) for a domain configfile's static_npz. Permissive data only: FAO-based soiltype_*_30s and ISLSCP-I soiltemp_1deg are refused by name; every npz carries its source/licence table (META datasets + <static>.PROVENANCE.json). Any centre on Earth (dateline, poles, tropics checked: tools/check_static_build.py --world). Offline builder, not an init-chain stage. Proof: the 12 km grid vs NAM's own bgrd3d00 static (tools/check_static_build.py).",
       "mode": "new",
       "deps": [
         "init-grid-geo"

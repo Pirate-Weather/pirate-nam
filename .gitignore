@@ -45,3 +45,9 @@ tests/*.log
 static/
 panels/
 sheets/
+# run output: never commit history files (run-lead 0923Z)
+wrfout_d0*
+scratch/runlead/**/maps/.store/
+
+# pinned map renderer (tools/renderer/install_renderer.sh)
+tools/renderer/bin/

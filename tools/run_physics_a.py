@@ -36,7 +36,7 @@ REPORT = ("T", "Q", "CW", "Q2", "U", "V", "PBLH", "USTAR", "TSKIN", "THS", "QSH"
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--case", default="2025-03-14_12z")
+    ap.add_argument("--case", required=True, help="case folder name under cases/, e.g. YYYY-MM-DD_HHz")
     ap.add_argument("--step", type=int, default=0)
     ap.add_argument("--with-rad", action="store_true")
     ap.add_argument("--gwd-dem", default="", help="raw 30-arcsec int16 terrain for init-gwd-orog "

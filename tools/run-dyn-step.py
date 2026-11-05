@@ -29,7 +29,7 @@ def nonfinite(st, cp):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--case", default="2025-03-14_12z")
+    ap.add_argument("--case", required=True, help="case folder name under cases/, e.g. YYYY-MM-DD_HHz")
     ap.add_argument("--steps", type=int, default=2)
     ap.add_argument("--physics", action="store_true")
     ap.add_argument("--vram", type=int, default=20000)

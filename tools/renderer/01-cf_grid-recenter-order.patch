@@ -1,0 +1,22 @@
+diff --git a/crates/rw-wrfbatch/src/cf_grid.rs b/crates/rw-wrfbatch/src/cf_grid.rs
+index eb1d2aa..de2c3d9 100644
+--- a/crates/rw-wrfbatch/src/cf_grid.rs
++++ b/crates/rw-wrfbatch/src/cf_grid.rs
+@@ -332,6 +332,17 @@ impl CfGrid {
+             .zip(self.lon.par_chunks_mut(self.nx))
+             .zip(self.order.par_chunks_mut(self.nx))
+             .for_each(|((lat, lon), order)| {
++                // Undo the seam rotation open() made at -180/180 first: a curvilinear row that crosses 180
++                // (a regional grid, not a cyclic axis) was split there and its east end moved to the front,
++                // and re-centring alone leaves it split (lon 180.1..182 then 170..179.9: no jump under
++                // -180), so the mesh joined the east end to the west start and painted the cells east of 180
++                // from the wrong neighbours (WOOF-NAM Gabrielle 37S 175E sheets, 2026-11-05). The row's
++                // original column order is where `order` stops stepping by one.
++                if let Some(k) = order.windows(2).position(|p| (p[1] as i64 - p[0] as i64).abs() != 1) {
++                    lat.rotate_left(k + 1);
++                    lon.rotate_left(k + 1);
++                    order.rotate_left(k + 1);
++                }
+                 for x in lon.iter_mut() {
+                     *x = ((*x as f64 - center + 180.).rem_euclid(360.) - 180. + center) as f32;
+                 }

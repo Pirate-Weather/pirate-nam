@@ -24,6 +24,8 @@
 //   v  = (1-wx)(1-wy) v(i0,j0) + wx(1-wy) v(i0+1,j0) + (1-wx)wy v(i0,j0+1) + wx wy v(i0+1,j0+1)
 //   i0+1 wraps modulo NIS (global GFS, longitude periodic); j0 clamped to [0, NJS-2] (poles and
 //   the strip edge reuse the edge row). The source rows are south to north (lat0 + j*dlat).
+//   lon_periodic: 0 = plain non-periodic grid (clamped), 1 = global periodic, 2 = a longitude window
+//   cut from a global grid (offset from lon0 taken mod 360, then clamped like 0).
 //
 // Source layout: src and mask are [NSLAB][NJS][NIS], NSLAB = NT * NL, slab = t * NL + l, where t is
 // the boundary time level (NT = 2: read_bc reads n3 = 1,2 for 2-D and n4 = 1,2 for 3-D fields) and l
@@ -56,7 +58,14 @@ __device__ inline float hinterp_point(const float* __restrict__ sl, const unsign
                                       int* __restrict__ nmiss)
 {
     float fx = (lon - lon0) / dlon;
-    if (lon_periodic) {
+    if (lon_periodic == 2) {
+        // Longitude window (a source cropped to the columns around the domain, init-gfs-start
+        // decode_source): the offset east of the window start is taken modulo 360 so a domain across
+        // 0/360 or the dateline lands inside the window; then the non-periodic clamp below.
+        float d = lon - lon0;
+        d = d - 360.0f * floorf(d / 360.0f);           // into [0, 360)
+        fx = d / dlon;
+    } else if (lon_periodic) {
         const float nper = 360.0f / dlon;               // source points around the globe
         fx = fx - nper * floorf(fx / nper);             // into [0, nper)
     }
@@ -70,7 +79,7 @@ __device__ inline float hinterp_point(const float* __restrict__ sl, const unsign
     const float wy = fy - (float)j0;
     int i1;
     float wx;
-    if (lon_periodic) {
+    if (lon_periodic == 1) {
         i0 = i0 % NIS; if (i0 < 0) i0 += NIS;
         i1 = (i0 + 1) % NIS;
         wx = fx - floorf(fx);

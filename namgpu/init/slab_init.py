@@ -412,8 +412,8 @@ def _save_main(a) -> int:
     st = statemod.State(g)
     ctx = Ctx(cfg=cfg, grid=g, st=st, stream=cp.cuda.Stream(non_blocking=True))
     from namgpu import paths
-    ctx.case_dir = paths.case_dir(a.case)
-    ctx.start = datetime.strptime(ctx.case_dir.name[:14], "%Y-%m-%d_%Hz")
+    ctx.case_dir = Path(a.case_dir).resolve() if a.case_dir else paths.case_dir(a.case)
+    ctx.start = datetime.strptime((Path(a.case).name if a.case_dir else ctx.case_dir.name)[:14], "%Y-%m-%d_%Hz")
     ctx.start_time = ctx.start
     ctx.init_source = a.source
     ctx.forecast_hours = max(6, int(a.hours + 0.999))
@@ -445,6 +445,7 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("save")
     s.add_argument("--case", required=True)
+    s.add_argument("--case-dir", default=None, help="the case folder (default cases/<case> in this tree)")
     s.add_argument("--source", default="native")
     s.add_argument("--hours", type=float, default=6.0, help="forecast length the bocos must cover")
     s.add_argument("--out", required=True)

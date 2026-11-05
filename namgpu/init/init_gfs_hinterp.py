@@ -65,6 +65,15 @@ class Grid:
     dlon: float
     lon_periodic: bool = True
     lat_order: str = LAT_ORDER
+    # A longitude window cut from a periodic source (init-gfs-start decode_source): lon0 is the window's
+    # first column, and the kernel takes (lon - lon0) mod 360 before the non-periodic clamp, so a window
+    # across 0/360 or the dateline is placed right. Ignored when lon_periodic is True.
+    lon_window: bool = False
+
+    @property
+    def lon_mode(self) -> int:
+        """Kernel lon_periodic argument: 1 periodic, 2 window, 0 plain non-periodic."""
+        return 1 if self.lon_periodic else (2 if self.lon_window else 0)
 
     def __post_init__(self):
         if self.lat_order != LAT_ORDER or not (self.dlat > 0.0):
@@ -138,7 +147,7 @@ def interp_strips(src, mask, glat, glon, *, width: int, grid: Grid | dict = GFS_
         kern(launch, (BLOCK, 1, 1), (
             src, mask, glat, glon, buf["s"], buf["n"], buf["w"], buf["e"], buf["missing"],
             np.int32(im), np.int32(jm), np.int32(width), np.int32(nslab),
-            np.int32(nis), np.int32(njs), np.int32(1 if grid.lon_periodic else 0),
+            np.int32(nis), np.int32(njs), np.int32(grid.lon_mode),
             np.float32(grid.lat0), np.float32(grid.lon0), np.float32(grid.dlat), np.float32(grid.dlon),
         ))
     return {**buf, "nt": nt, "nl": nl}
@@ -213,7 +222,7 @@ def interp_full(src, mask, glat, glon, *, grid: Grid | dict = GFS_QUARTER_DEG, s
         kern(launch, FULL_BLOCK, (
             src, mask, glat, glon, out,
             np.int32(im), np.int32(jm), np.int32(nl), np.int32(nis), np.int32(njs),
-            np.int32(1 if grid.lon_periodic else 0),
+            np.int32(grid.lon_mode),
             np.float32(grid.lat0), np.float32(grid.lon0), np.float32(grid.dlat), np.float32(grid.dlon),
             nmiss,
         ))

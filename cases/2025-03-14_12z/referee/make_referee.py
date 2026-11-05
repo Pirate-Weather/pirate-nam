@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np, netCDF4
 
-B = Path.home() / "venv/lib/python3.12/site-packages/gpuwm/libexec/bridges"
+B = Path(os.environ["GPUWM_BRIDGES"]) if os.environ.get("GPUWM_BRIDGES") else Path.home() / "venv/lib/python3.12/site-packages/gpuwm/libexec/bridges"
 CASE = Path(__file__).resolve().parents[1]
 RAW = CASE / "raw"; OUT = CASE / "referee"; TMP = OUT / "tmp"
 INIT = datetime(2025, 3, 14, 12)
@@ -78,13 +78,19 @@ def write_cf(path, lat, lon, valid, fields, source):
             v[0] = arr.astype(np.float32)
 
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from namgpu.io.maps import TABLE as _MAPS  # noqa: E402
+_QPF1H = _MAPS["qpf_1h"][1]
+from namgpu.io.maps import QPF1H_LEVELS as _QL  # noqa: E402
+_MAPS_LEVEL0_MM = _QL[0] * 25.4
 TABLE = [
     {"names": ["refc"], "standard_names": [], "product": "composite_reflectivity", "title": "Composite reflectivity", "recipe": "composite_reflectivity", "default_units": "dBZ", "display_units": "dBZ", "unit_factors": {"dBZ": 1.0}, "observation_product": "refc"},
     {"names": ["t2m"], "standard_names": [], "product": "t2m", "title": "2 m temperature", "recipe": "2m_temperature", "default_units": "degF", "display_units": "degF", "unit_factors": {"degF": 1.0}},
     {"names": ["d2m"], "standard_names": [], "product": "d2m", "title": "2 m dewpoint", "recipe": "2m_dewpoint", "default_units": "degF", "display_units": "degF", "unit_factors": {"degF": 1.0}},
     {"names": ["ws10m"], "standard_names": [], "product": "wind10", "title": "10 m wind speed", "recipe": "10m_wind_speed_and_direction", "default_units": "m s-1", "display_units": "kt", "unit_factors": {"m s-1": 1.9438445}},
     {"names": ["ws850"], "standard_names": [], "product": "wind850", "title": "850 hPa wind speed", "recipe": "10m_wind_speed_and_direction", "default_units": "m s-1", "display_units": "kt", "unit_factors": {"m s-1": 1.9438445}},
-    {"names": ["qpf1h"], "standard_names": [], "product": "qpf_1h", "title": "1 h precipitation", "recipe": "total_qpf", "default_units": "kg m-2", "display_units": "in", "unit_factors": {"kg m-2": 0.0393700787}},
+    _QPF1H,     # the 1 h ladder of namgpu/io/maps.py, so the NAM and nam-gpu 1 h rain panels share one colour bar
     {"names": ["mslp"], "standard_names": [], "product": "mslp", "title": "Mean sea level pressure", "recipe": "href_mean_mslp", "default_units": "hPa", "display_units": "hPa", "unit_factors": {"hPa": 1.0}},
 ]
 (OUT / "cf-table.json").write_text(json.dumps(TABLE))
@@ -109,6 +115,8 @@ def render(cf, var, valid, obs=None):
 
 def mrms_link(valid):
     link = MDIR / f"MRMS_MergedReflectivityQCComposite_00.50_{valid:%Y%m%d-%H}0000.grib2"
+    if link.is_symlink() and not link.exists():   # a link left from another host's checkout
+        link.unlink()
     if not link.exists():
         link.symlink_to(RAW / f"mrms/mrms_refc_{valid:%Y%m%d%H}.grib2")
     return link
@@ -129,20 +137,33 @@ for h in map(int, os.environ.get("HOURS", "1,6,12,24").split(",")):
     inv = inventory(f)
     ix = dict(refc=pick(inv, 0, 16, 196, 200), t=pick(inv, 0, 0, 0, 103, 2, 0), td=pick(inv, 0, 0, 6, 103, 2, 0),
               u=pick(inv, 0, 2, 2, 103, 10, 0), v=pick(inv, 0, 2, 3, 103, 10, 0), ap=pick(inv, 0, 1, 8, 1, 0, 8))
+    full = f.name.endswith(f"awphys{h:02d}.grib2")   # the 3-hourly full files also carry MSLP and 850 hPa wind
+    if full:
+        for k, args in (("mslp", (0, 3, 192, 101)), ("u85", (0, 2, 2, 100, 85000)), ("v85", (0, 2, 3, 100, 85000))):
+            try:
+                ix[k] = pick(inv, *args)
+            except Exception:  # noqa: BLE001
+                full = False
     d = dump(f, ix.values(), f"f{h}")
     ny, nx = d[ix["t"]].shape
     if lat218 is None:
         lat218, lon218 = lcc218(nx, ny)
         print("grid218 lat", lat218.min(), lat218.max(), "lon", lon218.min(), lon218.max())
     ap = d[ix["ap"]]
-    if h % 3 != 1:  # NAM buckets precip every 3 h: 1 h = this hour's accumulation minus the previous hour's
+    no1h = h % 3 != 1 and not nam_file(h - 1).exists()   # NAM writes hourly output only to 36 h: no 1 h rain after
+    if h % 3 != 1 and not no1h:  # NAM buckets precip every 3 h: 1 h = this hour's accumulation minus the previous hour's
         fp = nam_file(h - 1)
         ipa = pick(inventory(fp), 0, 1, 8, 1, 0, 8)
         prev = dump(fp, [ipa], f"p{h}")[ipa]
         print(f"+{h}h precip bucket check: min(cur-prev)={np.nanmin(ap - prev):.3f} max cur={np.nanmax(ap):.1f}")
         ap = np.maximum(ap - prev, 0)
     fields = {"refc": (d[ix["refc"]], "dBZ"), "t2m": (K2F(d[ix["t"]]), "degF"), "d2m": (K2F(d[ix["td"]]), "degF"),
-              "ws10m": (np.hypot(d[ix["u"]], d[ix["v"]]), "m s-1"), "qpf1h": (ap, "kg m-2")}
+              "ws10m": (np.hypot(d[ix["u"]], d[ix["v"]]), "m s-1"), "qpf1h": (np.where(ap >= _MAPS_LEVEL0_MM, ap, np.nan), "kg m-2")}   # under 0.01 in: blank, as nam-gpu maps
+    if no1h:
+        fields.pop("qpf1h")
+    if full:   # MSLET: the NAM post membrane MSLP (the reduction our QUASIPOST MSLP ports), and 850 hPa speed
+        fields["mslp"] = (d[ix["mslp"]] / 100, "hPa")
+        fields["ws850"] = (np.hypot(d[ix["u85"]], d[ix["v85"]]), "m s-1")
     cf = TMP / f"nam218_f{h:02d}.nc"
     write_cf(cf, lat218, lon218, valid, fields, f"Archived NAM 12 km forecast (grid 218), 2025-03-14 12Z +{h} h")
     for var in fields:

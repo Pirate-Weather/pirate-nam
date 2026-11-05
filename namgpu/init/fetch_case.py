@@ -1,15 +1,25 @@
-"""Fetch one case's inputs from AWS NODD into cases/<case>/raw/ (parallel, byte-range subsets).
+"""Fetch one case's inputs from AWS NODD into cases/<case>/raw/ (parallel, byte-range subsets), for any domain.
 
-    python -m namgpu.init.fetch_case --cycle 2025031412 --hours 48
+    python -m namgpu.init.fetch_case --cycle 2026110412 --hours 48 [--config parm/nam_configfile_X]
+        [--source gfs] [--boco-age 6] [--case-dir DIR] [--dry-run]
 
-What it gets:
-- NAM native B-grid analysis (initial state): nam.tHHz.bgrd3d00.tm00.grib2 (954x835, 60 hybrid
-  levels, GDT 3.32769), whole file.  Plus bgrdsf00..HH every 3 h (native-grid surface, referee).
-- NAM 12 km grid 218 forecast of the same cycle (picture referee): awphysFF every 3 h, whole files,
-  plus REFC/APCP/TMP 2 m/UGRD/VGRD 10 m/PRMSL records hourly to 36 h (byte ranges from .idx).
-- GFS 0.25 deg boundaries, the 6-h-old cycle as operational NAM uses it: gfs.tHHz.pgrb2.0p25.fFFF
-  every 3 h covering the forecast, subset to the fields the boundary init needs.
-- MRMS MergedReflectivityQCComposite_00.50 (truth): the file nearest each hour.
+What is fetched is the FETCH_ROWS table: one row per source file family, with the archive's date range, its
+path template per era, the record subset, the role (init / boco / referee / truth) and the region it covers.
+A row is planned only when the cycle is inside its archive dates and the domain (the configfile's grid, every
+H point) overlaps its region; anything else is skipped with the reason printed. Adding a source or a region
+is a row here, never a new code path.
+
+Rows today:
+- gfs-f000   GFS 0.25 deg analysis (init), global, 2021-01-01 00Z on (the NOAA S3 archive start). Subset by
+             .idx byte ranges to the records the start reads (pressure levels, surface, soil, snow, ice,
+             canopy water). Written where sources.SOURCES["gfs"]["file"] expects it.
+- gfs-boco   GFS 0.25 deg forecast leads every boco_interval_h covering the run, from the cycle boco_age_h
+             older than the start (SOURCES["gfs"]: 6 h as operational NAM; 0 h for past cases), global.
+- nam-*      NAM native B-grid analysis bgrd3d00 (the native start), native surface bgrdsfFF and the grid 218
+             awphysFF picture referee: only where the domain overlaps the NAM 12 km grid, only for cycles
+             before the NAM retirement (2026-11-03 12Z).
+- mrms       MRMS MergedReflectivityQCComposite_00.50 (truth), the file nearest each hour, only where the
+             domain overlaps MRMS CONUS (20-55 N, 130-60 W).
 All requests run in a thread pool (I/O bound); nothing here is a single-core stage.
 
 Any other init source with a "fetch" entry in sources.SOURCES (ECMWF open data IFS 0.1 / 0.25 deg):
@@ -34,11 +44,15 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
+
+import numpy as np
 
 NAM = "https://noaa-nam-pds.s3.amazonaws.com"
 GFS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 MRMS = "https://noaa-mrms-pds.s3.amazonaws.com"
+MRMS_MAX_OFFSET_S = 600       # MRMS writes every 2 min; a file more than 10 min off is not that hour
 ROOT = Path(__file__).resolve().parents[2]
 
 GFS_VARS = re.compile(
@@ -46,9 +60,79 @@ GFS_VARS = re.compile(
     r"|:(PRES|HGT|TMP|PRMSL|LAND|ICEC|WEASD|SNOD|TSOIL|SOILW):(surface|mean sea level|"
     r"0-0.1 m below ground|0.1-0.4 m below ground|0.4-1 m below ground|1-2 m below ground):"
     r"|:(TMP|SPFH|RH):2 m above ground:|:(UGRD|VGRD):10 m above ground:")
+# Boundary leads: only what init-gfs-bocos reads (gfs_start PL_ORDER levels, SFC_COLUMNS) plus the 2 m, 10 m and
+# PRMSL records the source-forecast referee panels draw. Was GFS_VARS: O3MR, GRLE, soil, snow, ice and land are
+# about 1/6 of the bytes and are never read from a boundary file.
+# Isobaric levels at p >= 1 hPa only ("[1-9]\d* mb"): gfs_start.decode_source keeps p >= 1 hPa, so the 8 levels
+# above it (0.01-0.7 mb) were downloaded in every boundary file and dropped (the door lane's 1b6435d pattern,
+# 259 -> 183 MB per file with the GRLE/O3MR cut, was lost in the nest/all merge).
+GFS_BOCO_VARS = re.compile(
+    r":(HGT|TMP|SPFH|RH|UGRD|VGRD|CLMR|ICMR|RWMR|SNMR):([1-9]\d*(\.\d+)?) mb:"
+    r"|:(PRES|HGT|TMP):surface:|:PRMSL:mean sea level:"
+    r"|:(TMP|SPFH|RH):2 m above ground:|:(UGRD|VGRD):10 m above ground:")
+# The start also reads canopy water (gfs_start.SFC CNWAT), which only the analysis carries.
+GFS_INIT_VARS = re.compile(GFS_VARS.pattern + r"|:CNWAT:surface:")
 NAM_HOURLY = re.compile(
     r":(REFC):entire atmosphere|:APCP:surface:|:TMP:2 m above ground:|:DPT:2 m above ground:"
     r"|:(UGRD|VGRD):10 m above ground:|:PRMSL:mean sea level:|:MSLET:mean sea level:")
+PATTERNS = {"gfs_init": GFS_INIT_VARS, "gfs_boco": GFS_BOCO_VARS, "nam_hourly": NAM_HOURLY}
+
+# Regions a row covers. "global": everywhere. "bbox": geographic lat/lon box (degrees, lon -180..180).
+# "rotated": a rotated lat-lon grid given by its centre (tph0d, tlm0d) and wbd/sbd, tested in its own rotated
+# coordinates, so the NAM 12 km footprint is exact.
+REGIONS = {
+    "global": {"kind": "global"},
+    # The NAM 12 km parent grid (parm/nam_configfile tph0d/tlm0d/wbd/sbd). The keys are written here, not read
+    # through config.load: with NAMGPU_CONFIGFILE set, loading the default configfile returns the run's own
+    # domain, so every nest "overlapped" NAM and fetched its archive (Gabrielle case, 2026-11-04: 1 GB of bgrdsf
+    # for a New Zealand domain).
+    "nam12": {"kind": "rotated", "tph0d": 54.0, "tlm0d": -106.0, "wbd": -60.039, "sbd": -45.036},
+    # NCEP grid 218 (Lambert, 614 x 428, 12.19 N 133.46 W .. 57.29 N 49.39 W corners): its lat/lon hull.
+    "grid218": {"kind": "bbox", "lat": (12.0, 61.5), "lon": (-153.0, -49.0)},
+    "mrms_conus": {"kind": "bbox", "lat": (20.0, 55.0), "lon": (-130.0, -60.0)},
+}
+
+# Path eras: the GFS bucket moved files under atmos/ with GFS v16 (first cycle 2021-03-22 12Z); before it the
+# files sit directly under the cycle folder. The bucket's archive begins 2021-01-01 00Z.
+GFS_ERAS = (("2021-01-01T00", "gfs.{ymd}/{hh}/gfs.t{hh}z.pgrb2.0p25.f{lead:03d}"),
+            ("2021-03-22T12", "gfs.{ymd}/{hh}/atmos/gfs.t{hh}z.pgrb2.0p25.f{lead:03d}"))
+NAM_ERAS = (("2017-01-01T00", "nam.{ymd}/nam.t{hh}z.{stem}{lead:02d}.tm00.grib2"),)
+NAM_RETIRED = "2026-11-03T12"
+
+# One row per file family. cycle: "start" or "boco" (the boundary cycle, boco_age_h older). leads: "f000",
+# "boco" (boco_interval_h steps covering the run), "every3" (0..hours by 3), "hourly36" (1..min(hours, 36),
+# not multiples of 3: NAM writes hourly awphys only to 36 h). kind: whole | subset (records by .idx) | mrms.
+# dest is relative to raw/. role init/boco rows are required when their source is the run's source. licence: the
+# data's licence and host, beside the row (permissive data only; nothing NC-licensed is fetched).
+FETCH_ROWS = (
+    {"name": "gfs-f000", "licence": "NOAA/NCEP GFS 0.25, US government work (public domain), AWS NODD noaa-gfs-bdp-pds",
+     "source": "gfs", "role": "init", "host": GFS, "eras": GFS_ERAS, "cycle": "start",
+     "leads": "f000", "kind": "subset", "records": "gfs_init", "region": "global",
+     "dest": "gfs/gfs.t{hh}z.pgrb2.0p25.f000"},
+    {"name": "gfs-boco", "licence": "NOAA/NCEP GFS 0.25, US government work (public domain), AWS NODD noaa-gfs-bdp-pds",
+     "source": "gfs", "role": "boco", "host": GFS, "eras": GFS_ERAS, "cycle": "boco",
+     "leads": "boco", "kind": "subset", "records": "gfs_boco", "region": "global",
+     "dest": "gfs/gfs.t{hh}z.f{lead:03d}.grib2"},
+    {"name": "nam-bgrd3d00", "licence": "NOAA/NCEP NAM, US government work (public domain), AWS NODD noaa-nam-pds",
+     "source": "native", "role": "init", "host": NAM, "eras": NAM_ERAS,
+     "stem": "bgrd3d", "cycle": "start", "leads": "f000", "kind": "whole", "region": "nam12",
+     "until": NAM_RETIRED, "dest": "nam/bgrd3d00.grib2"},
+    {"name": "nam-bgrdsf", "licence": "NOAA/NCEP NAM, US government work (public domain), AWS NODD noaa-nam-pds",
+     "source": "native", "role": "referee", "host": NAM, "eras": NAM_ERAS,
+     "stem": "bgrdsf", "cycle": "start", "leads": "every3", "kind": "whole", "region": "nam12",
+     "until": NAM_RETIRED, "dest": "nam/bgrdsf{lead:02d}.grib2"},
+    {"name": "nam-awphys", "licence": "NOAA/NCEP NAM, US government work (public domain), AWS NODD noaa-nam-pds",
+     "source": "native", "role": "referee", "host": NAM, "eras": NAM_ERAS,
+     "stem": "awphys", "cycle": "start", "leads": "every3", "kind": "whole", "region": "grid218",
+     "until": NAM_RETIRED, "dest": "nam/awphys{lead:02d}.grib2"},
+    {"name": "nam-awphys-hourly", "licence": "NOAA/NCEP NAM, US government work (public domain), AWS NODD noaa-nam-pds",
+     "source": "native", "role": "referee", "host": NAM, "eras": NAM_ERAS,
+     "stem": "awphys", "cycle": "start", "leads": "hourly36", "kind": "subset", "records": "nam_hourly",
+     "region": "grid218", "until": NAM_RETIRED, "dest": "nam/awphys{lead:02d}.sub.grib2"},
+    {"name": "mrms", "licence": "NOAA MRMS, US government work (public domain), AWS NODD noaa-mrms-pds",
+     "source": "mrms", "role": "truth", "host": MRMS, "cycle": "start", "leads": "hourly",
+     "kind": "mrms", "region": "mrms_conus", "since": "2020-10-14T00", "dest": "mrms"},
+)
 
 
 def _retry(fn, tries=5):
@@ -116,8 +200,10 @@ def _subset(url: str, dest: Path, pattern: re.Pattern) -> str:
     return f"got {dest.name} {len(want)} recs {dest.stat().st_size / 1e6:.0f} MB"
 
 
-def _list_mrms_day(day: str) -> list[str]:
-    """Every key under one UTC day prefix, following continuation tokens (MRMS has ~720 a day)."""
+@lru_cache(maxsize=None)
+def _list_mrms_day(day: str) -> tuple[str, ...]:
+    """Every key under one UTC day prefix, following continuation tokens (MRMS has ~720 a day). Cached: each
+    hour lists its own day and both neighbours, so a 48 h case asked for the same three days ~49 times."""
     prefix = f"CONUS/MergedReflectivityQCComposite_00.50/{day}/"
     keys, token = [], None
     while True:
@@ -128,13 +214,16 @@ def _list_mrms_day(day: str) -> list[str]:
         keys += re.findall(r"<Key>([^<]+)</Key>", xml)
         m = re.search(r"<NextContinuationToken>([^<]+)</NextContinuationToken>", xml)
         if "<IsTruncated>true</IsTruncated>" not in xml or not m:
-            return keys
+            return tuple(keys)
         token = m.group(1)
 
 
 def _mrms_hour(valid: datetime, dest_dir: Path) -> str:
     # The nearest file can sit in the previous or next UTC day's prefix (valid times near 00Z),
     # so list valid-1d, valid and valid+1d and pick the nearest across all three.
+    dest = dest_dir / f"mrms_refc_{valid:%Y%m%d%H}.grib2"
+    if dest.exists():
+        return f"have {dest.name}"
     keys = []
     for dd in (-1, 0, 1):
         keys += _list_mrms_day((valid + timedelta(days=dd)).strftime("%Y%m%d"))
@@ -149,41 +238,169 @@ def _mrms_hour(valid: datetime, dest_dir: Path) -> str:
             best, bestdt = k, d
     if best is None:
         return f"MRMS none for {valid}"
-    dest = dest_dir / f"mrms_refc_{valid:%Y%m%d%H}.grib2"
-    if dest.exists():
-        return f"have {dest.name}"
+    if bestdt > MRMS_MAX_OFFSET_S:
+        # A live case asks for valid times that have not happened yet; the nearest key is then the newest file,
+        # hours early, and writing it under this hour would show the wrong truth (live case 2026-11-04 12Z: 19Z-12Z
+        # next day all got 18:36Z). No file, so a later fetch picks the real one up.
+        return f"MRMS none within {MRMS_MAX_OFFSET_S} s of {valid} (nearest {best.rsplit('_', 1)[-1]})"
     dest.write_bytes(gzip.decompress(_get(f"{MRMS}/{best}")))
     return f"got {dest.name} ({best.rsplit('_', 1)[-1]})"
 
 
-def plan(cycle: datetime, hours: int, raw: Path, nam: bool = True):
-    """nam=False: GFS only (a GFS start; cycles after the NAM's 2026-11-03 retirement have no NAM files)."""
-    d, hh = cycle.strftime("%Y%m%d"), cycle.strftime("%H")
-    if not nam:
-        return _gfs_jobs(cycle, hours, raw)
-    jobs = []
-    nam = f"{NAM}/nam.{d}/nam.t{hh}z"
-    jobs.append((_download, f"{nam}.bgrd3d00.tm00.grib2", raw / "nam" / "bgrd3d00.grib2"))
-    for f in range(0, hours + 1, 3):
-        jobs.append((_download, f"{nam}.bgrdsf{f:02d}.tm00.grib2", raw / "nam" / f"bgrdsf{f:02d}.grib2"))
-        jobs.append((_download, f"{nam}.awphys{f:02d}.tm00.grib2", raw / "nam" / f"awphys{f:02d}.grib2"))
-    # Hourly picture-referee subsets stop at 36 h: NAM 12 km writes hourly awphys output only to
-    # 36 h (3-hourly after), so this is a limit of the 48 h default, not a bug.
-    for f in range(1, min(hours, 36) + 1):
-        if f % 3:
-            jobs.append((_subset, f"{nam}.awphys{f:02d}.tm00.grib2",
-                         raw / "nam" / f"awphys{f:02d}.sub.grib2", NAM_HOURLY))
-    return jobs + _gfs_jobs(cycle, hours, raw)
+# ---------------------------------------------------------------------------------------------------------
+# Domain footprint and region tests
+# ---------------------------------------------------------------------------------------------------------
+def domain_points(cfg=None, stride: int = 4):
+    """Geographic (lat, lon) degrees of the configured grid's H points (every stride-th row/column plus the
+    whole boundary ring), lon in -180..180. cfg None = the run's configfile (NAMGPU_CONFIGFILE)."""
+    from namgpu import config, grid as gridmod
+    cfg = cfg or config.load()
+    g = gridmod.build(cfg)
+    lat, lon = np.degrees(g.glat_h), np.degrees(g.glon_h)
+    m = np.zeros(lat.shape, bool)
+    m[::stride, ::stride] = True
+    m[0, :] = m[-1, :] = m[:, 0] = m[:, -1] = True
+    return lat[m], lon[m]
 
 
-def _gfs_jobs(cycle: datetime, hours: int, raw: Path):
-    jobs = []
-    gcyc = cycle - timedelta(hours=6)
-    gd, gh = gcyc.strftime("%Y%m%d"), gcyc.strftime("%H")
-    for f in range(6, hours + 7, 3):
-        url = f"{GFS}/gfs.{gd}/{gh}/atmos/gfs.t{gh}z.pgrb2.0p25.f{f:03d}"
-        jobs.append((_subset, url, raw / "gfs" / f"gfs.t{gh}z.f{f:03d}.grib2", GFS_VARS))
-    return jobs
+def _geo_to_rotated(lat, lon, tph0d, tlm0d):
+    """Geographic -> rotated lat-lon (degrees) for the rotated pole of namgpu.grid (inverse of
+    rotated_to_geographic)."""
+    la, lo = np.radians(lat), np.radians(lon)
+    p0, l0 = np.radians(tph0d), np.radians(tlm0d)
+    x = np.cos(la) * np.cos(lo - l0)
+    y = np.cos(la) * np.sin(lo - l0)
+    z = np.sin(la)
+    xr = np.cos(p0) * x + np.sin(p0) * z
+    zr = -np.sin(p0) * x + np.cos(p0) * z
+    return np.degrees(np.arcsin(np.clip(zr, -1.0, 1.0))), np.degrees(np.arctan2(y, xr))
+
+
+def overlaps(region: str, lat, lon) -> bool:
+    r = REGIONS[region]
+    if r["kind"] == "global":
+        return True
+    if r["kind"] == "bbox":
+        (a, b), (c, d) = r["lat"], r["lon"]
+        lo = (np.asarray(lon) + 180.0) % 360.0 - 180.0
+        return bool(np.any((lat >= a) & (lat <= b) & (lo >= c) & (lo <= d)))
+    if r["kind"] == "rotated":
+        tph, tlm = _geo_to_rotated(lat, lon, r["tph0d"], r["tlm0d"])
+        return bool(np.any((tlm >= r["wbd"]) & (tlm <= -r["wbd"]) & (tph >= r["sbd"]) & (tph <= -r["sbd"])))
+    raise ValueError(f"fetch-case: region {region!r} kind {r['kind']!r}")
+
+
+def _t(s: str) -> datetime:
+    return datetime.strptime(s, "%Y-%m-%dT%H")
+
+
+def _era_path(row, cyc: datetime, lead: int) -> str:
+    tmpl = None
+    for since, t in row["eras"]:
+        if cyc >= _t(since):
+            tmpl = t
+    if tmpl is None:
+        raise ValueError(f"fetch-case: {row['name']} has no archive before {row['eras'][0][0]} (cycle {cyc:%Y-%m-%d %HZ})")
+    return tmpl.format(ymd=f"{cyc:%Y%m%d}", hh=f"{cyc:%H}", lead=lead, stem=row.get("stem", ""))
+
+
+def _leads(row, hours: int, age: int, interval: int):
+    spec = row["leads"]
+    if spec == "f000":
+        return [0]
+    if spec == "boco":
+        return list(range(age, hours + age + 1, interval))
+    if spec == "every3":
+        return list(range(0, hours + 1, 3))
+    if spec == "hourly36":
+        return [f for f in range(1, min(hours, 36) + 1) if f % 3]
+    if spec == "hourly":
+        return list(range(0, hours + 1))
+    raise ValueError(f"fetch-case: {row['name']} leads {spec!r}")
+
+
+def plan(cycle: datetime, hours: int, raw: Path, cfg=None, source: str = "gfs", age_h: int | None = None,
+         rows=FETCH_ROWS):
+    """Jobs [(fn, *args, required)] for one case on one domain, plus the skipped rows [(name, reason)]."""
+    from namgpu.init import sources as srcmod
+    srow = srcmod.SOURCES["gfs"]
+    age = srcmod.boco_age_h(srow, cfg, age_h)
+    interval = int(srow.get("boco_interval_h", 3))
+    lat, lon = domain_points(cfg)
+    jobs, skipped = [], []
+    for row in rows:
+        if "until" in row and cycle >= _t(row["until"]):
+            skipped.append((row["name"], f"archive ends {row['until']} (cycle {cycle:%Y-%m-%d %HZ})"))
+            continue
+        if "since" in row and cycle < _t(row["since"]):
+            skipped.append((row["name"], f"archive starts {row['since']}"))
+            continue
+        if not overlaps(row["region"], lat, lon):
+            skipped.append((row["name"], f"domain outside region {row['region']}"))
+            continue
+        # a native (NAM analysis) start takes the GFS boundaries, as operational NAM (CONTRACT section 5)
+        required = (row["role"] == "init" and row["source"] == source) or \
+                   (row["role"] == "boco" and (row["source"] == source or (source == "native" and row["source"] == "gfs")))
+        cyc = cycle - timedelta(hours=age) if row["cycle"] == "boco" else cycle
+        if row["kind"] == "mrms":
+            for f in _leads(row, hours, age, interval):
+                jobs.append((_mrms_hour, cycle + timedelta(hours=f), raw / row["dest"], required))
+            continue
+        for f in _leads(row, hours, age, interval):
+            url = f"{row['host']}/{_era_path(row, cyc, f)}"
+            dest = raw / row["dest"].format(hh=f"{cyc:%H}", lead=f)
+            if row["kind"] == "whole":
+                jobs.append((_download, url, dest, required))
+            else:
+                jobs.append((_subset, url, dest, PATTERNS[row["records"]], required))
+    return jobs, skipped
+
+
+def fetch(cycle: datetime, case_dir: Path, hours: int = 48, workers: int = 16, cfg=None, source: str = "gfs",
+          age_h: int | None = None, log=print, rows=FETCH_ROWS) -> int:
+    """Fetch every planned input of one case. Returns the number of failed REQUIRED requests (0 = the run's
+    init and boundary files are complete); failed referee/truth requests are printed and not counted."""
+    raw = Path(case_dir) / "raw"
+    from namgpu.init import sources as srcmod
+    if "fetch" in srcmod.SOURCES.get(source, {}):
+        # ifs, ifs-0p25: the row's own fetch entry (ECMWF jsonl .index byte ranges, the GFS ICEC donor)
+        raw.mkdir(parents=True, exist_ok=True)
+        sjobs = plan_source(source, cycle, hours, raw)
+        t0 = time.perf_counter()
+        bad = 0
+        with ThreadPoolExecutor(workers) as ex:
+            futs = {ex.submit(fn, *args): next(x for x in args if isinstance(x, Path)) for fn, *args in sjobs}
+            for fu in as_completed(futs):
+                try:
+                    log(fu.result())
+                except Exception as e:  # noqa: BLE001
+                    bad += 1
+                    log(f"FAILED {type(e).__name__}: {e}")
+        total = sum(p.stat().st_size for p in futs.values() if p.exists())
+        log(f"fetch-case: {source} {len(sjobs)} files, {total / 1e6:.0f} MB in {time.perf_counter() - t0:.0f} s, "
+            f"{bad} failed")
+        return bad
+    jobs, skipped = plan(cycle, hours, raw, cfg, source, age_h, rows)
+    for name, why in skipped:
+        log(f"fetch-case: skip {name}: {why}")
+    for d in {Path(j[2]).parent if j[0] is not _mrms_hour else Path(j[2]) for j in jobs}:
+        d.mkdir(parents=True, exist_ok=True)
+    bad = soft = 0
+    t0 = time.perf_counter()
+    with ThreadPoolExecutor(workers) as ex:
+        futs = {ex.submit(fn, *args[:-1]): args[-1] for fn, *args in jobs}
+        for fu in as_completed(futs):
+            try:
+                log(fu.result())
+            except Exception as e:  # noqa: BLE001
+                if futs[fu]:
+                    bad += 1
+                else:
+                    soft += 1
+                log(f"FAILED{'' if futs[fu] else ' (optional)'} {type(e).__name__}: {e}")
+    log(f"fetch-case: {len(jobs)} requests in {time.perf_counter() - t0:.0f} s, {bad} required failed, "
+        f"{soft} optional failed")
+    return bad
 
 
 def _jsonl_index(url: str) -> list[dict]:
@@ -283,7 +500,8 @@ def plan_source(name: str, cycle: datetime, hours: int, raw: Path):
 
 def main_source(a) -> int:
     cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
-    raw = ROOT / "cases" / cycle.strftime("%Y-%m-%d_%Hz") / "raw"
+    from namgpu import paths
+    raw = (getattr(a, "case_dir", None) or paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")) / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     jobs = plan_source(a.source, cycle, a.hours, raw)
     t0 = time.perf_counter()
@@ -308,30 +526,28 @@ def main(argv=None):
     ap.add_argument("--cycle", required=True, help="YYYYMMDDHH")
     ap.add_argument("--hours", type=int, default=48)
     ap.add_argument("--workers", type=int, default=16)
-    ap.add_argument("--source", default=None,
-                    help="an init source row with a fetch entry (ifs, ifs-0p25); default: the NAM case set")
+    ap.add_argument("--config", type=Path, default=None, help="domain configfile (default NAMGPU_CONFIGFILE)")
+    ap.add_argument("--source", default="gfs", help="init source row (its init/boco rows are required; ifs, ifs-0p25 "
+                    "fetch through the row's own fetch entry)")
+    ap.add_argument("--boco-age", type=int, default=None, help="boundary cycle age, h (default: the row's)")
+    ap.add_argument("--case-dir", type=Path, default=None)
+    ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
-    if a.source:
-        return main_source(a)
+    from namgpu.init import sources as srcmod
+    if "fetch" in srcmod.SOURCES.get(a.source, {}):
+        return main_source(a)          # ifs, ifs-0p25: the row's own fetch entry (jsonl .index)
+    from namgpu import config, paths
+    cfg = config.load(a.config) if a.config else config.load()
     cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
-    from namgpu import paths
-    case = paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")
-    raw = case / "raw"
-    for sub in ("nam", "gfs", "mrms"):
-        (raw / sub).mkdir(parents=True, exist_ok=True)
-    jobs = plan(cycle, a.hours, raw)
-    with ThreadPoolExecutor(a.workers) as ex:
-        futs = [ex.submit(fn, *args) for fn, *args in jobs]
-        futs += [ex.submit(_mrms_hour, cycle + timedelta(hours=h), raw / "mrms")
-                 for h in range(0, a.hours + 1)]
-        bad = 0
-        for fu in as_completed(futs):
-            try:
-                print(fu.result(), flush=True)
-            except Exception as e:  # noqa: BLE001
-                bad += 1
-                print(f"FAILED {type(e).__name__}: {e}", flush=True)
-    print(f"done, {bad} failed")
+    case = a.case_dir or paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")
+    if a.dry_run:
+        jobs, skipped = plan(cycle, a.hours, case / "raw", cfg, a.source, a.boco_age)
+        for name, why in skipped:
+            print(f"skip {name}: {why}")
+        for fn, *args in jobs:
+            print(fn.__name__, *(str(x) for x in args[:2]), "required" if args[-1] else "optional")
+        return 0
+    bad = fetch(cycle, case, a.hours, a.workers, cfg, a.source, a.boco_age)
     return 1 if bad else 0
 
 

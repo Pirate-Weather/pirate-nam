@@ -128,7 +128,7 @@ def _rrtm_physics_init(ctx, cp, dpi, cfg):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--case", default="2025-03-14_12z")
+    ap.add_argument("--case", required=True, help="case folder name under cases/, e.g. YYYY-MM-DD_HHz")
     ap.add_argument("--out", type=Path, default=ROOT / "runs" / "rrtm-real")
     ap.add_argument("--dump", type=Path, default=None,
                     help="after init, save every state field and the RRTM init tables here")

@@ -36,9 +36,27 @@ from pathlib import Path
 import numpy as np
 
 DIMS2 = ("south_north", "west_east")
-# Only model-level fields are flipped (NMMB l=1 top -> WRF bottom-up). Soil layers (soil_layers_stag) stay top-down,
-# as WRF writes TSLB/SMOIS.
+# Only model-level fields are flipped (NMMB l=1 top -> WRF bottom-up). Soil layers (soil_layers_stag, the parent
+# hand-off set) stay top-down, as WRF writes TSLB/SMOIS.
 LEVEL_DIMS = ("bottom_top", "bottom_top_stag")
+
+
+def history_title(res_km: float | None, parent: bool) -> str:
+    """Global TITLE of a history: WOOF-NAM, the grid length (maps.resolution_km rule: DY / 1000.8 m, halves) and the
+    role. Every history used to say "nam-gpu NMMB 12 km parent history", 3 km nests included (review round 3, #5)."""
+    res = f"{res_km:g} km " if res_km else ""
+    role = "parent " if parent else ("nest " if res_km and res_km < 12 else "")
+    return f"WOOF-NAM {res}{role}history"
+
+
+def _res_from_dy(dy_m: float) -> float:
+    return round(float(dy_m) / 1000.8 * 2.0) / 2.0
+
+
+def _handoff(ctx):
+    """Parent grid attributes when the configfile turns history_handoff on, else None (file unchanged)."""
+    from namgpu.io import io_history_fields as ihf  # noqa: PLC0415
+    return ihf.handoff_attrs(ctx) if ihf.handoff_on(ctx.cfg) else None
 
 
 def _host(a):
@@ -71,6 +89,7 @@ def prepare_history(ctx, fields: dict, start: datetime) -> dict:
         "dx": float(np.asarray(g.dxh)[jm // 2]),
         "dy": float(g.dyh),
         "fields": arrays,
+        **({"handoff": ho} if (ho := _handoff(ctx)) is not None else {}),
     }
 
 
@@ -131,6 +150,7 @@ def stage_history(ctx, fields: dict, start: datetime) -> dict:
         "cen_lat": cen_lat, "cen_lon": cen_lon,
         "pole_lat": float(cfg.tph0d), "pole_lon": float(cfg.tlm0d),
         "dx": float(np.asarray(g.dxh)[jm // 2]), "dy": float(g.dyh),
+        **({"handoff": ho} if (ho := _handoff(ctx)) is not None else {}),
     }
 
 
@@ -168,7 +188,7 @@ def write_payload(path: Path, payload: dict) -> Path:
         nc.createDimension("bottom_top", d["bottom_top"])
         nc.createDimension("bottom_top_stag", d["bottom_top"] + 1)
         soil = {f[1].shape[0] for f in payload["fields"] if f[2][0] == "soil_layers_stag"}
-        if soil:
+        if soil:                                   # parent hand-off set only (history_handoff)
             nc.createDimension("soil_layers_stag", soil.pop())
         t = nc.createVariable("Times", "S1", ("Time", "DateStrLen"))
         t[0, :] = netCDF4.stringtochar(np.array([valid.strftime("%Y-%m-%d_%H:%M:%S")], "S19"))
@@ -195,7 +215,9 @@ def write_payload(path: Path, payload: dict) -> Path:
         nc.BOTTOM_TOP_GRID_DIMENSION = d["bottom_top"] + 1
         nc.START_DATE = start.strftime("%Y-%m-%d_%H:%M:%S")
         nc.SIMULATION_START_DATE = nc.START_DATE
-        nc.TITLE = "WOOF-NAM NMMB 12 km parent history"
+        nc.TITLE = history_title(_res_from_dy(payload["dy"]), bool(payload.get("handoff")))
+        for k, v in (payload.get("handoff") or {}).items():
+            setattr(nc, k, v)                      # parent grid keys (io_history_fields.handoff_attrs)
     return path
 
 

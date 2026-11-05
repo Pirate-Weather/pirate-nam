@@ -18,7 +18,9 @@ Returns: dict  name -> (device array, dims) for io-history (history.write_histor
          U, V (earth-relative at mass points, LM levels, not WRF's staggered U/V), W (LM levels),
          T2 (2 m temperature from TSHLTR theta and PSHLTR), Q2 (QSHLTR), MSLP (MEMBRANE_MSLP, Pa, when
          io-quasipost-driver ran for this output; it sets ctx.quasipost_done), and REFL_10CM and
-         COMPOSITE when the Ferrier field exists.
+         COMPOSITE when the Ferrier field exists. With the configfile key history_handoff: true also the
+         parent hand-off set (HANDOFF_FIELDS below: skin/SST, sea ice, soil, snow, canopy water, land mask) and
+         the parent grid keys as global attributes (handoff_attrs); off, the field list is unchanged.
 Launch: kernels and the small array ops on ctx.stream, no host sync, no per-step allocation after
 the first call.
 
@@ -281,4 +283,88 @@ def run(ctx):
             comp[...] = refl.max(axis=0)
         out["REFL_10CM"] = (refl, DIMS3)
         out["COMPOSITE"] = (comp, DIMS2)
+    if handoff_on(ctx.cfg):
+        out.update(handoff_fields(ctx, scope))
     return out
+
+
+# ---- parent hand-off field set (configfile key history_handoff: true) ---------------------------------------------
+# What a one-way nest started from this history needs beyond the atmosphere (namgpu/init/parent_start.py, the
+# 'parent' SOURCES row): the land and water surface state. WRF wrfout names and units, so the file still reads as a
+# wrfout. Off (the default) the field list, and so the file, is unchanged.
+#   TSK     TSKIN (K)                     SST     SST (K)                      SEAICE  SICE (fraction)
+#   TSLB    STC [4 soil layers] (K)       SMOIS   SMC (m3 m-3)                 SH2O    SH2O liquid (m3 m-3)
+#   SNOW    SNO (kg m-2, the state's mm)  SNOWH   SI * 0.001 (m; SI is mm)     CANWAT  CMC * 1000 (kg m-2; CMC is m)
+#   TMN     TG deep soil (K)              LANDMASK 1 - SM (1 = land)           SNOWC   SNOWC (fraction)
+# Soil fields are on soil_layers_stag, layer 1 at the top (NMMB order, Noah 0-10/10-40/40-100/100-200 cm): the
+# writer flips only bottom_top / bottom_top_stag fields (history.LEVEL_DIMS).
+HANDOFF_KEY = "history_handoff"
+DIMS_SOIL = ("soil_layers_stag", "south_north", "west_east")
+HANDOFF_FIELDS = ("TSK", "SST", "SEAICE", "TSLB", "SMOIS", "SH2O", "SNOW", "SNOWH", "CANWAT", "TMN",
+                  "LANDMASK", "SNOWC")
+
+
+def handoff_on(cfg) -> bool:
+    raw = getattr(cfg, "raw", None)
+    v = raw.get(HANDOFF_KEY, False) if raw is not None else False
+    if isinstance(v, str):
+        return v.strip().strip(".").lower() in ("true", "t", "yes", "y", "1")
+    return bool(v)
+
+
+def handoff_fields(ctx, scope) -> dict:
+    st = ctx.st
+    jm, im = int(ctx.grid.jm), int(ctx.grid.im)
+    if getattr(ctx, "slab", None) is not None:
+        # tools/history_merge.py (several cards) writes no soil_layers_stag dimension and io_history._write_slab
+        # flips every 3-D field, so the soil layers would come out reversed or the merge would fail.
+        raise RuntimeError("io-history-fields: history_handoff is one-card only for now (the several-card merge "
+                           "writer has no soil_layers_stag dimension and flips every 3-D field)")
+    need = ("TSKIN", "SST", "SICE", "STC", "SMC", "SH2O", "SNO", "SI", "CMC", "TG", "SM", "SNOWC")
+    miss = [n for n in need if n not in st.fields]
+    if miss:
+        raise RuntimeError(f"io-history-fields: history_handoff needs {miss} in the state (init-native-sfc)")
+    s2 = (jm, im)
+    snowh = st.add("H_SNOWH", s2)
+    canwat = st.add("H_CANWAT", s2)
+    land = st.add("H_LANDMASK", s2)
+    with scope:
+        snowh[...] = st["SI"] * cp.float32(0.001)
+        canwat[...] = st["CMC"] * cp.float32(1000.0)
+        land[...] = cp.float32(1.0) - st["SM"]
+    return {
+        "TSK": (st["TSKIN"], DIMS2), "SST": (st["SST"], DIMS2), "SEAICE": (st["SICE"], DIMS2),
+        "TSLB": (st["STC"], DIMS_SOIL), "SMOIS": (st["SMC"], DIMS_SOIL), "SH2O": (st["SH2O"], DIMS_SOIL),
+        "SNOW": (st["SNO"], DIMS2), "SNOWH": (snowh, DIMS2), "CANWAT": (canwat, DIMS2),
+        "TMN": (st["TG"], DIMS2), "LANDMASK": (land, DIMS2), "SNOWC": (st["SNOWC"], DIMS2),
+    }
+
+
+def handoff_attrs(ctx) -> dict:
+    """Global attributes a child reads to place itself in this grid (parent_start.parent_grid)."""
+    cfg, g = ctx.cfg, ctx.grid
+    return {"HANDOFF": np.int32(1), "PARENT_TPH0D": float(cfg.tph0d), "PARENT_TLM0D": float(cfg.tlm0d),
+            "PARENT_WBD": float(cfg.wbd), "PARENT_SBD": float(cfg.sbd),
+            "PARENT_DLMD": float(cfg.dlmd), "PARENT_DPHD": float(cfg.dphd),
+            "PARENT_IM": np.int32(g.im), "PARENT_JM": np.int32(g.jm), "PARENT_LM": np.int32(g.lm),
+            "PARENT_LNSH": np.int32(cfg.lnsh), "PARENT_LNSV": np.int32(cfg.lnsv),
+            "PARENT_PT": float(g.pt), "PARENT_PDTOP": float(g.pdtop), "PARENT_DT": float(cfg.dt),
+            **_start_credit(ctx)}
+
+
+def _start_credit(ctx) -> dict:
+    """START_SOURCE, DATA_CREDIT, DATA_LICENCES of this run (the door's NAMGPU_START_SOURCE / NAMGPU_DATA_* env, else
+    nest.cli.data_credits of ctx.init_source): a child nest's maps carry its parent's start-source credit from these
+    (a nest under an IFS-started parent showed no ECMWF CC BY credit; fix round 2)."""
+    import json
+    import os
+    src = os.environ.get("NAMGPU_START_SOURCE") or str(getattr(ctx, "init_source", "") or "")
+    lic = os.environ.get("NAMGPU_DATA_LICENCES")
+    credit = os.environ.get("NAMGPU_DATA_CREDIT", "")
+    if not lic and src and src != "parent":
+        from namgpu.nest.cli import data_credits
+        credit, lines = data_credits(src)
+        lic = json.dumps(lines)
+    if not lic:
+        return {}
+    return {"START_SOURCE": src, "DATA_CREDIT": credit, "DATA_LICENCES": lic}

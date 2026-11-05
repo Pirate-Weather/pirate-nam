@@ -187,6 +187,14 @@ def boco_dirname(cfg) -> str:
     return f"boco-{d}" if d else "boco"
 
 
+def grid_stamp(cfg) -> dict:
+    """The grid a boco folder was built on (written into its source marker and compared on reuse): the case folder
+    boco-<domain_name> is shared by every domain of that cycle with the same name, so a folder built on another
+    grid (other jm, or a centre that rounds to the same name) must be rebuilt, never reused (review round 3, #1)."""
+    return {"im": int(cfg.im), "jm": int(cfg.jm), "lm": int(cfg.lm), "tph0d": round(float(cfg.tph0d), 4),
+            "tlm0d": round(float(cfg.tlm0d), 4), "wbd": round(float(cfg.wbd), 6), "sbd": round(float(cfg.sbd), 6)}
+
+
 def parse_nps_coord_levs(path: Path) -> tuple[float, float, list[float]]:
     pt = ptsgm = None
     levs: list[float] = []

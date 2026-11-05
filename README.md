@@ -124,7 +124,7 @@ woof-nam static cases/2025-03-14_12z/raw/nam/bgrd3d00.grib2
 
 This writes `static/nam12_static.npz` (1.4 MB, a few seconds). Every later GFS start reuses it.
 
-**IFS start (ECMWF open data, CC BY 4.0).** `--source ifs-0p25` (0.25 degree, cycles from 2024-03-18 12Z)
+**IFS start (ECMWF open data, CC BY 4.0).** `--source ifs-0p25` (0.25 degree, cycles from 2025-03-14 12Z)
 or `--source ifs` (0.1 degree, cycles from 2026-10-20 12Z) fetches the IFS start, its 3-hourly
 boundaries from the same IFS cycle and MRMS. IFS open data has no sea-ice cover, so that one field
 comes from the same cycle's GFS. An IFS start uses the same static fields as a GFS start.
@@ -305,7 +305,7 @@ For the 12 km grid, per forecast hour:
   - RRTM longwave and shortwave (NCEP's RRTMG, hourly);
   - Janjic gravity-wave drag (GMTED2010 terrain).
 - **Start sources:** the archived NAM native analysis (`bgrd3d00`, for cycles before the
-  retirement), GFS 0.25 degree for any date, or ECMWF open data IFS (0.25 degree from 2024-03-18 12Z,
+  retirement), GFS 0.25 degree for any date from 2021, or ECMWF open data IFS (0.25 degree from 2025-03-14 12Z,
   0.1 degree from 2026-10-20 12Z). On the NAM and GFS starts the lateral boundaries come from the
   GFS cycle 6 hours older, as in the operational NAM; on an IFS start they come from the same IFS cycle.
 - **Not bitwise with the NAM.** The port runs in single precision with fast numerics. It is judged
@@ -399,6 +399,78 @@ sets, and `run_nam_domain.sh` lives in a checkout (`tools/`), not in the wheel.
 Needs: one machine with N NVIDIA cards and the NCCL 2 library (`libnccl.so.2`) where CuPy can load it; about
 14 GB of disk for the saved 12 km init; room in `/dev/shm` for one or two hours of history in flight.
 
+## 3 km nests anywhere
+
+`woof-nam nest` runs a NAM-physics domain anywhere on Earth. One command builds the static fields for the
+new grid, fetches the start and the boundaries, runs the forecast and draws the maps and comparison sheets:
+
+```
+woof-nam nest --center 35.7N,139.7E --size-km 1000 --res-km 3 --source gfs \
+    --start 2026110218 --hours 48 --out runs/japan-3km
+```
+
+- `--center LAT,LON` with N/S/E/W or signed degrees; `--size-km` (and `--size-y-km` for a rectangle);
+  `--res-km` 3, 4, 5 or 12. The 3 km row takes the NAM CONUS-nest step and physics keys (dt 6.25 s, radiation
+  every 192 steps, no parameterised convection).
+- `--source auto | gfs | ifs | ifs-0p25 | parent`. `auto` takes IFS 0.1 degree where it is published and GFS
+  before. `parent --parent-run DIR` is a one-way nest inside a WOOF-NAM 12 km run that wrote its hand-off set.
+- Before it starts, the door checks the free memory on the card and refuses if the domain does not fit. It
+  also refuses if no renderer is found. It writes `nest-receipt.json` with every stage's wall time, cores and
+  VRAM. From a checkout, `tools/woof-nam nest ...` runs the same command.
+
+Three whole 48 h runs, each 286 x 334 x 60 points at 3 km (1,000 km square), on one RTX 5090 (32 GB):
+
+| case | start and boundaries | ms/step | forecast 48 h | VRAM (pool) | door, start to sheets |
+|---|---|---|---|---|---|
+| Missouri/Illinois squall line, 2025-03-14 12Z | WOOF-NAM 12 km parent (one-way) | 14.2 | 6.5 min | 26.8 GiB | 8.2 min |
+| Japan, 2026-11-02 18Z | GFS 0.25 | 14.1 | 6.5 min | 22.7 GiB | 22.9 min |
+| Southern Germany and the Alps, 2026-11-02 12Z | ECMWF IFS 0.1 | 13.8 | 6.4 min | 21.8 GiB | 21.1 min |
+
+Most of the door time beyond the forecast goes on the download (GFS 7 min) and on drawing the referee
+sheets. All three runs stayed finite to +48 h.
+
+![Composite reflectivity, MRMS | WOOF-NAM 3 km nest | WOOF-NAM 12 km parent, +6 to +24 h](docs/nests/conus-parent-refc-f06-f24.png)
+
+*Squall line, 2025-03-14 12Z (columns: MRMS, the 3 km nest, the 12 km parent; rows: +6, +12, +18, +24 h). The
+nest draws the overnight line as one continuous band on about the axis MRMS has. The parent has a chain of
+separate cells there. FSS at >= 40 dBZ (40 km window) is 0.24 for the nest and 0.15 for the parent at +18 h.
+Two nest defects are visible from +12 h: echo along the boundary rows, and banded echo ahead of the line.*
+
+![2 m temperature, WOOF-NAM 3 km Japan, +6, +12, +24 and +48 h](docs/nests/japan-gfs-t2m-f06-f48.png)
+
+*Japan from GFS, 2026-11-02 18Z. The nest resolves valley, terrain and coastal structure that GFS 0.25 does
+not have. Against 17-28 Japanese METARs, its 2 m temperature RMSE is 1.57, 1.93 and 1.82 C at +6, +12 and
++24 h (GFS: 1.42, 2.28, 2.50) and 1.40 C at +48 h (GFS 0.97). Its 2 m dewpoint over interior Honshu is too dry
+(-1.35 C at +48 h).*
+
+![ECMWF IFS 0.25 analysis | WOOF-NAM 3 km | ECMWF IFS 0.25 forecast, 2 m T, 2 m dewpoint, 10 m wind, MSLP and 6 h precipitation](docs/nests/europe-ifs-sheets-f12-f48.png)
+
+*Southern Germany and the Alps from IFS 0.1, 2026-11-02 12Z (columns: the IFS analysis, the 3 km nest, the
+IFS forecast). Against 139-147 METARs, the nest's 10 m wind matches IFS (lower RMSE at 9 of 12 leads). Its
+2 m temperature is worse than IFS at every lead from +6 h: the gap is 0.1-0.3 C by day and largest at night.
+Its 2 m dewpoint is drier than IFS, and it produces light rain and drizzle at about one fifth of the observed
+frequency.*
+
+### Data sources for nests
+
+Static fields come from the WPS_GEOG datasets `gpuwm fetch-geog` installs, read by
+`namgpu/init/static_build.py`. Start, boundary and referee data are fetched from the open archives below.
+Each row's licence is also written next to its table in the code (`static_build.DATASETS`,
+`fetch_case.FETCH_ROWS`, `sources.SOURCES`, `referee_rows`). No NC-licensed data is read.
+
+| use | dataset | source and licence |
+|---|---|---|
+| terrain | GMTED2010 30 arc-second | USGS/NGA (Danielson & Gesch 2011); U.S. public domain |
+| land use | MODIS 20-category IGBP + lakes | NASA MODIS (MCD12Q1-derived); NASA open data |
+| soil texture | SoilGrids250m texture classes | ISRIC (Hengl et al. 2017); CC BY 4.0, attribution in the static receipt |
+| green fraction, albedo, max snow albedo | MODIS climatologies | NASA MODIS; Barlage et al. 2005 (max snow albedo) |
+| deep-soil temperature | ERA5 1990-2019 climatology (WeatherBench 2) | Copernicus licence: free, commercial use allowed, attribution required |
+| start and boundaries | GFS 0.25 degree | NOAA/NCEP, U.S. public domain (AWS NODD) |
+| start and boundaries | ECMWF open data IFS 0.1 / 0.25 degree | ECMWF, CC BY 4.0 (credited on every map) |
+| snow, sea ice where IFS lacks them | GFS 0.25 degree f000, same cycle | NOAA/NCEP, U.S. public domain |
+| parent start and boundaries | your own WOOF-NAM 12 km history | the parent's own start-source credit is carried onto the maps |
+| truth (referee panels) | MRMS reflectivity and QPE; GPM IMERG | NOAA, U.S. public domain; NASA/JAXA open data |
+
 ## Layout
 
 ```
@@ -417,8 +489,9 @@ CONTRACT.md        array layout, step order, kernel convention, done rule
 
 ## Known gaps
 
-- **Nests:** the NAM's nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
-  ported; this is the 12 km parent only.
+- **Nests:** the NAM's own fixed nests (CONUS 3 km, Alaska, Hawaii, Puerto Rico, fire weather) are not
+  ported as such; `woof-nam nest` ("3 km nests anywhere" above) runs a 3 km domain of your choice instead.
+  Its `--cards N` path and its sheets on several cards have not run on two physical cards yet.
 - **Multi-card:** one machine only (no multi-node runs). Other grids (4 km, 5 km) run from a checkout
   (`tools/run_nam_domain.sh`), not from `woof-nam`; the 5 km grid is not measured yet.
 - **Memory fit on several cards:** measured on the 954 x 279 band (2 cards, same bits as 1 card). The full

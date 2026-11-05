@@ -1,0 +1,43 @@
+--- a/crates/rw-wrfbatch/src/ensemble_products.rs	2026-11-05 02:20:19.124912863 +0000
++++ b/crates/rw-wrfbatch/src/ensemble_products.rs	2026-11-05 02:20:19.125701609 +0000
+@@ -589,7 +589,14 @@
+ 
+ fn compose_family_sheet(args: &[String]) -> Result<(), String> {
+     #[derive(serde::Deserialize)]
+-    struct Request { rows: Vec<Vec<PathBuf>>, output: PathBuf, title: String, valid_time: String }
++    struct Request {
++        rows: Vec<Vec<PathBuf>>, output: PathBuf, title: String, valid_time: String,
++        /// The whole header subtitle, drawn as given (absent: "valid {valid_time} UTC" as before). A caller whose
++        /// header carries more than the valid time (init, a data credit) passes it here, so "UTC" is not appended
++        /// after the last item (WOOF-NAM nest sheets read "... CC BY 4.0 UTC", 2026-11-05).
++        #[serde(default)]
++        subtitle: Option<String>,
++    }
+     let input = args.get(1).ok_or("--ensemble-sheet needs a JSON request")?;
+     let request: Request = serde_json::from_slice(&std::fs::read(input).map_err(|e| e.to_string())?)
+         .map_err(|e| e.to_string())?;
+@@ -600,8 +607,22 @@
+     let rows: Result<Vec<Vec<image::RgbaImage>>, String> = request.rows.par_iter().map(|row|
+         row.iter().map(|path| image::open(path).map(|image| image.to_rgba8()).map_err(|e| e.to_string())).collect()
+     ).collect();
+-    let sheet = crate::compare::compose_sheet_rows(&rows?, &crate::compare::SheetHeader {
+-        title: request.title, subtitle: format!("valid {} UTC", request.valid_time),
++    // Panels of two sizes (a longer title or colour-bar label widens one) are placed top-left on a canvas of the
++    // largest width and height, filled with that panel's own corner colour: padding, never resampling. Refusing them
++    // killed a nest's whole sheets stage over a 4 px difference (WOOF-NAM Gabrielle nest, 2026-11-05).
++    let rows = rows?;
++    let width = rows.iter().flatten().map(|p| p.width()).max().unwrap_or(0);
++    let height = rows.iter().flatten().map(|p| p.height()).max().unwrap_or(0);
++    let rows: Vec<Vec<image::RgbaImage>> = rows.into_iter().map(|row| row.into_iter().map(|panel| {
++        if panel.width() == width && panel.height() == height { return panel; }
++        let mut canvas = image::RgbaImage::from_pixel(width, height, *panel.get_pixel(0, 0));
++        image::imageops::overlay(&mut canvas, &panel, 0, 0);
++        canvas
++    }).collect()).collect();
++    let subtitle = request.subtitle.filter(|s| !s.trim().is_empty())
++        .unwrap_or_else(|| format!("valid {} UTC", request.valid_time));
++    let sheet = crate::compare::compose_sheet_rows(&rows, &crate::compare::SheetHeader {
++        title: request.title, subtitle,
+     })?;
+     if let Some(parent) = request.output.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+     sheet.save(&request.output).map_err(|e| e.to_string())?;

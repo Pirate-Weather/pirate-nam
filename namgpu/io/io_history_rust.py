@@ -212,7 +212,10 @@ def write_history_rust(path: Path, ctx, fields: dict, start) -> Path:
         stamp = start.strftime("%Y-%m-%d_%H:%M:%S")
         _put_att(lib, schema, -1, "START_DATE", stamp)
         _put_att(lib, schema, -1, "SIMULATION_START_DATE", stamp)
-        _put_att(lib, schema, -1, "TITLE", "WOOF-NAM NMMB 12 km parent history")
+        from namgpu.io import io_history_fields as _ihf  # noqa: PLC0415
+        from namgpu.io.history import history_title  # noqa: PLC0415
+        # cfg.dphd = 0.009 deg x res (namgpu/nest/domain.py nest_grid)
+        _put_att(lib, schema, -1, "TITLE", history_title(round(cfg.dphd / 0.009 * 2.0) / 2.0, _ihf.handoff_on(cfg)))
 
         raw_path = str(path).encode()
         writer = lib.gpuwm_ncwrite_create(schema, raw_path, len(raw_path))

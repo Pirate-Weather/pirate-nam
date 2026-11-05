@@ -29,6 +29,7 @@ GPU: one private state of about 3 GB plus the decoded GFS set (~1 GB) per bounda
 """
 from __future__ import annotations
 
+import contextlib
 import struct
 from datetime import timedelta
 from pathlib import Path
@@ -37,18 +38,34 @@ import numpy as np
 
 UNIT = "init-gfs-bocos"
 TBOCO = 10800.0
+PREFETCH = 2          # boundary times decoded ahead of the interpolation (host decode threads, same stream)
 BC_FIELDS = ("T", "Q", "CW", "U", "V", "PD", "PINT", "FIS", "HGT_M", "SOILHGT",
              "GLAT", "GLON", "VLAT", "VLON")
 
 
-def gfs_files(case_dir: Path, start, hours: int, interval_h: int = 3, age_h: int = 6):
-    """[(forecast hour, path)] of the GFS boundary files: the cycle age_h hours older than start."""
+def gfs_files(case_dir: Path, start, hours: int, interval_h: int | None = None, age_h: int | None = None,
+              row: dict | None = None, cfg=None):
+    """[(forecast hour, path)] of the boundary files: leads of the cycle age_h hours older than start, every
+    interval_h. Both default to the source row (sources.SOURCES["gfs"]: boco_age_h 6 as operational NAM,
+    boco_interval_h 3); age_h also follows NAMGPU_BOCO_AGE_H and the configfile key boco_age_h (0 = the start
+    cycle itself, for past cases). File names are the row's boco_file (the names fetch_case writes)."""
+    from namgpu.init import sources as srcmod
+    row = row or srcmod.SOURCES["gfs"]
+    age_h = srcmod.boco_age_h(row, cfg, age_h)
+    interval_h = int(interval_h or row.get("boco_interval_h", 3))
     cyc = start - timedelta(hours=age_h)
     out = []
     for fh in range(0, int(hours) + 1, interval_h):
-        p = Path(case_dir) / "raw" / "gfs" / f"gfs.t{cyc.hour:02d}z.f{fh + age_h:03d}.grib2"
+        p = Path(case_dir) / row["boco_file"].format(bcyc=cyc.hour, lead=fh + age_h)
         out.append((fh, p))
     return out
+
+
+def _marker(start, hours, files, age_h, interval_h, source="gfs", grid=None):
+    """What a boco folder was built from (BOCO-SOURCE.json): a folder built from another boundary cycle,
+    interval, file set or grid (config.grid_stamp) is rebuilt, not reused."""
+    return {"source": source, "start": f"{start:%Y-%m-%dT%H}", "hours": int(hours), "age_h": int(age_h),
+            "interval_h": int(interval_h), "files": [Path(p).name for _, p in files], "grid": grid}
 
 
 def boundary_row(ctx):
@@ -61,9 +78,11 @@ def boundary_row(ctx):
     return name, row
 
 
-def source_files(case_dir: Path, start, hours: int, row: dict):
-    """[(forecast hour, path)] of a row's boundary files: its cycle age_h older than start, every interval_h."""
-    b = row["boundary"]
+def source_files(case_dir: Path, start, hours: int, row: dict, cfg=None):
+    """[(forecast hour, path)] of a row's boundary files: its cycle age_h older than start (sources.boco_age_h:
+    NAMGPU_BOCO_AGE_H, configfile boco_age_h, else the row), every interval_h."""
+    from namgpu.init import sources as srcmod
+    b = dict(row["boundary"], age_h=srcmod.boco_age_h(row, cfg))
     if int(b["interval_h"]) * 3600 != int(TBOCO):
         raise ValueError(f"{UNIT}: boundary interval {b['interval_h']} h; boco files carry tboco = {TBOCO} s")
     cyc = start - timedelta(hours=int(b["age_h"]))
@@ -105,17 +124,18 @@ def _record(f, payload: bytes):
     f.write(struct.pack("<i", len(payload)))
 
 
-def write_boco(path: Path, t0, old, new):
-    """One boco file: slot 1 = old, slot 2 = (new - old) / TBOCO, in NPS record order."""
+def write_boco(path: Path, t0, old, new, tboco: float = TBOCO):
+    """One boco file: slot 1 = old, slot 2 = (new - old) / tboco, in NPS record order (tboco 10800 s for GFS;
+    the parent source can write 3600 s intervals, parent_bocos.py)."""
     import cupy as cp
-    hdr = struct.pack("<i3iif", 1, t0.day, t0.month, t0.year, t0.hour, np.float32(TBOCO))
+    hdr = struct.pack("<i3iif", 1, t0.day, t0.month, t0.year, t0.hour, np.float32(tboco))
     tmp = path.with_suffix(".part")
     with open(tmp, "wb") as f:
         _record(f, hdr)
         for name in ("PD", "T", "Q", "CW", "U", "V"):
             parts = []
             for a0, a1 in zip(old[name], new[name]):
-                both = cp.stack([a0, (a1 - a0) / cp.float32(TBOCO)])   # slot axis outermost (Fortran last)
+                both = cp.stack([a0, (a1 - a0) / cp.float32(tboco)])   # slot axis outermost (Fortran last)
                 parts.append(cp.asnumpy(both).astype("<f4").tobytes())
             _record(f, b"".join(parts))
     tmp.replace(path)
@@ -132,9 +152,12 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     lm, lnsh, lnsv = int(g.lm), int(cfg.lnsh), int(cfg.lnsv)
     out_dir = Path(out_dir or boco_dir(ctx))
     out_dir.mkdir(parents=True, exist_ok=True)
+    from namgpu.init import sources as srcmod
     bname, brow = boundary_row(ctx)
     rec = srec.table(brow)
-    files = source_files(ctx.case_dir, ctx.start, hours, brow)
+    age_h = srcmod.boco_age_h(brow, cfg)
+    interval_h = int(brow["boundary"]["interval_h"])
+    files = source_files(ctx.case_dir, ctx.start, hours, brow, cfg)
     missing = [str(p) for _, p in files if not p.is_file()]
     if missing:
         raise FileNotFoundError(f"{UNIT}: {bname} boundary files missing: {missing[:3]} (run init-fetch-case)")
@@ -146,8 +169,24 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
     st.add("HGT_M", static["HGT_SFC"].shape)[...] = static["HGT_SFC"]
     tmpdir = str(Path(ctx.case_dir).resolve().parents[1] / "scratch")
     prev = None
+    # Decode PREFETCH boundary times ahead on worker threads (each decode is ~11 grib2_dump processes plus the
+    # device placement, on bctx.stream) while this thread interpolates the current one: the decodes of one time
+    # used ~5 of 24 cores and the boundary stage was a series of them (58 s for 17 times, nests 2026-11-04).
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _decode(path):
+        scope = bctx.stream if bctx.stream is not None else contextlib.nullcontext()
+        with scope:
+            return gfs_start.decode_source(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec)
+    pool = ThreadPoolExecutor(max_workers=PREFETCH)
+    ahead = [pool.submit(_decode, p) for _, p in files[:PREFETCH]]
     for k, (fh, path) in enumerate(files):
-        gfs_start.model_state(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec)
+        dec = ahead[k].result()
+        if k + PREFETCH < len(files):
+            ahead.append(pool.submit(_decode, files[k + PREFETCH][1]))
+        gfs_start.model_state(bctx, path, tmpdir, sfc_keys=rec["sfc_columns"], rec=rec, decoded=dec)
+        del dec
+        ahead[k] = None
         cur = strips(st, lm, lnsh, lnsv)
         bad = {n: int(sum(int((~cp.isfinite(x)).sum()) for x in v)) for n, v in cur.items()}
         if any(bad.values()):
@@ -158,6 +197,13 @@ def build(ctx, hours: int, out_dir: Path | None = None, log=print):
             write_boco(name, t0, prev, cur)
             log(f"{UNIT}: {name.name} (+{files[k - 1][0]} h -> +{fh} h)")
         prev = cur
+    pool.shutdown()
+    import json
+    from namgpu import config as configmod
+    (out_dir / "BOCO-SOURCE.json").write_text(json.dumps(_marker(ctx.start, hours, files, age_h, interval_h,
+                                                                  bname, configmod.grid_stamp(ctx.cfg))))
+    log(f"{UNIT}: {len(files) - 1} boco files from the {age_h} h old cycle "
+        f"({ctx.start - timedelta(hours=age_h):%Y-%m-%d %HZ}) in {out_dir}")
     del st, bctx
     cp.get_default_memory_pool().free_all_blocks()
     return out_dir
@@ -172,9 +218,42 @@ def run(ctx, hours: int | None = None):
         raw = str(ctx.cfg.raw.get("nhours_fcst", "48")).strip()
         hours = int(raw) if raw.lstrip("-").isdigit() else 48
     hours = int(hours)
+    from namgpu import config as configmod
+    from namgpu.init import sources as srcmod
+    out_dir = Path(ctx.case_dir) / configmod.boco_dirname(ctx.cfg)    # parent nests
+    _, row = srcmod.source_row(ctx)
+    if row["kind"] == "nam_history":
+        # one-way nest: boundaries from the parent's own history (parent_bocos.py), every 1 or 3 h
+        from namgpu.init import parent_bocos
+        if not parent_bocos.current(out_dir, hours, ctx):     # same parent, interval and start, every file
+            parent_bocos.build(ctx, hours, out_dir)
+        ctx.boco_dir = str(out_dir)
+        return out_dir
     out_dir = boco_dir(ctx)
     want = [out_dir / f"boco.{fh:04d}" for fh in range(0, hours, 3)]
-    if not all(p.is_file() for p in want):
+    import json
+    bname, row = boundary_row(ctx)
+    age_h, interval_h = srcmod.boco_age_h(row, ctx.cfg), int(row["boundary"]["interval_h"])
+    grid = configmod.grid_stamp(ctx.cfg)
+    mk = out_dir / "BOCO-SOURCE.json"
+    try:
+        have = json.loads(mk.read_text())
+    except (OSError, ValueError):
+        have = None
+    if have is None:
+        # a folder from before the marker: kept if complete only for the fixed NAM grid (folder "boco"); a
+        # boco-<domain> folder is shared by every grid of that name, so without a grid record it is rebuilt
+        same = not ctx.cfg.raw.get("domain_name")
+        why = "no source marker (grid unknown)"
+    else:
+        want_m = {"source": bname, "age_h": age_h, "interval_h": interval_h, "start": f"{ctx.start:%Y-%m-%dT%H}",
+                  "grid": grid}
+        diff = [k for k, v in want_m.items() if have.get(k, "gfs" if k == "source" else None) != v]
+        same = not diff
+        why = "; ".join(f"{k} {have.get(k)} -> {want_m[k]}" for k in diff)
+    if not same:
+        print(f"{UNIT}: {out_dir.name} does not match this run ({why}): rebuilding", flush=True)
+    if not same or not all(p.is_file() for p in want):
         build(ctx, hours, out_dir)
     ctx.boco_dir = str(out_dir)
     return out_dir
@@ -188,8 +267,12 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", required=True)
     ap.add_argument("--hours", type=int, default=48)
+    ap.add_argument("--boco-age", type=int, default=None, help="boundary cycle age, h (default: the source row)")
     a = ap.parse_args(argv)
     from namgpu import paths
+    if a.boco_age is not None:
+        import os
+        os.environ["NAMGPU_BOCO_AGE_H"] = str(a.boco_age)
     cfg = config.load()
     g = gridmod.build(cfg)
     from types import SimpleNamespace

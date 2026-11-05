@@ -1,0 +1,33 @@
+--- a/crates/rw-wrfbatch/src/cf_grid.rs
++++ b/crates/rw-wrfbatch/src/cf_grid.rs
+@@ -21,6 +21,11 @@
+     pub contour_level: Option<f64>,
+     pub observation_product: Option<String>,
+     pub scale: Option<CfScale>,
++    /// A line appended to the panel subtitle (after the valid time), e.g. the data credit a CC BY source requires
++    /// on every map. In the subtitle, not the title: a longer title widened the panel and cut the valid time
++    /// (WOOF-NAM nest maps, 2026-11-05). Absent = the subtitle as before.
++    #[serde(default)]
++    pub note: Option<String>,
+ }
+ /// Optional physical-unit ladder supplied by a CF product row.
+ #[derive(Clone, Debug, Deserialize)]
+--- a/crates/rw-wrfbatch/src/cf_render.rs
++++ b/crates/rw-wrfbatch/src/cf_render.rs
+@@ -475,13 +475,14 @@
+     let day = grid.valid.format("%Y-%m-%d").to_string();
+     let stamp = grid.valid.format("%Y%m%d_%H%Mz").to_string();
+     let subtitle = format!(
+-        "valid {}{}",
++        "valid {}{}{}",
+         grid.valid.format("%Y-%m-%d %H:%M UTC"),
+         if args.contours.is_empty() {
+             String::new()
+         } else {
+             format!(" | {}", contour_details.join(", "))
+-        }
++        },
++        row.note.as_deref().filter(|n| !n.trim().is_empty()).map(|n| format!(" | {n}")).unwrap_or_default()
+     );
+     let path = layout_path(
+         &args.out,

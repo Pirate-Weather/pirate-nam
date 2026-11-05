@@ -1,0 +1,36 @@
+--- a/crates/rw-wrfbatch/src/cf_grid.rs
++++ b/crates/rw-wrfbatch/src/cf_grid.rs
+@@ -27,6 +27,11 @@
+ pub struct CfScale {
+     pub levels: Vec<f64>,
+     pub colors: Vec<[u8; 3]>,
++    /// Values under this (display units) are left blank instead of painted in the first colour (ExtendMode::Both
++    /// clamps them there): an all-dry precipitation window painted a domain-wide first band, which reads as rain
++    /// (WOOF-NAM qpf_1h dry hours, 2026-11-05). Absent = no mask, as before.
++    #[serde(default)]
++    pub mask_below: Option<f64>,
+ }
+ impl CfScale {
+     fn color_scale(&self) -> Result<ColorScale, String> {
+@@ -39,7 +44,7 @@
+             levels: self.levels.clone(),
+             colors: self.colors.iter().map(|[r,g,b]| Color::rgba(*r,*g,*b,255)).collect(),
+             extend: ExtendMode::Both,
+-            mask_below: None,
++            mask_below: self.mask_below,
+         }))
+     }
+ }
+@@ -599,10 +604,10 @@
+     use super::*;
+     #[test]
+     fn signed_physical_ladder_validates_before_render() {
+-        let scale = CfScale { levels: vec![-1., 0., 1.], colors: vec![[0,0,255],[255,0,0]] };
++        let scale = CfScale { levels: vec![-1., 0., 1.], colors: vec![[0,0,255],[255,0,0]], mask_below: None };
+         assert!(scale.color_scale().is_ok());
+         for levels in [vec![0., 0., 1.], vec![0., f64::NAN, 1.], vec![0., 1.]] {
+-            assert!(CfScale { levels, colors: scale.colors.clone() }.color_scale().is_err());
++            assert!(CfScale { levels, colors: scale.colors.clone(), mask_below: None }.color_scale().is_err());
+         }
+     }
+ }

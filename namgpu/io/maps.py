@@ -1,6 +1,15 @@
 """Weather maps from WOOF-NAM history files with the Rust renderer rw_wrfbatch (render law: no
-matplotlib for weather fields), drawn exactly like the case referee maps (same CF table, same CONUS
-bounds, same colour scales), so a WOOF-NAM panel sits beside the archived NAM and MRMS panels.
+matplotlib for weather fields), drawn exactly like the case referee maps (same CF table, same colour
+scales), so a WOOF-NAM panel sits beside the referee panels (MRMS, IMERG, the source's analysis, the
+archived NAM) on the same frame.
+
+Frame: taken from the history's own XLAT/XLONG (H points), dateline-aware (frame_bounds): a domain
+across 180 gets W < 180 < E with E past 180, which rw_wrfbatch draws on one Lambert frame centred on
+the domain. That needs a renderer from gpuwm 2.9.12 or later; an older one refuses the bounds by name,
+and the failure says which renderer to use (NAMGPU_RENDERER). No fixed CONUS frame.
+Titles: the renderer writes "<source> | <row title>"; every panel reads
+"WOOF-NAM <res> km | <field>  init YYYY-MM-DD HHZ  valid YYYY-MM-DD HHZ (+FFh)", res from the
+history's DY (NMMB dphd = 0.009 deg x res).
 
 Usage:  python -m namgpu.io.maps <wrfout ...> --out <dir> [--products composite_reflectivity,t2m,...]
 
@@ -18,6 +27,7 @@ Products (CF variable, from the history fields):
                                  blank where 850 hPa is below ground
   mslp                    mslp   MSLP (NMMB QUASIPOST membrane MSLP, Pa -> hPa)
   qpf_1h                  qpf1h  RAINNC + RAINC difference from the history one hour earlier (mm)
+  qpf_6h                  qpf6h  RAINNC + RAINC difference from the history six hours earlier (mm)
 A product whose input is not in a frame is SKIPPED with the reason (composite reflectivity before the
 microphysics has run, qpf_1h on the first frame); the caller decides what a skip means.
 Host work, all cores: each drawn frame is read (only the variables its products need), derived and
@@ -27,6 +37,8 @@ product and frame.
 from __future__ import annotations
 
 import re
+from namgpu import cores as _cores
+
 import argparse
 import json
 import os
@@ -40,15 +52,27 @@ from pathlib import Path
 
 import numpy as np
 
-DEFAULT_PRODUCTS = "composite_reflectivity,t2m,d2m,wind10,wind850,mslp,qpf_1h"
-BOUNDS = "-126,-66,22,52"            # the referee maps' CONUS frame
+DEFAULT_PRODUCTS = "composite_reflectivity,t2m,d2m,wind10,wind850,mslp,qpf_1h,qpf_6h"
 RECEIPT_ENV = "NAMGPU_MAPS_RECEIPT"
+BOUNDS = "-126,-66,22,52"            # the CONUS frame of the side-by-side panels (io_referee_panels); maps.py
+                                     # frames come from each history's XLAT/XLONG (frame_bounds)
+RENDERER_ENV = "NAMGPU_RENDERER"     # full path of an rw_wrfbatch that draws dateline frames (gpuwm >= 2.9.12)
+# The pinned renderer lives in a checkout (tools/renderer/bin, not committed: tools/renderer/install_renderer.sh
+# builds it from a gpuwm cut with the patches in tools/renderer, or copies a built one, and puts the Natural Earth
+# basemap beside it). An installed wheel uses NAMGPU_RENDERER or the installed gpuwm renderer.
+from namgpu import paths as _paths  # noqa: E402
+PINNED_RENDERER = (_paths.checkout_root() or _paths.work_root()) / "tools" / "renderer" / "bin" / "rw_wrfbatch"
+FRAME_PAD = 0.03                     # fraction of the domain span added on each side of the frame
 
-# The standard 1 h precipitation ladder (in), as the CF table's "scale" (the renderer takes exactly ten edges,
-# nine colour bands). Amounts under the first edge are left blank.
-QPF1H_LEVELS = [0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0]
+# The 1 h precipitation ladder (in), as the CF table's "scale" (the renderer takes exactly ten edges, nine colour
+# bands). Amounts under the first edge are left blank. The edges are (near) evenly spaced because rw_wrfbatch draws
+# the nine bands at equal heights on a linear-labelled bar: with the old 0.01/0.05/0.1/0.2/0.3/0.5/0.75/1/1.5/2 edges
+# the 0.2-0.3 in band sat beside the bar's "0.8-0.9" labels (f12, 2026-11-04), so every reading of the bar was wrong.
+QPF1H_LEVELS = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 QPF1H_COLORS = [[139, 205, 132], [66, 170, 72], [21, 120, 36], [255, 250, 140], [255, 200, 0],
                 [255, 130, 0], [230, 30, 0], [150, 0, 30], [200, 0, 200]]
+# 6 h precipitation (in): the same nine colours on evenly spaced edges, 0.05 to 2.0 in.
+QPF6H_LEVELS = [0.05, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25]
 
 # product -> (CF variable, CF table row); rows match cases/<case>/referee/cf-table.json
 TABLE = {
@@ -76,13 +100,20 @@ TABLE = {
                          "unit_factors": {"kg m-2": 0.0393700787},
                          # the standard 1 h precipitation ladder (in), not total_qpf's run-total 0-15 in
                          # scale, which painted every real hourly amount in its first colour (judge 11:30Z)
-                         "scale": {"levels": QPF1H_LEVELS, "colors": QPF1H_COLORS}}),
+                         # mask_below: under the first edge is blank, not the first colour (renderer patch
+                         # tools/renderer/02-cf_scale-mask-below.patch; a dry hour painted a domain-wide green band)
+                         "scale": {"levels": QPF1H_LEVELS, "colors": QPF1H_COLORS, "mask_below": QPF1H_LEVELS[0]}}),
+    "qpf_6h": ("qpf6h", {"names": ["qpf6h"], "standard_names": [], "product": "qpf_6h", "title": "6 h precipitation",
+                         "recipe": "total_qpf", "default_units": "kg m-2", "display_units": "in",
+                         "unit_factors": {"kg m-2": 0.0393700787},
+                         "scale": {"levels": QPF6H_LEVELS, "colors": QPF1H_COLORS, "mask_below": QPF6H_LEVELS[0]}}),
 }
 
 # history variables each product reads (the read takes only these, not every 3-D field of the file)
 NEEDS = {"composite_reflectivity": ("COMPOSITE",), "t2m": ("T2",), "d2m": ("Q2", "PSFC"),
          "wind10": ("U10", "V10"), "wind850": ("U", "V", "PRES"), "mslp": ("MSLP",),
-         "qpf_1h": ("RAINNC", "RAINC")}
+         "qpf_1h": ("RAINNC", "RAINC"), "qpf_6h": ("RAINNC", "RAINC")}
+WINDOW_H = {"qpf_1h": 1, "qpf_6h": 6}   # accumulation products: hours back to the frame they difference
 
 
 def _parse(argv):
@@ -101,28 +132,149 @@ def _parse(argv):
     ap.add_argument("--width", type=int, default=1200, help="image width in pixels (default 1200)")
     ap.add_argument("--height", type=int, default=900, help="image height in pixels (default 900)")
     ap.add_argument("--mrms", type=Path, default=None, help="folder of mrms_refc_YYYYmmddHH.grib2 (overlay)")
-    ap.add_argument("--label", default=None, help="model name in the map titles (default: WOOF-NAM and the configured grid, e.g. WOOF-NAM 12 km)")
-    a = ap.parse_args(argv)
-    if a.label is None:
-        from namgpu import config as _config   # the domain configfile (NAMGPU_CONFIGFILE) names the panel
-        _d = _config.load().raw.get("domain_name")
-        _m = re.fullmatch(r"nam(\d+)(?:km)?(band)?", _d or "")
-        if _m:
-            a.label = f"WOOF-NAM {_m.group(1)} km" + (" band" if _m.group(2) else "")
-        else:
-            a.label = f"WOOF-NAM {_d}" if _d else "WOOF-NAM 12 km"
-    return a
+    ap.add_argument("--label", default=None,
+                    help="panel source label (default: 'WOOF-NAM <res> km', res from the history's DY)")
+    ap.add_argument("--bounds", default="auto",
+                    help="map frame W,E,S,N (E may pass 180 for a dateline frame); auto: from XLAT/XLONG")
+    return ap.parse_args(argv)
+
+
+def basemap_dir(rw: Path, env: dict | None = None) -> Path | None:
+    """The Natural Earth basemap rw_wrfbatch will find (rustwx-render features.rs search order:
+    RUSTWX_BASEMAP_DIR, RUSTWX_ASSETS_DIR/basemap, <exe dir and 7 ancestors>/assets/basemap), or None."""
+    env = os.environ if env is None else env
+    roots = []
+    if env.get("RUSTWX_BASEMAP_DIR"):
+        roots.append(Path(env["RUSTWX_BASEMAP_DIR"]))
+    if env.get("RUSTWX_ASSETS_DIR"):
+        roots.append(Path(env["RUSTWX_ASSETS_DIR"]) / "basemap")
+    exe_dir = Path(rw).resolve().parent
+    roots += [a / "assets" / "basemap" for a in [exe_dir, *exe_dir.parents][:8]]
+    return next((r for r in roots if (r / "natural_earth_10m").is_dir() or (r / "natural_earth_110m").is_dir()),
+                None)
+
+
+def renderer_env(rw: Path) -> dict:
+    """The environment to run rw_wrfbatch with: this process's, plus gpuwm's renderer environment (which pins
+    the basemap on a bare pip install) when the renderer has no basemap beside it."""
+    env = dict(os.environ)
+    if basemap_dir(rw, env) is None:
+        try:
+            from gpuwm import rustwx  # noqa: PLC0415
+            env = dict(rustwx.renderer_env())
+        except ImportError:
+            pass
+    return env
+
+
+def renderer() -> Path:
+    """The rw_wrfbatch to draw with (see _renderer), checked to find its basemap."""
+    rw = _renderer()
+    if basemap_dir(rw, renderer_env(rw)) is None:
+        # without it the renderer draws every map with no coastlines, borders or state lines and does not say so
+        raise SystemExit(f"woof-nam maps: {rw} finds no Natural Earth basemap (assets/basemap beside it or "
+                         f"RUSTWX_BASEMAP_DIR): maps would have no coastlines or state lines. Copy the gpuwm "
+                         f"cut's tools/rustwx/assets/basemap next to the binary or set RUSTWX_BASEMAP_DIR.")
+    return rw
+
+
+def _gpuwm_renderer() -> Path | None:
+    """The released gpuwm renderer: GPUWM_BRIDGES/rw_wrfbatch, else gpuwm.rustwx.find_renderer(), or None."""
+    env = os.environ.get("GPUWM_BRIDGES")
+    if env and (Path(env) / "rw_wrfbatch").is_file():
+        return Path(env) / "rw_wrfbatch"
+    try:
+        from gpuwm import rustwx  # noqa: PLC0415
+    except ImportError:
+        return None
+    r = rustwx.find_renderer()
+    return Path(r) if r else None
+
+
+def _renderer() -> Path:
+    """The rw_wrfbatch to draw with: NAMGPU_RENDERER, else the pinned build (tools/renderer/bin in a checkout),
+    else the installed gpuwm's. Only gpuwm 2.9.12 and later draw a frame across the dateline; an older one
+    refuses such a frame by name (maps_main says which renderer to set)."""
+    env = os.environ.get(RENDERER_ENV)
+    if env:
+        if not Path(env).is_file():
+            raise SystemExit(f"woof-nam maps: {RENDERER_ENV}={env} is not a file")
+        return Path(env)
+    if PINNED_RENDERER.is_file():
+        return PINNED_RENDERER
+    rw = _gpuwm_renderer()
+    if rw is not None:
+        return rw
+    raise SystemExit(f"woof-nam maps: no renderer: set {RENDERER_ENV}, install gpuwm (its rw_wrfbatch), or in a "
+                     f"checkout run tools/renderer/install_renderer.sh (builds rw_wrfbatch from a gpuwm cut with "
+                     f"the tree's renderer patches into {PINNED_RENDERER}, with the basemap beside it).")
 
 
 def _bridges() -> Path:
-    env = os.environ.get("GPUWM_BRIDGES")
-    if env and (Path(env) / "rw_wrfbatch").is_file():
-        return Path(env)
-    from gpuwm import rustwx  # noqa: PLC0415
-    r = rustwx.find_renderer()
-    if r is None:
-        raise SystemExit(rustwx.renderer_remedy())
-    return Path(r).parent
+    return renderer().parent
+
+
+def frame_bounds(lat, lon, pad: float = FRAME_PAD):
+    """(W, E, S, N) of a curvilinear domain, dateline-aware: longitudes are unwrapped around the domain's
+    centre point, so a domain across 180 gets W < 180 < E (E up to W + 360), never a -180..180 frame.
+    A domain that holds a pole gets the whole longitude circle from its centre."""
+    lat = np.asarray(lat, dtype=np.float64)
+    lon = np.asarray(lon, dtype=np.float64)
+    j, i = lat.shape[0] // 2, lat.shape[1] // 2
+    c = float(lon[j, i])
+    rel = (lon - c + 180.0) % 360.0 - 180.0
+    s, n = float(lat.min()), float(lat.max())
+    w, e = c + float(rel.min()), c + float(rel.max())
+    dx, dy = (e - w) * pad, (n - s) * pad
+    w, e = w - dx, e + dx
+    s, n = max(s - dy, -89.9), min(n + dy, 89.9)
+    if e - w >= 359.0 or n >= 89.9 or s <= -89.9:        # pole inside: the whole circle
+        w, e = c - 180.0, c + 180.0
+    shift = 360.0 * np.floor((w + 180.0) / 360.0)          # W into [-180, 180); E keeps the span
+    return (round(w - shift, 3), round(e - shift, 3), round(s, 3), round(n, 3))
+
+
+def bounds_arg(b) -> str:
+    return ",".join(f"{v:g}" for v in b)
+
+
+def resolution_km(path: Path) -> float | None:
+    """Grid length in km from the history's DY (NMMB: dphd = 0.009 deg x res, 1.0008 km x res)."""
+    import netCDF4  # noqa: PLC0415
+    with netCDF4.Dataset(path) as nc:
+        dy = getattr(nc, "DY", None)
+    if dy is None:
+        return None
+    return round(float(dy) / 1000.8 * 2.0) / 2.0
+
+
+def source_label(res_km: float | None) -> str:
+    return f"WOOF-NAM {res_km:g} km" if res_km else "WOOF-NAM"
+
+
+CREDIT_ENV = "NAMGPU_DATA_CREDIT"    # short data credit (start/boundary source, static datasets) the door sets
+
+
+def credit_note() -> str | None:
+    """The run's data credit for the panel subtitle (CC BY sources need it on every map), or None. In the subtitle
+    (CF row "note", renderer patch tools/renderer/03-cf_row-note-subtitle.patch), not the title: a longer title
+    widened the panel and cut the valid time, and panels of two widths cannot be composed into a sheet."""
+    c = os.environ.get(CREDIT_ENV, "").strip()
+    return f"data: {c}" if c else None
+
+
+def panel_title(field: str, start: datetime, valid: datetime) -> str:
+    fh = int(round((valid - start).total_seconds() / 3600))
+    return f"{field}  init {start:%Y-%m-%d %H}Z  valid {valid:%Y-%m-%d %H}Z (+{fh}h)"
+
+
+def cf_row(product: str, title: str, note: str | None = None) -> dict:
+    """The product's CF table row with its panel title (and an optional subtitle note, e.g. the data credit)."""
+    row = json.loads(json.dumps(TABLE[product][1]))
+    row["title"] = title
+    if note:
+        row["note"] = note
+    return row
 
 
 def _k2f(k):
@@ -171,8 +323,11 @@ def _read(path: Path, names=None):
     return valid, start, get
 
 
-def fields_for(prev, cur, products):
-    """CF fields of one frame: {cf_var: (array, units)}; skipped: [(product, reason)]."""
+def fields_for(prevs, cur, products):
+    """CF fields of one frame: {cf_var: (array, units)}; skipped: [(product, reason)].
+    prevs: {hours back: (valid, start, fields, path)} of the frames the accumulation products difference."""
+    if not isinstance(prevs, dict):                      # older callers pass the frame one hour earlier
+        prevs = {1: prevs} if prevs is not None else {}
     valid, start, f, _ = cur
     out, skipped = {}, []
     for prod in products:
@@ -196,13 +351,22 @@ def fields_for(prev, cur, products):
                 skipped.append((prod, f"{cur[3].name}: no MSLP in the history (io-quasipost-driver did not run for it)"))
                 continue
             out[var] = (f["MSLP"] / 100.0, "hPa")
-        elif prod == "qpf_1h":
-            if prev is None or (valid - prev[0]) != timedelta(hours=1):
-                skipped.append((prod, f"{cur[3].name}: no history frame one hour earlier to difference"))
+        elif prod in WINDOW_H:
+            n = WINDOW_H[prod]
+            prev = prevs.get(n)
+            if prev is None or (valid - prev[0]) != timedelta(hours=n):
+                skipped.append((prod, f"{cur[3].name}: no history frame {n} h earlier to difference"))
                 continue
             tot = f["RAINNC"] + f["RAINC"]
             q = np.maximum(tot - (prev[2]["RAINNC"] + prev[2]["RAINC"]), 0.0)
-            out[var] = (np.where(q >= QPF1H_LEVELS[0] * 25.4, q, np.nan), "kg m-2")   # below 0.01 in: blank
+            first = TABLE[prod][1]["scale"]["levels"][0] * 25.4
+            q = np.where(q >= first, q, np.nan)                          # below the first edge: blank
+            if not np.isfinite(q).any():
+                # a dry window (no point at the first edge): zeros, which the scale's mask_below leaves blank, not an
+                # all-NaN field the renderer refuses ("selected CF field has no finite values"), which failed the
+                # run and skipped every sheet
+                q = np.zeros_like(q)
+            out[var] = (q, "kg m-2")
     return out, skipped
 
 
@@ -231,27 +395,31 @@ def _write_cf(path, lat, lon, valid, fields, label):
 
 
 def _prep_frame(job):
-    """One drawn frame: read the variables its products need (and the earlier frame's rain for qpf_1h),
-    derive the CF fields and write the frame's CF file. Runs in a worker process.
-    Returns (cf path or None, valid, start, CF variables written, skipped)."""
-    path, prev_path, need, products, work, label = job
+    """One drawn frame: read the variables its products need (and the earlier frames' rain for the
+    accumulation products), derive the CF fields and write the frame's CF file and its CF table (the table
+    carries the panel titles, which name init, valid and lead). Runs in a worker process.
+    Returns (cf path or None, valid, start, CF variables written, skipped, table path, frame bounds)."""
+    path, prev_paths, need, products, work, label = job
     path = Path(path)
     valid, start, f = _read(path, set(need))
-    prev = None
-    if prev_path is not None:
-        pv, ps, pf = _read(Path(prev_path), {"RAINNC", "RAINC"})
-        prev = (pv, ps, pf, Path(prev_path))
-    flds, sk = fields_for(prev, (valid, start, f, path), products)
-    if not flds:
-        return None, valid, start, [], sk
+    prevs = {}
+    for n, pp in (prev_paths or {}).items():
+        pv, ps, pf = _read(Path(pp), {"RAINNC", "RAINC"})
+        prevs[int(n)] = (pv, ps, pf, Path(pp))
+    flds, sk = fields_for(prevs, (valid, start, f, path), products)
     lat, lon = f.get("XLAT"), f.get("XLONG")
     if lat is None or lon is None:
         raise RuntimeError(f"woof-nam maps: {path.name} has no XLAT/XLONG")
+    frame = frame_bounds(lat, lon)
+    if not flds:
+        return None, valid, start, [], sk, None, frame
     lon = (lon + 180.0) % 360.0 - 180.0
     cf = Path(work) / f"namgpu_{valid:%Y%m%d%H%M}.nc"
-    _write_cf(cf, lat, lon, valid, flds,
-              f"{label}, init {start:%Y-%m-%d %HZ} +{(valid - start).total_seconds() / 3600:g} h")
-    return str(cf), valid, start, sorted(flds), sk
+    _write_cf(cf, lat, lon, valid, flds, label)
+    table = Path(work) / f"cf-table_{valid:%Y%m%d%H%M}.json"
+    note = credit_note()
+    table.write_text(json.dumps([cf_row(p, panel_title(TABLE[p][1]["title"], start, valid), note) for p in products]))
+    return str(cf), valid, start, sorted(flds), sk, str(table), frame
 
 
 def render(argv=None) -> dict:
@@ -262,16 +430,10 @@ def render(argv=None) -> dict:
     unknown = [p for p in products if p not in TABLE]
     if unknown:
         raise SystemExit(f"woof-nam maps: unknown products {unknown} (known: {list(TABLE)})")
-    bridges = _bridges()
-    renderer = bridges / "rw_wrfbatch"
-    # gpuwm's renderer environment pins the basemap assets (RUSTWX_BASEMAP_DIR) on a bare pip install; without it
-    # every map showed the field with no coastlines, borders or states (the side-by-side panels already used it).
-    from gpuwm import rustwx  # noqa: PLC0415
-    renderer_env = rustwx.renderer_env()
+    rw = renderer()
+    renderer_env = globals()["renderer_env"](rw)
     a.out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix=".cf-", dir=a.out))
-    table = work / "cf-table.json"
-    table.write_text(json.dumps([TABLE[p][1] for p in products]))
 
     files = sorted(a.files)
     # frame times first (header reads only), then each drawn frame is read, derived and written as CF in its
@@ -284,13 +446,18 @@ def render(argv=None) -> dict:
     need = {"XLAT", "XLONG"}
     for p in products:
         need.update(NEEDS[p])
+    label = a.label or source_label(resolution_km(files[-1]))
+    valids = [times[k][0] for k in order]
+    by_valid = dict(zip(valids, files))
+    windows = sorted({WINDOW_H[p] for p in products if p in WINDOW_H})
     preps = []
     for k in range(first, len(files)):
-        prev = files[k - 1] if k > 0 else None
-        preps.append((str(files[k]), str(prev) if prev else None, sorted(need), products, str(work), a.label))
+        back = {n: str(by_valid[valids[k] - timedelta(hours=n)]) for n in windows
+                if (valids[k] - timedelta(hours=n)) in by_valid}
+        preps.append((str(files[k]), back, sorted(need), products, str(work), label))
     written, failures, skipped = [], [], []
     jobs = []
-    workers = max(1, min(len(preps), (os.cpu_count() or 4) // 2, 48))
+    workers = max(1, min(len(preps), _cores.usable() // 2, 48))
     if workers == 1:
         results = [_prep_frame(p) for p in preps]
     else:
@@ -299,7 +466,14 @@ def render(argv=None) -> dict:
         # spawn: the caller may hold a CUDA context, which a forked child must not inherit
         with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as ex:
             results = list(ex.map(_prep_frame, preps))
-    for cf, valid, start, have, sk in results:
+    frame = None
+    if a.bounds != "auto":
+        frame = tuple(float(v) for v in a.bounds.split(","))
+    elif results:
+        frame = results[-1][6]                 # the domain does not move between frames
+    from namgpu.io.referee_rows import ROWS, _overlaps  # noqa: PLC0415
+    mrms_region = next(r["region"] for r in ROWS if r["name"] == "mrms")
+    for cf, valid, start, have, sk, table, _frame in results:
         skipped += [[p, r] for p, r in sk]
         if cf is None:
             continue
@@ -310,27 +484,31 @@ def render(argv=None) -> dict:
             if var not in have:
                 continue
             obs = None
-            if prod == "composite_reflectivity" and a.mrms is not None:
+            if prod == "composite_reflectivity" and a.mrms is not None and _overlaps(frame, mrms_region):
                 src = a.mrms / f"mrms_refc_{valid:%Y%m%d%H}.grib2"
                 if src.is_file():
                     obs = work / f"MRMS_MergedReflectivityQCComposite_00.50_{valid:%Y%m%d-%H}0000.grib2"
                     if not obs.exists():
                         obs.symlink_to(src.resolve())
             dst = a.out / prod / f"namgpu_{start:%Y%m%d_%H}z_f{fhr:03d}_{prod}.png"
-            jobs.append((cf, var, valid, obs, dst, prod))
+            jobs.append((cf, var, valid, obs, dst, prod, table))
 
     def one(job):
-        cf, var, valid, obs, dst, prod = job
+        cf, var, valid, obs, dst, prod, table = job
         od = work / f"r_{var}_{valid:%Y%m%d%H%M}"
-        cmd = [renderer, "--cf", cf, "--variable", var, "--out-dir", od, "--valid",
-               valid.strftime("%Y-%m-%dT%H:%M:%SZ"), "--bounds", BOUNDS, "--cf-table", table,
+        cmd = [rw, "--cf", cf, "--variable", var, "--out-dir", od, "--valid",
+               valid.strftime("%Y-%m-%dT%H:%M:%SZ"), "--bounds", bounds_arg(frame), "--cf-table", table,
                "--width", str(a.width), "--height", str(a.height)]
         if obs is not None:
             cmd += ["--observation", obs]
         p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True, env=renderer_env)
         pngs = sorted(od.rglob("*.png")) if od.is_dir() else []
         if p.returncode or not pngs:
-            return None, f"{prod} {valid:%Y%m%d%H}: exit {p.returncode}: {(p.stderr or p.stdout).strip()[-400:]}"
+            why = (p.stderr or p.stdout).strip()[-400:]
+            if "bounds require" in why:
+                why += (f" [{rw} predates dateline frames (gpuwm 42631c9f83e, 2.9.12): set {RENDERER_ENV} "
+                        f"to a 2.9.12 rw_wrfbatch, e.g. {PINNED_RENDERER}]")
+            return None, f"{prod} {valid:%Y%m%d%H}: exit {p.returncode}: {why}"
         # with an observation the renderer also writes the side-by-side; keep the model panel as the product
         model = [q for q in pngs if "comparison" not in q.name and "observed" not in q.name] or pngs
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -345,14 +523,15 @@ def render(argv=None) -> dict:
             extra.append(str(e))
         return [str(dst), *extra], None
 
-    with ThreadPoolExecutor(max_workers=max(1, min(len(jobs), os.cpu_count() or 4, 64))) as ex:
+    with ThreadPoolExecutor(max_workers=max(1, min(len(jobs), _cores.usable(), 64))) as ex:
         for w, err in ex.map(one, jobs):
             if err:
                 failures.append(err)
             else:
                 written += w
     shutil.rmtree(work, ignore_errors=True)
-    result = {"written": written, "failures": failures, "skipped": skipped}
+    result = {"written": written, "failures": failures, "skipped": skipped,
+              "frame": list(frame) if frame else None, "renderer": str(rw), "label": label}
     receipt = os.environ.get(RECEIPT_ENV)
     if receipt:
         Path(receipt).write_text(json.dumps(result))

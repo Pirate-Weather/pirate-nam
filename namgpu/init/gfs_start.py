@@ -43,11 +43,18 @@ PL_ORDER = ("HGT", "TMP", "SPFH", "RH", "UGRD", "VGRD", "CLMR", "ICMR", "RWMR", 
 PL_DCP = srec.GFS["pl"]
 # Isobaric source surface records: name -> (d, c, p, level_type, level_value, second_level_value)
 SFC = srec.GFS["sfc"]
+SOILW_NO_LAND = 0.25   # m3/m3, soil moisture where the source window has no land at all (declared fill)
 SOIL_KEYS = ("TSOIL1", "TSOIL2", "TSOIL3", "TSOIL4", "SOILW1", "SOILW2", "SOILW3", "SOILW4", "CNWAT")
 STATIC_KEYS = ("HGT_SFC", "LAND", "VGTYP", "SOTYP", "SFCR", "VEG", "ALBDO")
 STATIC_EXTRA = ("ALBASE", "MXSNAL")   # init-static-build files only (fractions); NAM's bgrd3d00 has neither
+# Source window kept around the domain (decode_source). 5 deg of latitude (~550 km) on every side, and the
+# same distance in longitude (5 deg / cos(lat) at the domain's most poleward row), so the soil ring fill
+# (_ring_fill) reaches the nearest source land for island and coastal domains inside the window. A domain
+# within POLE_FULL_DEG of a pole keeps every longitude (its polar cap touches every meridian).
+SRC_MARGIN_DEG = 5.0
+POLE_FULL_DEG = 85.0
 BIG_GRID_POINTS = 2_000_000   # records above this (IFS 0.1 deg: 6.5 M points) are split evenly over the cores
-LAT_MARGIN = 2.0      # deg of source rows kept south of the domain's southernmost point
+LAT_MARGIN = 2.0      # (init-ifs) deg of source rows south of the domain; the window now uses SRC_MARGIN_DEG
 
 
 def _scope(ctx):
@@ -67,11 +74,56 @@ def _sel_pl(dcp, pa):
 SFC_COLUMNS = srec.GFS["sfc_columns"]
 
 
-def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None, rec=None, lat_max_deg=None):
-    """Decode one isobaric source file (GDT 0, regular lat-lon) into init-gfs-decode's GfsDecoded
-    (cropped to rows north of lat_min_deg, or to the band lat_min..lat_max for a table with lat_crop "both")
-    plus the surface fields, through the source row's record table rec (source_records; default GFS).
-    Returns (dec, sfc, grid)."""
+def source_window(lat_deg, lon_deg, nx, ny, dlat, dlon, margin=SRC_MARGIN_DEG):
+    """Rows and columns of a global source (rows south to north from -90, columns east from 0) that cover
+    the points (lat_deg, lon_deg: device or host arrays, degrees) plus margin.
+
+    Returns (j0, j1, cols, lon_periodic): rows j0..j1-1; cols an int array of column indices in window order
+    (wrapping modulo nx, so a domain across 0/360 or the dateline is one window), or None for every column
+    (lon_periodic True). The window is the complement of the widest gap of empty columns around the
+    circle, so it is the shortest arc that holds every point."""
+    import cupy as cp
+    lat_deg = cp.asarray(lat_deg, dtype=cp.float64).ravel()
+    lon_deg = cp.asarray(lon_deg, dtype=cp.float64).ravel()
+    la0, la1 = float(lat_deg.min()), float(lat_deg.max())
+    j0 = max(0, int(np.floor((la0 - margin + 90.0) / dlat)))
+    j1 = min(ny, int(np.ceil((la1 + margin + 90.0) / dlat)) + 1)
+    pole = max(abs(la0), abs(la1)) + margin
+    if pole >= POLE_FULL_DEG:
+        return j0, j1, None, True
+    occ = cp.zeros(nx, dtype=cp.int32)
+    ic = cp.floor(cp.mod(lon_deg, 360.0) / dlon).astype(cp.int64) % nx
+    occ[ic] = 1
+    occ = cp.asnumpy(occ).astype(bool)
+    pad = int(np.ceil(margin / max(np.cos(np.radians(pole)), 1e-3) / dlon)) + 1
+    k = np.flatnonzero(occ)
+    keep = np.zeros(nx, bool)
+    for d in range(-pad, pad + 2):          # +2: the east neighbour column of the bilinear stencil
+        keep[(k + d) % nx] = True
+    if keep.all():
+        return j0, j1, None, True
+    # widest circular run of columns not kept; the window starts right after it
+    empty = ~keep
+    best_len, best_end, run = 0, 0, 0
+    for i in range(2 * nx):
+        if empty[i % nx]:
+            run += 1
+            if run > best_len:
+                best_len, best_end = min(run, nx), i % nx
+        else:
+            run = 0
+    start = (best_end + 1) % nx
+    cols = (start + np.arange(nx - best_len)) % nx
+    return j0, j1, cols, False
+
+
+def decode_source(ctx, path, tmpdir, pts=None, sfc_keys=None, rec=None):
+    """Decode one isobaric source file (GDT 0, regular lat-lon, global) into init-gfs-decode's GfsDecoded, cut to
+    the window around the domain (source_window of pts = [(lat, lon) radians device arrays], default the state's
+    H and V points; columns counted from the file's own first longitude), plus the surface fields on the same
+    window, through the source row's record table rec (source_records; default GFS). Returns (dec, sfc, grid).
+    Was every row north of the domain's south edge and every column (2026-11-04, nests anywhere): a 3 km nest
+    decoded ~1.7 GB of pressure-level fields for a 10-degree domain."""
     import time
     import cupy as cp
     from namgpu.init import init_grib2_decode as g2
@@ -100,13 +152,23 @@ def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None, rec=None, lat_m
     need = [pl_dcp[n] for n in rec["pl_need"]]
     plev = sorted(set.intersection(*[lev[d] for d in need]), reverse=True)      # ground up (high p first)
     plev = [p for p in plev if p >= 100.0]                                     # 1 hPa and below
-    j0 = max(0, int(np.floor((lat_min_deg - LAT_MARGIN + 90.0) / dlat)))
-    j1 = ny
-    if rec.get("lat_crop") == "both" and lat_max_deg is not None:
-        j1 = min(ny, int(np.ceil((lat_max_deg + LAT_MARGIN + 90.0) / dlat)) + 1)
+    if pts is None:
+        st = ctx.st
+        pts = [(st["GLAT"], st["GLON"]), (st["VLAT"], st["VLON"])]
+    lon1 = float(r0["lon1"])          # the file's first longitude (GFS 0, ECMWF open data 180 = -180)
+    la = cp.concatenate([cp.degrees(a.ravel()) for a, _ in pts])
+    lo = cp.concatenate([cp.degrees(b.ravel()) for _, b in pts]) - lon1
+    j0, j1, cols, periodic = source_window(la, lo, nx, ny, dlat, dlon)
+    del la, lo
     nrow = j1 - j0
+    ncol = nx if cols is None else len(cols)
+    cols_d = None if cols is None else cp.asarray(cols)
+
+    def cut(a):
+        a = a[j0:j1]
+        return a if cols_d is None else a[:, cols_d]
     kw = dict(missing_value=MISSING, tmpdir=tmpdir, expect_shape=(nx, ny))
-    pl = cp.zeros((len(PL_ORDER), len(plev), nrow, nx), dtype=cp.float32)
+    pl = cp.zeros((len(PL_ORDER), len(plev), nrow, ncol), dtype=cp.float32)
     keys = tuple(sfc_tab) if sfc_keys is None else tuple(sfc_keys)
     optional = set(rec.get("sfc_optional", ()))
     if optional:
@@ -139,8 +201,7 @@ def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None, rec=None, lat_m
         key, sel = item
         with (stream if stream is not None else contextlib.nullcontext()):
             got = g2.run(ctx, path, sel, **kw)
-            if j0 or j1 != ny:
-                got = {k: cp.ascontiguousarray(a[j0:j1]) for k, a in got.items()}
+            got = {k: cp.ascontiguousarray(cut(a)) for k, a in got.items()}
         return key, got
     from concurrent.futures import ThreadPoolExecutor
     sfc = {}
@@ -171,20 +232,53 @@ def decode_source(ctx, path, tmpdir, lat_min_deg, sfc_keys=None, rec=None, lat_m
         srec.derive_sfc(rec, sfc, only=None if sfc_keys is None else rec["derive_columns"])
     s2 = cp.stack([sfc["PRES"], sfc["HGT"]])
     dec = gd.decode(pl, np.asarray(plev, np.float64), s2, stream=getattr(ctx, "stream", None))
-    # lon0 is the file's own first longitude (GFS 0, ECMWF open data 180 = -180); the kernel wraps mod 360.
-    grid = hin.Grid(lat0=-90.0 + j0 * dlat, lon0=float(r0["lon1"]), dlat=dlat, dlon=dlon, lon_periodic=True)
+    if periodic:
+        grid = hin.Grid(lat0=-90.0 + j0 * dlat, lon0=lon1, dlat=dlat, dlon=dlon, lon_periodic=True)
+    else:
+        grid = hin.Grid(lat0=-90.0 + j0 * dlat, lon0=lon1 + float(cols[0]) * dlon, dlat=dlat, dlon=dlon,
+                        lon_periodic=False, lon_window=True)
+    if getattr(ctx, "tables", None) is not None:
+        ctx.tables["gfs_window"] = {"rows": [j0, j1], "lat": [-90.0 + j0 * dlat, -90.0 + (j1 - 1) * dlat],
+                                    "lon0": grid.lon0, "ncol": ncol, "periodic": bool(periodic)}
     nrec = sum(len(x) for x in jobs.values())
     print(f"{UNIT}: decoded {Path(path).name} ({Path(path).stat().st_size / 1e6:.0f} MB): {nrec} records, "
           f"{len(jobs)} grib2_dump processes at once (one core each), rows {j0}..{j1 - 1} of {ny}, "
-          f"{len(plev)} levels, {time.perf_counter() - t_dec:.1f} s", flush=True)
+          f"{ncol} of {nx} columns, {len(plev)} levels, {time.perf_counter() - t_dec:.1f} s", flush=True)
     return dec, sfc, grid
 
 
-def _ring_fill(a, missing, rings=2000):
+def _shift(a, dj, di, lon_periodic, fill):
+    """a moved by (dj, di) rows/columns: wraps in longitude only for a periodic (global) source; rows (and the
+    columns of a window) do not wrap, the vacated edge is fill."""
+    import cupy as cp
+    if lon_periodic:
+        out = cp.roll(a, di, 1)
+    elif di == 0:
+        out = a
+    else:
+        out = cp.full_like(a, fill)
+        if di > 0:
+            out[:, di:] = a[:, :-di]
+        else:
+            out[:, :di] = a[:, -di:]
+    if dj == 0:
+        return out
+    res = cp.full_like(a, fill)
+    if dj > 0:
+        res[dj:] = out[:-dj]
+    else:
+        res[:dj] = out[-dj:]
+    return res
+
+
+def _ring_fill(a, missing, rings=2000, lon_periodic=True):
     """Fill missing points from the mean of present 8-neighbours, ring by ring (device), until none is left.
     Was 12 rings (~3 deg): a NAM land cell whose nearest source land is further (Jan Mayen, 71.07N 8.15W, ~18 rings
     from Iceland/Greenland on GFS 0.25 deg) kept STC = TG = -9999, Noah drove TSKIN to -639 K and QGH went inf at
-    step 10 of the GFS start (run lead 1140Z, scratch/runlead2/probe_qgh.py). The loop stops once nothing is missing."""
+    step 10 of the GFS start (run lead 1140Z, scratch/runlead2/probe_qgh.py). The loop stops once nothing is missing
+    or a ring fills nothing (nothing present is connected to what is left). Neighbours wrap in longitude only for a
+    global source, never across the pole rows or the edges of a longitude window (2026-11-04, nests anywhere: a
+    window's east edge is not next to its west edge). Returns (filled, still-missing mask)."""
     import cupy as cp
     a = a.copy()
     m = missing.copy()
@@ -199,9 +293,11 @@ def _ring_fill(a, missing, rings=2000):
             for di in (-1, 0, 1):
                 if dj == 0 and di == 0:
                     continue
-                s += cp.roll(cp.roll(v, dj, 0), di, 1)
-                n += cp.roll(cp.roll(w, dj, 0), di, 1)
+                s += _shift(v, dj, di, lon_periodic, 0.0)
+                n += _shift(w, dj, di, lon_periodic, 0.0)
         newv = m & (n > 0)
+        if not bool(newv.any()):
+            break
         a = cp.where(newv, s / cp.maximum(n, 1.0), a)
         m = m & ~newv
     return a, m
@@ -283,18 +379,18 @@ def ensure_vcoord(ctx):
         ctx.tables.pop(k, None)
 
 
-def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None):
+def model_state(ctx, path, tmpdir, sfc_keys=None, rec=None, decoded=None):
     """Decode, interpolate and vertically interpolate one isobaric file onto the model grid; the
     result is in ctx.st (PD, PINT, T, Q, CW, U, V grid-relative, FIS, PSFC_OUT, P3D_OUT).
-    ctx.st must carry HGT_M (model terrain) and GLAT/GLON/VLAT/VLON."""
+    ctx.st must carry HGT_M (model terrain) and GLAT/GLON/VLAT/VLON. decoded: decode_source's result for
+    this file when the caller decoded it ahead (init-gfs-bocos prefetch); else it is decoded here."""
     import cupy as cp
     from namgpu.init import init_gfs_vinterp as vin
 
     st = ctx.st
     ensure_vcoord(ctx)
-    lat_min = float(cp.degrees(cp.minimum(st["GLAT"].min(), st["VLAT"].min())))
-    lat_max = float(cp.degrees(cp.maximum(st["GLAT"].max(), st["VLAT"].max())))
-    dec, sfc, grid = decode_source(ctx, path, tmpdir, lat_min, sfc_keys=sfc_keys, rec=rec, lat_max_deg=lat_max)
+    dec, sfc, grid = (decoded if decoded is not None
+                      else decode_source(ctx, path, tmpdir, sfc_keys=sfc_keys, rec=rec))
     gi, soilhgt = columns(ctx, dec, sfc, grid)
     del dec
     st.add("SOILHGT", soilhgt.shape)[...] = soilhgt
@@ -417,11 +513,23 @@ def stage(ctx, name, row):
     # Surface: source values on the NAM grid, static fields from the NAM grid.
     land_src = sfc["LANDSRC"] > 0.5
     soil = {}
+    left = {}
     for k in SOIL_KEYS:
         a = sfc[k]
         miss = (a == MISSING) | ~land_src
-        a, _ = _ring_fill(a, miss)
+        a, m = _ring_fill(a, miss, lon_periodic=grid.lon_periodic)
         soil[k] = a
+        left[k] = m
+    # Declared fill: a source window with no land at all (a small island the source grid does not resolve,
+    # far from any other land) leaves the soil unfilled. Soil temperature then takes the source skin
+    # temperature (the sea surface there), moisture SOILW_NO_LAND, canopy water 0, and the count is printed.
+    nleft = int(left["TSOIL1"].sum())
+    if nleft:
+        for k in SOIL_KEYS:
+            fill = sfc["TSK"] if k.startswith("TSOIL") else (SOILW_NO_LAND if k.startswith("SOILW") else 0.0)
+            soil[k] = cp.where(left[k], fill, soil[k])
+        print(f"{UNIT}: no source land in the window for {nleft} source points: soil T = skin T, "
+              f"SOILW = {SOILW_NO_LAND}, CNWAT = 0 (declared fill)", flush=True)
     from namgpu.init import init_gfs_hinterp as hin
 
     def h2(a, src_grid=None):

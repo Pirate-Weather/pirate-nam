@@ -25,18 +25,18 @@ static is cut from static/nam12_static.npz (static/nam12band_static.npz, made he
 """
 from __future__ import annotations
 
-import re
+import sys
 from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 ROOT = Path(__file__).resolve().parents[1]
 PARM = ROOT / "namgpu" / "parm"
 
-NEST_PHYSICS = {
-    "smag2": "0.3", "codamp": "12.0", "gwdflg": "false", "cdmb": "0.5", "sigfac": "0.00",
-    "convection": "none", "rhgrd": "1.0", "fres": "0.25", "fsl": "0.75", "fss": "0.75", "nodeep": ".true.",
-}
+from namgpu.nest.domain import NEST_PHYSICS, render  # noqa: E402  (the nest door's keys and renderer)
+
 CENTRE = {"tph0d": "38.617", "tlm0d": "-98.870"}
 
 DOMAINS = {
@@ -56,25 +56,6 @@ DOMAINS["band4"] = dict(DOMAINS["4km"], jm="201", sbd="-3.600", static_npz="stat
                         domain_name="nam4kmband")
 # band static = rows [start, stop) of the full domain's static
 BANDS = {"band12": ("static/nam12_static.npz", 278, 557), "band4": ("static/nam4km_static.npz", 450, 651)}
-
-
-def render(base: str, repl: dict, tag: str) -> str:
-    out, seen = [], set()
-    for line in base.splitlines():
-        m = re.match(r"^(\s*)([A-Za-z_0-9]+)(\s*:\s*)(\S+)(.*)$", line)
-        if m and m.group(2) in repl and m.group(2) not in seen:
-            k = m.group(2)
-            seen.add(k)
-            out.append(f"{m.group(1)}{k}{m.group(3)}{repl[k]}{m.group(5)}")
-        else:
-            out.append(line)
-    extra = [k for k in repl if k not in seen]
-    if extra:
-        out.append("")
-        out.append(f"# nam-gpu port keys for the {tag} domain (not NAM keys; namgpu/config.py)")
-        for k in extra:
-            out.append(f"{k}: {repl[k]}")
-    return "\n".join(out) + "\n"
 
 
 def main():

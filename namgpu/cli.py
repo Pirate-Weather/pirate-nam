@@ -26,6 +26,9 @@ COMMANDS = {
                "build the NAM grid's static surface fields once (needed by GFS starts)"),
     "init": ("namgpu.run_init_case",
              "build the initial state only and write its 0 h history and maps (no forecast)"),
+    "nest": ("namgpu.nest.cli",
+             "run a 3, 4, 5 or 12 km domain anywhere on Earth from GFS, IFS or a WOOF-NAM parent: static, "
+             "start, boundaries, forecast, maps and sheets in one command"),
     "run": ("namgpu.run_forecast",
             "run one forecast: hourly history, maps and a timing receipt"),
     "maps": ("namgpu.io.maps",
@@ -127,6 +130,8 @@ def main(argv=None) -> int:
         if rest[0] == "sheets":
             mod_name, rest = "namgpu.io.io_referee_sheets", rest[1:]
             cmd = "side-by-side sheets"
+    if cmd == "nest":
+        rest = ["nest", *rest]                # namgpu.nest.cli parses the subcommand itself (tools/woof-nam nest)
     sys.argv[0] = f"woof-nam {cmd}"          # the command's name in its usage lines
     with _CommandProg(f"woof-nam {cmd}"):
         rc = importlib.import_module(mod_name).main(rest)

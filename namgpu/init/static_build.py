@@ -14,8 +14,11 @@ ArWen/HRRR prep set):
   LAND     modis_landuse_20class_30s_with_lakes: water (17) + lake (21) fraction >= 0.5 -> 0, else 1
   VGTYP    same: dominant IGBP land class (ties: lowest), water 0 (bgrd3d00 convention; NPS writes 17
            and NAM's GRIB post masks it to 0); ivegsrc 1
-  SOTYP    soiltype_top_30s: dominant STATSGO class; land cells take the dominant non-water class
-           (NPS find_secondary_cat), LOAM (6) if no land soil pixel; water 0 (bgrd3d00 convention)
+  SOTYP    soilgrids/texture_top (SoilGrids250m, CC BY 4.0; the same 16 STATSGO texture classes, water 14):
+           dominant class; land cells take the dominant non-water class (NPS find_secondary_cat), LOAM (6)
+           if no land soil pixel; land ice (IGBP 15) 16, as STATSGO/FAO carry it (SoilGrids has no texture
+           under ice); water 0 (bgrd3d00 convention). NMMB's Noah reads one soil type, so the
+           bottom layer (texture_bot) is not read.
   SFCR     NPS module_assorted_definitions.F90:47-52, 757-768: VGZ0TBL_IGBP(VGTYP) + Z0LAND 0.10 on land
            (no Z0LAND for snow/ice 15); water 0 as in bgrd3d00
   VEG      greenfrac_fpar_modis, monthly, mid-month linear to the valid date, percent; average_gcell(4.0)
@@ -25,8 +28,13 @@ ArWen/HRRR prep set):
            water 6 (NPS SEA albedo .06, module_assorted_definitions.F90:143)
   ALBASE   ALBDO / 100 on land, 0.06 on water (fraction; NPS ALBASE)
   MXSNAL   maxsnowalb_modis / 100 (fraction), four_pt+average_4pt+average_16pt+search, water 0
-  TG       soiltemp_1deg, sixteen_pt+four_pt+average_4pt+average_16pt+search, masked water; NPS:
-           TG = SOILTEMP, water with TG < 180 K -> 273.15 (module_assorted_definitions.F90:120-124)
+  TG       soiltemp_era5_1deg (ERA5 1990-2019 annual-mean 2 m temperature reduced to sea level with
+           0.0065 K/m, soiltemp_1deg's layout and convention), sixteen_pt+four_pt+average_4pt+average_16pt
+           +search, masked water; NPS: TG = SOILTEMP, water with TG < 180 K -> 273.15
+           (module_assorted_definitions.F90:120-124)
+Licence: only permissive datasets are read (DATASETS below, source and licence lines copied from gpuwm
+2.9.12); WPS's FAO-based soiltype_*_30s and ISLSCP-I soiltemp_1deg are refused by name (HELD). Every
+written npz carries the table in META["datasets"] and in <static>.PROVENANCE.json beside it.
   SLOPE    slope type 1 on land, 0 on water (NPS fill_missing 0; NAM's islope data set is not in GEOG)
   EPSR     0.97 water / 1.0 land, STDH -1.E6: the init-static-missing rules, written here so the file
            is complete.
@@ -59,10 +67,125 @@ VGZ0TBL_IGBP = np.array([1.800, 2.653, 0.854, 2.467, 1.966, 0.050, 0.030, 0.856,
                          0.170, 1.000, 0.500, 0.011, 0.011, 0.001, 0.076, 0.050, 0.030], np.float32)
 Z0LAND = 0.10
 IGBP_WATER, IGBP_LAKE, IGBP_SNOW = 17, 21, 15
-SOIL_WATER, SOIL_LOAM = 14, 6
+SOIL_WATER, SOIL_LOAM, SOIL_LANDICE = 14, 6, 16
 METHODS = {"four_pt": 1, "average_4pt": 2, "average_16pt": 3, "sixteen_pt": 4, "search": 5, "nearest": 6}
 SEQ_MONTHLY = ("four_pt", "average_4pt", "average_16pt", "search")
 SEQ_TG = ("sixteen_pt", "four_pt", "average_4pt", "average_16pt", "search")
+# The WPS_GEOG datasets each role reads. Source and licence lines are copied, not rewritten, from gpuwm
+# 2.9.12: docs/public/DATA.md's licence table (the rows gpuwm/geog_assets.py's pins speak for), NOTICE's
+# SoilGrids credit, and geog_assets.GEOG_PRODUCERS["era5-annual-t2m-sea-level"] for the ERA5 soil temperature.
+DATASETS = {
+    "terrain": {
+        "dataset": "topo_gmted2010_30s", "contents": "30-arc-sec terrain elevation",
+        "source_and_licence": "USGS/NGA GMTED2010 (Danielson & Gesch 2011, USGS OFR 2011-1073); U.S. public domain"},
+    "landuse": {
+        "dataset": "modis_landuse_20class_30s_with_lakes",
+        "contents": "Noah-modified 20-category IGBP land use + inland lakes",
+        "source_and_licence": "NASA MODIS (MCD12Q1-derived); NASA data are free and open"},
+    "soil_top": {
+        "dataset": "soilgrids/texture_top",
+        "contents": "16-category top-/bottom-layer soil texture, Noah-MP soil composition and four-layer texture",
+        "source_and_licence": ("ISRIC -- World Soil Information, SoilGrids250m (Hengl et al. 2017, PLOS ONE 12(2): "
+                               "e0169748), from whose 2017 texture classes NCAR generated the WPS tiles; CC BY 4.0 "
+                               "(ISRIC's terms for SoilGrids products since 2019), attribution required"),
+        "attribution": ("derived from SoilGrids250m by ISRIC -- World Soil Information (Hengl T. et al. 2017, "
+                        "\"SoilGrids250m: Global gridded soil information based on machine learning\", PLOS ONE "
+                        "12(2): e0169748), licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); NCAR "
+                        "generated the WPS tiles and the mirror does not modify them.")},
+    "greenfrac": {
+        "dataset": "greenfrac_fpar_modis", "contents": "monthly green-vegetation-fraction climatology",
+        "source_and_licence": "NASA MODIS FPAR"},
+    "albedo": {
+        "dataset": "albedo_modis", "contents": "monthly surface albedo climatology",
+        "source_and_licence": "NASA MODIS"},
+    "maxsnowalb": {
+        "dataset": "maxsnowalb_modis", "contents": "maximum snow albedo",
+        "source_and_licence": "MODIS-derived (Barlage et al. 2005)"},
+    "soiltemp": {
+        "dataset": "soiltemp_era5_1deg",
+        "contents": "1-degree annual-mean deep-soil temperature (2 m temperature reduced to sea level)",
+        "source_and_licence": ("ERA5 (Hersbach et al. 2020, doi:10.1002/qj.3803), 1990-2019 hourly climatology as "
+                               "published by WeatherBench 2 (Rasp et al. 2024, doi:10.1029/2023MS004019), built "
+                               "locally by `gpuwm fetch-geog`; Licence to Use Copernicus Products "
+                               "(<https://cds.climate.copernicus.eu/api/v2/terms/static/licence-to-use-copernicus-"
+                               "products.pdf>): free, worldwide, commercial use allowed, attribution required"),
+        "attribution": ("Contains modified Copernicus Climate Change Service information 2026 (ERA5, Hersbach et "
+                        "al. 2020, doi:10.1002/qj.3803), 1990-2019 climatology as processed by WeatherBench 2 (Rasp "
+                        "et al. 2024, doi:10.1029/2023MS004019). Neither the European Commission nor ECMWF is "
+                        "responsible for any use of this information."),
+        "missing_remedy": "gpuwm fetch-geog --datasets soiltemp_era5_1deg (built from ERA5, 459 MB read)"},
+}
+LICENCE_COPIED_FROM = ("gpuwm 2.9.12 (16c90f4cdea): docs/public/DATA.md licence table, NOTICE (SoilGrids credit), "
+                       "gpuwm/geog_assets.py GEOG_PRODUCERS / FAO_DSMW_HOLD / ISLSCP_SOILTEMP_HOLD")
+# Held out (licence, not physics), quoted from gpuwm/geog_assets.py FAO_DSMW_HOLD and ISLSCP_SOILTEMP_HOLD.
+_FAO_DSMW_HOLD = (
+    "STATSGO (USDA NRCS, public domain) inside CONUS + the FAO-UNESCO "
+    "Digital Soil Map of the World elsewhere, whose notes (Version 3.6, "
+    "Jan 2003, https://swat.tamu.edu/media/116411/notes.txt) say "
+    "\"(C) FAO/UNESCO, 1995 All rights reserved worldwide\" and \"The user "
+    "shall not reproduce for the benefit of third parties the data\" "
+    "without permission from FAO's Publications Division: NOT PERMISSIVE, "
+    "held out of the default geography; the default soil categories are "
+    "SoilGrids250m (soilgrids/texture_top, texture_bot, CC BY 4.0)")
+_ISLSCP_SOILTEMP_HOLD = (
+    "1-degree annual-mean 2 m air temperature from ISLSCP-I (ECMWF "
+    "1987-88 analyses, adjusted to 1000 mb) per the Noah-MP TBOT READ_ME; "
+    "the ISLSCP-I Vol. 4 record at CEDA "
+    "(https://catalogue.ceda.ac.uk/uuid/b9c3effaab9fe9a2206b58af500f157d) "
+    "states Permitted Use \"Unstated\" and NCAR states none: licence "
+    "UNCLEAR, so not cleared and held out of the default geography; the "
+    "default deep-soil temperature is soiltemp_era5_1deg (ERA5, Licence "
+    "to Use Copernicus Products)")
+HELD = {"soiltype_top_30s": _FAO_DSMW_HOLD, "soiltype_bot_30s": _FAO_DSMW_HOLD, "soiltemp_1deg": _ISLSCP_SOILTEMP_HOLD}
+
+
+def datasets_key() -> str:
+    """8 hex digits naming the dataset table (role -> dataset): the nest door's static cache key carries it, so a
+    file built from a different table is never reused."""
+    import hashlib
+    import json
+    return hashlib.sha1(json.dumps(sorted((k, v["dataset"]) for k, v in DATASETS.items())).encode()).hexdigest()[:8]
+
+
+class LicenceHold(ValueError):
+    """A held WPS_GEOG dataset was named for a static build."""
+
+
+def resolve_datasets(root: Path, overrides=None) -> dict:
+    """Role -> licence-table row (with the resolved path) for this build. THE BREAKAGE A HELD NAME WOULD
+    CAUSE: a static (and every forecast from it) built on FAO-UNESCO DSMW soil, which may not be reproduced
+    for third parties, or on ISLSCP-I soil temperature, whose licence nobody states. Refused by name."""
+    import json
+    rows = {k: dict(v) for k, v in DATASETS.items()}
+    for role, name in (overrides or {}).items():
+        if role not in rows:
+            raise ValueError(f"{UNIT}: unknown dataset role {role!r} (roles: {sorted(rows)})")
+        name = name.strip().strip("/")
+        held = HELD.get(name) or HELD.get(Path(name).name)
+        if held:
+            raise LicenceHold(f"{UNIT}: {name} is held out of the static build: {held}")
+        if name != rows[role]["dataset"]:
+            raise ValueError(f"{UNIT}: {role}={name} has no licence row here; the {role} dataset is "
+                             f"{rows[role]['dataset']} ({rows[role]['source_and_licence']})")
+    for role, row in rows.items():
+        if row["dataset"] in HELD:
+            raise LicenceHold(f"{UNIT}: {row['dataset']} is held out of the static build: {HELD[row['dataset']]}")
+        path = root / row["dataset"]
+        if not (path / "index").is_file():
+            fix = row.get("missing_remedy", "gpuwm fetch-geog")
+            raise FileNotFoundError(f"{UNIT}: {path}/index missing ({role}: {row['source_and_licence']}); "
+                                    f"fetch it with {fix}")
+        row["role"] = role
+        row["path"] = str(path)
+        prov = path / "PROVENANCE.json"
+        if prov.is_file():
+            pj = json.loads(prov.read_text())
+            row["dataset_provenance"] = {k: pj[k] for k in ("producer", "produced_at", "licence", "attribution")
+                                         if k in pj}
+        rows[role] = row
+    return rows
+
+
 OUT_KEYS = ("HGT_SFC", "LAND", "VGTYP", "SOTYP", "SFCR", "VEG", "ALBDO",
             "ALBASE", "MXSNAL", "TG", "SLOPE", "EPSR", "STDH", "GLAT", "GLON")
 
@@ -199,19 +322,25 @@ class Domain:
         cp = src.cp
         step = 0.25
         ii = cp.arange(-margin_cells, self.ie + margin_cells, step)
-        jj = cp.arange(-margin_cells, self.je + margin_cells, step)
-        J, I = cp.meshgrid(jj, ii, indexing="ij")
-        lat, lon = self.latlon(cp, I.ravel(), J.ravel())
-        x, y = src.latlon_to_xy(lat, lon)
+        jj_all = cp.arange(-margin_cells, self.je + margin_cells, step)
+        # rows in blocks of ~2 M samples, so the probe stays ~100 MB on a shared card at any grid size (the
+        # whole 12 km parent at once took ~1.2 GB and ran out beside other work, lane static-world 2026-11-04)
+        rows = max(1, 2_000_000 // int(ii.size))
         found = set()
-        for ox in (-4, 0, 4):
-            for oy in (-4, 0, 4):
-                xi = cp.floor(x + ox).astype(cp.int64)
-                yi = cp.floor(y + oy).astype(cp.int64)
-                xi = (xi - 1) % src.nxg
-                ok = (yi >= 1) & (yi <= src.nyg)
-                t = cp.unique((yi[ok] - 1) // src.ty * src.ntx + xi[ok] // src.tx)
-                found.update((int(v) % src.ntx, int(v) // src.ntx) for v in cp.asnumpy(t))
+        for r0 in range(0, int(jj_all.size), rows):
+            J, I = cp.meshgrid(jj_all[r0:r0 + rows], ii, indexing="ij")
+            lat, lon = self.latlon(cp, I.ravel(), J.ravel())
+            x, y = src.latlon_to_xy(lat, lon)
+            del J, I, lat, lon
+            keys = []
+            for ox in (-4, 0, 4):
+                for oy in (-4, 0, 4):
+                    xi = (cp.floor(x + ox).astype(cp.int64) - 1) % src.nxg
+                    yi = cp.floor(y + oy).astype(cp.int64)
+                    ok = (yi >= 1) & (yi <= src.nyg)
+                    keys.append(cp.unique((yi[ok] - 1) // src.ty * src.ntx + xi[ok] // src.tx))
+            t = cp.unique(cp.concatenate(keys))
+            found.update((int(v) % src.ntx, int(v) // src.ntx) for v in cp.asnumpy(t))
         return found
 
 
@@ -308,12 +437,16 @@ def month_weights(valid: datetime):
     return (a.month - 1, b.month - 1, float(w))
 
 
-def build(cfg, valid: datetime, geog=None, log=print):
+def build(cfg, valid: datetime, geog=None, log=print, datasets=None):
     import cupy as cp
     root = geog_root(geog)
+    ds = resolve_datasets(root, datasets)
     dom = Domain(cfg)
     t0 = time.perf_counter()
-    rec = {"grid": [dom.im, dom.jm], "geog": str(root), "valid": valid.isoformat(), "stages": {}}
+    rec = {"grid": [dom.im, dom.jm], "geog": str(root), "valid": valid.isoformat(), "stages": {},
+           "datasets": [{k: v for k, v in r.items() if k != "missing_remedy"} for r in ds.values()],
+           "licence_copied_from": LICENCE_COPIED_FROM, "empty_cells": {}}
+    src = lambda role, **kw: Source(Path(ds[role]["path"]), **kw)   # noqa: E731
     H = dom.halo
     crop = (slice(H, H + dom.jm), slice(H, H + dom.im))
     allc = cp.ones((dom.je, dom.ie), bool)
@@ -324,11 +457,12 @@ def build(cfg, valid: datetime, geog=None, log=print):
 
     # Land use: categorical accumulation, empty cells nearest neighbour.
     t = time.perf_counter()
-    lu = Source(root / "modis_landuse_20class_30s_with_lakes")
+    lu = src("landuse")
     nt, nb = lu.load(dom.tiles_touched(lu))
     cnt = _launch_gcell(dom, lu, 0, lu.ncat)
     tot = cnt.sum(axis=0)
     empty = tot == 0
+    rec["empty_cells"]["landuse"] = int(empty.sum())
     if bool(empty.any()):
         v, g = _launch_sample(dom, lu, 0, ("nearest",), empty)
         cat = cp.clip(cp.rint(v).astype(cp.int64), 1, lu.ncat)
@@ -345,11 +479,12 @@ def build(cfg, valid: datetime, geog=None, log=print):
 
     # Soil.
     t = time.perf_counter()
-    so = Source(root / "soiltype_top_30s")
+    so = src("soil_top")
     so.load(dom.tiles_touched(so))
     cnt = _launch_gcell(dom, so, 0, so.ncat)
     tot = cnt.sum(axis=0)
     empty = tot == 0
+    rec["empty_cells"]["soil_top"] = int(empty.sum())
     if bool(empty.any()):
         v, g = _launch_sample(dom, so, 0, ("nearest",), empty)
         cat = cp.clip(cp.rint(v).astype(cp.int64), 1, so.ncat)
@@ -357,13 +492,17 @@ def build(cfg, valid: datetime, geog=None, log=print):
             cnt[c - 1] += (empty & g & (cat == c)).astype(cp.int32)
     sl, mx = _dominant(cnt, exclude=(SOIL_WATER,))
     sl = cp.where(mx > 0, sl, SOIL_LOAM)
+    # Land ice (IGBP 15) takes soil class 16, "other (land-ice)": the STATSGO/FAO tiles NAM's own static came
+    # from carry it over the ice sheets (12,904 of the 14,668 NAM 12 km land-ice cells), SoilGrids has no
+    # texture under the ice and the cells fell to LOAM (lane static-world, 2026-11-04).
+    sl = cp.where(vg == IGBP_SNOW, SOIL_LANDICE, sl)
     sl = cp.where(land, sl, 0)
     del so, cnt
     stage("soil", t)
 
     # Terrain.
     t = time.perf_counter()
-    tp = Source(root / "topo_gmted2010_30s")
+    tp = src("terrain")
     tp.load(dom.tiles_touched(tp))
     hgt = _continuous(dom, tp, 0, ("four_pt", "average_4pt"), True, allc)
     hgt = cp.where(cp.isnan(hgt), 0.0, hgt)
@@ -375,10 +514,10 @@ def build(cfg, valid: datetime, geog=None, log=print):
     ma, mb, w = month_weights(valid)
     rec["months"] = [ma + 1, mb + 1, round(w, 4)]
     out = {}
-    for key, ds, seq, gc in (("VEG", "greenfrac_fpar_modis", SEQ_MONTHLY, True),
-                             ("ALBDO", "albedo_modis", SEQ_MONTHLY, False)):
+    for key, role, seq, gc in (("VEG", "greenfrac", SEQ_MONTHLY, True),
+                               ("ALBDO", "albedo", SEQ_MONTHLY, False)):
         t = time.perf_counter()
-        s = Source(root / ds, planes=(ma, mb))
+        s = src(role, planes=(ma, mb))
         s.load(dom.tiles_touched(s))
         a = _continuous(dom, s, 0, seq, gc, land)
         b = _continuous(dom, s, 1, seq, gc, land)
@@ -390,7 +529,7 @@ def build(cfg, valid: datetime, geog=None, log=print):
     alb = cp.where(land, cp.where(cp.isnan(alb_land), 8.0, alb_land), 6.0)          # percent; fill 8 (TBL)
 
     t = time.perf_counter()
-    ms = Source(root / "maxsnowalb_modis")
+    ms = src("maxsnowalb")
     ms.load(dom.tiles_touched(ms))
     mxs = _continuous(dom, ms, 0, SEQ_MONTHLY, False, land)
     mxs = cp.where(land, cp.nan_to_num(mxs, nan=0.0) / 100.0, 0.0)
@@ -398,7 +537,7 @@ def build(cfg, valid: datetime, geog=None, log=print):
     stage("maxsnowalb", t)
 
     t = time.perf_counter()
-    st = Source(root / "soiltemp_1deg")
+    st = src("soiltemp")
     st.load(dom.tiles_touched(st))
     tg = _continuous(dom, st, 0, SEQ_TG, False, land)
     tg = cp.where(land, cp.nan_to_num(tg, nan=0.0), 0.0)
@@ -438,6 +577,11 @@ def write(res, rec, out: Path, cfg):
                 dlmd=cfg.dlmd, dphd=cfg.dphd, unit=UNIT)
     import json
     np.savez_compressed(out, **res, META=np.array(json.dumps(meta)))
+    prov = {"static": out.name, "unit": UNIT, "grid": meta["grid"], "valid": meta["valid"],
+            "centre": [cfg.tph0d, cfg.tlm0d], "datasets": meta["datasets"],
+            "licence_copied_from": meta["licence_copied_from"],
+            "sea_ice": "not static: analysis-time state from the init source"}
+    out.with_name(out.name + ".PROVENANCE.json").write_text(json.dumps(prov, indent=1) + "\n")
     return out
 
 
@@ -448,10 +592,13 @@ def main(argv=None):
     ap.add_argument("--date", required=True, help="valid date YYYY-MM-DD[THH]")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--geog", default=None)
+    ap.add_argument("--dataset", action="append", default=[], metavar="ROLE=NAME",
+                    help=f"name a role's dataset (roles {sorted(DATASETS)}); a held dataset is refused")
     a = ap.parse_args(argv)
+    over = dict(x.split("=", 1) for x in a.dataset)
     cfg = config.load(a.config)
     valid = datetime.fromisoformat(a.date)
-    res, rec = build(cfg, valid, a.geog)
+    res, rec = build(cfg, valid, a.geog, datasets=over)
     out = write(res, rec, a.out if a.out.is_absolute() else __import__("namgpu.paths", fromlist=["x"]).work_root() / a.out, cfg)
     print(f"{UNIT}: wrote {out} ({rec['grid'][0]}x{rec['grid'][1]}, land {rec['land_frac']}, {rec['total_s']} s)")
     return 0
