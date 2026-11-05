@@ -35,6 +35,7 @@ jobs:
           python tests/test_basemap.py
           python tests/test_wind_ladder.py
           python tests/test_maps_old_call.py
+          python tests/test_nest_twoway_default.py
 
       - name: pip wheel
         run: python -m pip wheel --no-deps --wheel-dir dist . && ls -l dist

@@ -177,6 +177,49 @@ def nest_grid(lat: float, lon: float, size_km: float, res_km: float, size_y_km: 
             "extent_km": [round((im - 1) * dx, 1), round((jm - 1) * dy, 1)]}
 
 
+def nest_grid_associated(parent: dict, lat: float, lon: float, size_km: float, res_km: float,
+                         size_y_km: float | None = None, parent_lnsh: int = 5) -> dict:
+    """A nest on its parent's grid, as NMMB lays one out (module_NESTING.F90:4263-4592 SET_NEST_GRIDS): the parent's
+    pole (tph0d/tlm0d), dlmd/dphd = the parent's / ratio, rows and columns parallel to the parent's, the SW H point on
+    a parent H point (i_parent_start, j_parent_start, 1-based), im - 1 and jm - 1 whole multiples of the ratio. The
+    centre is the parent H point nearest to (lat, lon) minus half the nest. Refuses, with the margin, a nest that does
+    not sit at least parent_lnsh + 2 parent cells inside the parent (its boundary interpolation and the parent's own
+    blending rows must not meet; PARENT_TO_CHILD_INTERP_FACTORS refuses within 2 cells)."""
+    pres = parent["res_km"]
+    ratio = float(pres) / float(res_km)
+    if abs(ratio - round(ratio)) > 1e-9 or round(ratio) < 2:
+        raise SystemExit(f"--res-km {res_km}: a nest in a {pres} km parent needs a whole space ratio of 2 or more "
+                         f"(3 km -> 4, 4 km -> 3)")
+    ratio = int(round(ratio))
+    res = int(res_km) if float(res_km) == int(res_km) else res_km
+    if res not in RES_TABLE:
+        raise SystemExit(f"--res-km {res_km}: no row in namgpu/nest/domain.py RES_TABLE")
+    tlm, tph = geographic_to_rotated(lat, lon, parent["tph0d"], parent["tlm0d"])
+    nxp = max(2, int(round(size_km / parent["dx_km"])))
+    nyp = max(2, int(round((size_y_km or size_km) / parent["dy_km"])))
+    i_ps = int(round((tlm - parent["wbd"]) / parent["dlmd"] - nxp / 2.0)) + 1
+    j_ps = int(round((tph - parent["sbd"]) / parent["dphd"] - nyp / 2.0)) + 1
+    m = int(parent_lnsh) + 2
+    room = {"west": i_ps - 1 - m, "east": parent["im"] - (i_ps + nxp) - m,
+            "south": j_ps - 1 - m, "north": parent["jm"] - (j_ps + nyp) - m}
+    short = {k: v for k, v in room.items() if v < 0}
+    if short:
+        raise SystemExit(f"two-way nest: the {size_km:g} x {size_y_km or size_km:g} km nest at {lat}, {lon} does not sit "
+                         f"{m} parent cells inside the {parent['extent_km']} km parent (short by "
+                         + ", ".join(f"{k} {-v} cells ({-v * parent['dx_km']:.0f} km)" for k, v in short.items())
+                         + "): enlarge --parent-size-km or move --parent-center")
+    dlmd, dphd = parent["dlmd"] / ratio, parent["dphd"] / ratio
+    im, jm = nxp * ratio + 1, nyp * ratio + 1
+    wbd = parent["wbd"] + (i_ps - 1) * parent["dlmd"]
+    sbd = parent["sbd"] + (j_ps - 1) * parent["dphd"]
+    dx, dy = parent["dx_km"] / ratio, parent["dy_km"] / ratio
+    return {"res_km": res, "im": im, "jm": jm, "lm": 60, "tph0d": parent["tph0d"], "tlm0d": parent["tlm0d"],
+            "dlmd": dlmd, "dphd": dphd, "wbd": round(wbd, 6), "sbd": round(sbd, 6),
+            "dx_km": round(dx, 4), "dy_km": round(dy, 4), "extent_km": [round((im - 1) * dx, 1), round((jm - 1) * dy, 1)],
+            "associated": True, "i_parent_start": i_ps, "j_parent_start": j_ps, "parent_child_space_ratio": ratio,
+            "parent_cells": [nxp, nyp], "centre_asked": [lat, lon], "parent_room_cells": room}
+
+
 def _deg(x: float) -> str:
     """Centre degrees at the grid's own 4 decimals, trailing zeros cut down to 2 (38.6 -> 38.60, 38.604 -> 38.604)."""
     s = f"{abs(x):.4f}"
@@ -235,6 +278,12 @@ def config_keys(g: dict, name: str, static_npz: Path, spec_adv: bool = False, ha
         keys["spec_adv"] = ".true." if spec_adv else ".false."
     elif spec_adv:
         keys["spec_adv"] = ".true."
+    if g.get("associated"):
+        # grid-associated nest (nest_grid_associated): off centre on the parent's pole, so the spacing is explicit
+        # (config.NamConfig.dlmd/dphd), and NMMB's own nest keys record where it sits
+        keys.update(dlmd=f"{g['dlmd']:.9f}", dphd=f"{g['dphd']:.9f}", i_parent_start=str(g["i_parent_start"]),
+                    j_parent_start=str(g["j_parent_start"]),
+                    parent_child_space_ratio=str(g["parent_child_space_ratio"]))
     keys["static_npz"] = str(static_npz)
     keys["domain_name"] = name
     if handoff:

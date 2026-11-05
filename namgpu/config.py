@@ -163,12 +163,19 @@ class NamConfig:
     co2cyc_file: str = "co2monthlycyc.txt"           # physparam.f:136
     lfdncmp: bool = True         # swrad always fills FDNCMP: grrad_nmmb.f:1910 scmpsw is unconditional (phys-rrtm-grrad-sw)
 
+    # A grid-associated nest (module_NESTING.F90:4263-4592 SET_NEST_GRIDS) sits off centre on its parent's pole, so its
+    # spacing cannot be derived from wbd/sbd: its configfile carries the port keys dlmd/dphd (namgpu/nest/domain.py
+    # nest_grid_associated). Without them a grid is symmetric about its pole and the derived value is used, as before.
     @property
     def dlmd(self) -> float:
+        if "dlmd" in self.raw:
+            return float(self.raw["dlmd"])
         return -2.0 * self.wbd / (self.im - 1)
 
     @property
     def dphd(self) -> float:
+        if "dphd" in self.raw:
+            return float(self.raw["dphd"])
         return -2.0 * self.sbd / (self.jm - 1)
 
 

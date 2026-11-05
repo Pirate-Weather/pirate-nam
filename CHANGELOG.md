@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `woof-nam nest --two-way` and `--concurrent`: a 12 km parent and a 3 km (or 4 km) nest on the parent's own grid, run
+  together in one process on one card. The nest takes its lateral boundaries from the live parent every parent step
+  (NMMB's PARENT_UPDATE_CHILD_PSFC / _BNDRY and UPDATE_BC_TENDS), as the operational NAM nests ran (`--concurrent`).
+  `--two-way` adds NMMB's two-way feedback: box means of the nest's T, Q, CW, U and V replace the parent's in the
+  overlap (GENERATE_2WAY_DATA, PARENT_2WAY_UPDATE; `--2way-wgt`, default 1.0). History for both domains in
+  `<out>/parent/` and `<out>/nest/`. A live parent runs two-way by default (any `--parent-*` option); the
+  `--source parent --parent-run` hand-off and the one-domain door stay one-way.
+
 ## 0.1.1 (2026-11-05)
 
 - On PyPI as `recast-woof-nam` (`pip install recast-woof-nam`); the command stays `woof-nam` and the import name

@@ -333,6 +333,10 @@ def run(ctx):
     READ_BC on its cadence: read boco.NNNN on the host, place both slots on the device.
     Otherwise: acts only when stage_interval() has staged an interval (ctx.bc.pending)."""
     bc = ctx.bc
+    if getattr(ctx, "concurrent_parent", False):
+        # a concurrent nest (namgpu/nest/twoway.py): its boundary tendencies come from the live parent every parent
+        # step (PARENT_UPDATE_CHILD_BNDRY + UPDATE_BC_TENDS, kernels/nest_bc.cu), never from boco files
+        return None
     if isinstance(bc, dict):
         boco_dir = getattr(ctx, "boco_dir", None)
         if boco_dir is None:
