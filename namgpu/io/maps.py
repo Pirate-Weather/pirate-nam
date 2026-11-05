@@ -508,7 +508,7 @@ def _prep_frame(job):
     The 0.1.0 call still works: the earlier frame as one path (the frame one hour back) or None in place of the
     dict. That call gets the 0.1.0 return, (cf path or None, valid, start, CF variables written, skipped), and the
     0.1.0 CF source line naming init and lead, and no table is written (the caller writes its own). Origin: the
-    WOOF worker's nam_maps.py makes that call; 0.1.1.dev6 took only the dict and drew no maps there."""
+    hosted service worker makes that call; 0.1.1.dev6 took only the dict, so maps there failed."""
     path, prev_paths, need, products, work, label = job
     old_call = not isinstance(prev_paths, dict)
     if old_call:

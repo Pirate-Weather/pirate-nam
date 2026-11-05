@@ -1,7 +1,7 @@
 """maps._prep_frame keeps its 0.1.0 call: the earlier frame as one path (or None) instead of the {hours back: path}
 dict, and the 5-value return (cf, valid, start, CF variables written, skipped). The dict call keeps its 7 values.
 
-Origin: the WOOF worker's nam_maps.py makes the 0.1.0 call; 0.1.1.dev6 took only the dict, so a worker on it drew
+Origin: the hosted service worker makes the 0.1.0 call; 0.1.1.dev6 took only the dict, so a worker on it had
 no maps (2026-11-05). A dry window in the 0.1.0 call is a skip, not zeros gpuwm's renderer paints domain-wide.
 CPU only, numpy only (the history read and the CF write are stubbed). Run: python tests/test_maps_old_call.py
 """
