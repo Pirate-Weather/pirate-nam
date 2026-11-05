@@ -510,16 +510,16 @@ IFS forecast). Against 139-147 METARs, the nest's 10 m wind matches IFS (lower R
 Its 2 m dewpoint is drier than IFS, and it produces light rain and drizzle at about one fifth of the observed
 frequency.*
 
-### Two-way nests
+### Live-parent and two-way nests
 
-`woof-nam nest --two-way` runs a 12 km parent and the nest together, in one process on one card. The nest sits on
+`woof-nam nest --concurrent` (or `--two-way`) runs a 12 km parent and the nest together, in one process on one card. The nest sits on
 the parent's own grid and takes its lateral boundaries from the live parent at every parent step (25 s). Each parent
-step, box means of the nest's temperature, moisture, condensate and winds replace the parent's values over the
+step with `--two-way`, box means of the nest's temperature, moisture, condensate and winds replace the parent's values over the
 overlap, so the parent carries the nest's storms. This is NMMB's own parent-child coupling and two-way feedback;
-`--2way-wgt` sets the nest's weight in the overlap (default 1.0). A live parent runs two-way by default: giving
-`--parent-center`, `--parent-size-km` or `--parent-size-y-km` turns it on without `--two-way`. `--concurrent` is the
-same live-parent run with the feedback off, which is how the operational NAM ran its nests. The parent's and nest's
-history land in `<out>/parent/` and `<out>/nest/`.
+`--2way-wgt` sets the nest's weight in the overlap (default 1.0). Nests run one-way by default, as NOAA's NAM did:
+giving `--parent-center`, `--parent-size-km` or `--parent-size-y-km` without `--two-way` runs the live parent with
+the feedback off, the same as `--concurrent`. `--two-way` enables feedback; two-way made Ian 27 hPa deeper than
+observed in our test. The parent's and nest's history land in `<out>/parent/` and `<out>/nest/`.
 
 ```
 woof-nam nest --two-way --center 24N,83W --size-km 1900 --size-y-km 1400 --res-km 3     --parent-size-km 3000 --parent-size-y-km 2600 --source gfs --start 2022092612 --hours 84 --out runs/ian-2way
@@ -531,7 +531,8 @@ run's hand-off history, and `woof-nam nest` with no parent options runs the nest
 On Hurricane Ian (GFS 2022-09-26 12Z, 84 h, RTX PRO 6000), the feedback brought the 12 km parent down to 919.6 hPa
 at +48 h, within 1-9 hPa of the nest at every hour; without it the parent stayed at 974.0. The two-way nest was
 910.5 hPa at +48 h against 931.6 with the feedback off and 937 in the best track, with a wider core and a track
-further west. No seam shows at the nest edge.
+further west; its deepest, 908.8 hPa, was 27 hPa below the observed 937 (one-way: 923.7). No seam shows at the
+nest edge.
 
 ### Moving nests
 
@@ -563,7 +564,7 @@ woof-nam nest --follow tc --storm-id 2024225N22135 --size-km 1000 --res-km 3 --s
   `tools/follow_score.py` scores a run against IBTrACS.
 - The `tc` tracker keeps the storm at least max(150 km, 0.62 x the window's half-width) from the edge, which is about
   300 km on a 1000 km nest. That keeps the rain shield inside the window, not only the eye.
-- A live two-way parent (`--two-way`, `--concurrent`, `--parent-*`) does not move its nest, and `--follow` is
+- A live parent (`--two-way`, `--concurrent`, `--parent-*`) does not move its nest, and `--follow` is
   refused there.
 - Memory: the forecast and a background worker share the card, so a 1000 km moving nest at 3 km peaked at
   45-57 GiB on an RTX PRO 6000 (96 GB).

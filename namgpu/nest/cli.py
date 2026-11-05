@@ -354,8 +354,9 @@ def main(argv=None) -> int:
     if a.cmd != "nest":
         return 2
     following = bool(a.follow or a.storm or a.storm_id or a.follow_config)
-    # A live parent (--two-way, --concurrent, or any --parent-* option) runs two-way unless --concurrent asks for the
-    # feedback off. The --source parent hand-off and the one-domain door below stay one-way.
+    # A live parent (--two-way, --concurrent, or any --parent-* option) runs one-way concurrent, as NOAA's NAM ran its
+    # nests (nest_mode: 1-way); --two-way turns on NMMB's feedback. The --source parent hand-off and the one-domain
+    # door below are one-way too.
     if a.two_way or a.concurrent or a.parent_center or a.parent_size_km or a.parent_size_y_km:
         if following:
             # twoway_door builds one fixed nest inside its live parent and has no move step: a --follow there would
@@ -364,7 +365,8 @@ def main(argv=None) -> int:
                      "a live parent (--two-way, --concurrent, --parent-*) does not move its nest")
         if a.center is None:
             ap.error("nest: --center LAT,LON is required with a live parent")
-        a.two_way = a.two_way or not a.concurrent
+        a.two_way = bool(a.two_way)              # feedback only when asked for; otherwise --concurrent
+        a.concurrent = not a.two_way
         from namgpu.nest import twoway_door
         return twoway_door.main(a, argv)
     cycle = datetime.strptime(a.start, "%Y%m%d%H")
