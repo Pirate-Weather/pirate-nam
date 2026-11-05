@@ -107,7 +107,9 @@ def _expected_skip(slug: str, reason: str, first_name: str) -> bool:
     if slug in FIRST_FRAME_SKIPS:
         return first_name in reason
     if slug in WINDOW_SKIPS:
-        return "earlier to difference" in reason
+        # no earlier frame yet, or a dry window (maps.py skips a window with no rain instead of painting zeros
+        # domain-wide; a 3 km nest's first hour is often dry, and the nest door died here at maps, 2026-11-05)
+        return "earlier to difference" in reason or "dry window" in reason
     return True
 
 

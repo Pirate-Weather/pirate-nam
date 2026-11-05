@@ -36,6 +36,7 @@ jobs:
           python tests/test_wind_ladder.py
           python tests/test_maps_old_call.py
           python tests/test_pole_frame.py
+          python tests/test_maps_dry_window_skip.py
           python tests/test_nest_twoway_default.py
 
       - name: pip wheel
