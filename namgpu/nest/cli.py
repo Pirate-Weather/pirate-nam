@@ -109,6 +109,8 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--boco-age-h", type=int, default=None, help="boundary cycle age in hours (default: 0 when the "
                    "start cycle's forecast is already published, else the source row's, 6 for gfs as NAM)")
     n.add_argument("--no-sheets", action="store_true")
+    from namgpu.nest import twoway_door           # --two-way / --concurrent (a parent and this nest in one process)
+    twoway_door.add_args(n)
     return ap
 
 
@@ -344,6 +346,12 @@ def main(argv=None) -> int:
     a = build_parser().parse_args(argv)
     if a.cmd != "nest":
         return 2
+    # A live parent (--two-way, --concurrent, or any --parent-* option) runs two-way unless --concurrent asks for the
+    # feedback off. The --source parent hand-off and the one-domain door below stay one-way.
+    if a.two_way or a.concurrent or a.parent_center or a.parent_size_km or a.parent_size_y_km:
+        a.two_way = a.two_way or not a.concurrent
+        from namgpu.nest import twoway_door
+        return twoway_door.main(a, argv)
     t_all = time.perf_counter()
     out = a.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
