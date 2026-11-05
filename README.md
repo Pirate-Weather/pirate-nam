@@ -6,6 +6,8 @@ Keeping the retired North American Mesoscale model sailing, on one GPU machine. 
 
 > **Experimental.** Not an official forecast, and not a NOAA or NCEP product. Runs may stop or change without notice, and there's no regular schedule yet. Don't use it for decisions that affect safety.
 
+> **Support this project:** running a model like this costs real money. Help keep it going by [sponsoring me on GitHub](https://github.com/sponsors/alexander0042) or [signing up for Pirate Weather](https://pirate-weather.apiable.io/).
+
 **[Map viewer](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) · [Data access (GRIB2 and Zarr)](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html) · [Benchmarks](BENCHMARKS.md)**
 
 ## Why it's built this way
