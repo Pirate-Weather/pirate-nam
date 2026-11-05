@@ -380,13 +380,26 @@ peaked where the last column says.
 
 - **Smallest card each grid fits:** the 12 km grid a 24 GB card (the run above; on a 24 GB card the column physics
   works in row bands by itself when a whole-domain call would not fit, with the same output); the 333 x 333 nest an
-  8 GB card and the 100 x 100 nest a 4 GB card, from their peaks.
+  8 GB card (measured on one, below) and the 100 x 100 nest a 4 GB card, from its peak.
 - **What the peak holds:** 2.44 GiB of it, on an RTX 5090, is the local memory the GPU reserves for the step
   kernels (10,016 bytes per resident thread; a card with fewer multiprocessors reserves less), and about 0.3 GiB is the
   CUDA context and modules. The rest is the run's memory pool, which grows only when a request needs it and hands
   unused blocks back after each init stage, radiation call and history write.
 - The forecast-step column is the 1 h forecast loop after the filter, on a card running nothing else; the nest rows ran on
   a shared card, so they give no step time.
+
+**An 8 GB card.** One RTX 3060 Ti (8 GB, driver for CUDA 13.0), `pip install recast-woof-nam==0.1.2` into a fresh
+venv (111 s), 3 km nests from GFS 2025-03-14 12Z through the door, every physics scheme on, the card running nothing
+else, e.g. `woof-nam nest --center 38.5N,91W --size-km 1148 --size-y-km 989 --res-km 3 --source gfs --start 2025031412
+--hours 3 --out runs/nest`. The peak is the whole card (nvidia-smi every 0.5 s); the step is the forecast loop after the
+filter. The first run compiles the CUDA kernels on the card (272 modules in 21 s on 13 processes); later runs load
+them from the cache in about 1 s.
+
+| Grid (points) | Card | Run | Peak on the card | Forecast step | Door, start to sheets |
+|---|---|---|---|---|---|
+| 3 km nest (99 x 100 x 60) | RTX 3060 Ti, 8 GB | 1 h, GFS 2025-03-14 12Z | 2,011 MiB | 9.2 ms | 149 s (68 s of it the GFS download) |
+| 3 km nest (328 x 330 x 60) | RTX 3060 Ti, 8 GB | 3 h, same start | 4,104 MiB | 71.0 ms | 256 s (inputs already fetched) |
+| 3 km nest (360 x 359 x 60) | RTX 3060 Ti, 8 GB | 1 h, same start; radiation in 4-row chunks (the door's pick) | 4,178 MiB | 142.8 ms | 238 s (inputs already fetched) |
 
 ## Running on more than one card
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- README: memory and speed measured on an 8 GB card (RTX 3060 Ti, fresh `pip install recast-woof-nam==0.1.2`): 3 km
+  nests of 99 x 100, 328 x 330 and 360 x 359 points peak at 2.0, 4.1 and 4.2 GB ("Speed and memory").
+
 - Composite and simulated reflectivity now match how NOAA's NAM post computed them. The history `COMPOSITE` and
   `REFL_10CM`, the maps, and the awphys GRIB2 `REFC` (record 3) and `REFD` (records 2, 295, 296) add the reflectivity
   of the convection scheme's rain (Z = 300 R^1.4, full strength below the freezing level, 20 dBZ weaker at the
