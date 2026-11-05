@@ -251,6 +251,21 @@ def run(ctx):
     drag = _dragco(ctx, scope)
     if drag is not None:
         out["DRAGCO"] = (drag, DIMS2)
+    # SPD10MAX: io-max-fields keeps the hour's largest U10**2 + V10**2, as MAX_FIELDS_HR does (MAGW2, stored as is,
+    # module_DIAGNOSE.F90:2460-2465); NCEP's post never reads it (it reads U10MAX/V10MAX), so the native history
+    # carries m2 s-2 under a speed name, and the 3 km nests wrote values over 3,000 (Helene f57: 2670 = 51.7 m/s).
+    # The history writes the speed in m s-1, the square root. A cell with no sample since the reset still holds the
+    # -999 start value; the start frame (NTIMESTEP 0, written before the first step's hourly reset, so the state there
+    # still holds its allocation zeros) has no sample either. Both are written as the 10 m speed of that instant (the
+    # maximum over a window holding one time), and U10MAX/V10MAX below as U10/V10.
+    nosample = None
+    if "SPD10MAX" in st.fields and tuple(st["SPD10MAX"].shape) == s2 and "U10" in st.fields and "V10" in st.fields:
+        spd = st.add("H_SPD10MAX", s2)
+        with scope:
+            nosample = (st["SPD10MAX"] < cp.float32(0.0)) | (int(ctx.ntimestep) == 0)
+            u10g, v10g = st["U10"], st["V10"]
+            spd[...] = cp.sqrt(cp.where(nosample, u10g * u10g + v10g * v10g, st["SPD10MAX"]))
+        out["SPD10MAX"] = (spd, DIMS2)
     if "U10MAX" in st.fields and "V10MAX" in st.fields and tuple(st["U10MAX"].shape) == s2:
         # NMMB U10/V10 are H-point, grid-relative (io_wind_rotate); io_max_fields keeps the pair of the hour's
         # strongest 10 m wind at the same cell, so the extreme is rotated with the same H-point coefficients
@@ -260,6 +275,9 @@ def run(ctx):
         ve = st.add("H_VE10MAX", s2)
         u10x, v10x = st["U10MAX"], st["V10MAX"]
         with scope:
+            if nosample is not None:
+                u10x = cp.where(nosample, st["U10"], u10x)
+                v10x = cp.where(nosample, st["V10"], v10x)
             ue[...] = u10x * he_e + v10x * hn_e
             ve[...] = u10x * he_n + v10x * hn_n
         out["U10MAX"] = (ue, DIMS2)

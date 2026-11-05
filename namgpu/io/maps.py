@@ -41,6 +41,7 @@ from namgpu import cores as _cores
 
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -73,6 +74,59 @@ QPF1H_COLORS = [[139, 205, 132], [66, 170, 72], [21, 120, 36], [255, 250, 140], 
                 [255, 130, 0], [230, 30, 0], [150, 0, 30], [200, 0, 200]]
 # 6 h precipitation (in): the same nine colours on evenly spaced edges, 0.05 to 2.0 in.
 QPF6H_LEVELS = [0.05, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25]
+
+# The wind ladder past 60 kt. The renderer's own 10 m wind ladder (recipe 10m_wind_speed_and_direction: 0-60 kt in
+# 2.5 kt steps on its 13-anchor winds palette) ends at 60 kt, so a hurricane core was one flat top colour (Helene 3 km
+# nest f57, 2026-11-05, 100 kt in the eyewall). A frame whose wind passes 60 kt gets a CF scale to 140 kt instead: the
+# same 2.5 kt steps (evenly spaced, so the bar reads true) and the renderer's colours up to 60 kt, then dark brown,
+# green, teal and grey to black at 140 kt: hues the 0-60 kt palette never uses, so 100 kt cannot be read as 20 kt. A frame at or under 60 kt keeps the renderer's ladder, so its
+# map does not change.
+WIND_LADDER_TOP_KT = 60.0
+WIND_HI_TOP_KT = 140.0
+WIND_STEP_KT = 2.5
+_WINDS_ANCHORS = ("#ffffff", "#87cefa", "#6a5acd", "#e696dc", "#c85abe", "#a01496", "#c80028", "#dc283c",
+                  "#f05050", "#faf064", "#dcbe46", "#be8c28", "#a05a0a")   # rustwx-render colormaps.rs WINDS
+_WIND_HI_ANCHORS = ("#a05a0a", "#5c3a1a", "#2e7d32", "#00a896", "#0b5563", "#3a3a3a", "#000000")
+KT_PER_MS = 1.9438445
+
+
+def _lerp_hex(anchors, n):
+    """rustwx-render color.rs lerp_hex: n colours linearly across the anchors, each channel rounded."""
+    rgb = [tuple(int(h[i:i + 2], 16) for i in (1, 3, 5)) for h in anchors]
+    out = []
+    for i in range(n):
+        t = i / (n - 1) * (len(rgb) - 1) if n > 1 else 0.0
+        lo = int(t)
+        hi = min(lo + 1, len(rgb) - 1)
+        f = t - lo
+        out.append([int(math.floor(a + f * (b - a) + 0.5)) for a, b in zip(rgb[lo], rgb[hi])])
+    return out
+
+
+def wind_hi_scale() -> dict:
+    """The 0-140 kt CF scale (display units kt): one colour per 2.5 kt interval."""
+    nlow = int(round(WIND_LADDER_TOP_KT / WIND_STEP_KT))                    # 24 intervals to 60 kt
+    nhigh = int(round((WIND_HI_TOP_KT - WIND_LADDER_TOP_KT) / WIND_STEP_KT))  # 32 intervals 60-140 kt
+    low = _lerp_hex(_WINDS_ANCHORS, 60)                                      # winds_palette_segments(60)
+    # the colour the renderer gives the interval starting at each level: its palette sampled at level/60 kt
+    colors = [low[min(59, int(math.floor(i * WIND_STEP_KT / WIND_LADDER_TOP_KT * 60)))] for i in range(nlow)]
+    colors += _lerp_hex(_WIND_HI_ANCHORS, nhigh + 1)[1:]
+    levels = [round(i * WIND_STEP_KT, 6) for i in range(nlow + nhigh + 1)]
+    return {"levels": levels, "colors": colors}
+
+
+WIND_PRODUCTS = ("wind10", "wind850")
+
+
+def wind_row_scale(product: str, field) -> dict | None:
+    """The 0-140 kt scale when this frame's wind (m s-1) passes 60 kt, else None (the renderer's own ladder)."""
+    if product not in WIND_PRODUCTS or field is None:
+        return None
+    a = np.asarray(field, dtype=np.float64)
+    if not np.isfinite(a).any() or np.nanmax(a) * KT_PER_MS <= WIND_LADDER_TOP_KT:
+        return None
+    return wind_hi_scale()
+
 
 # product -> (CF variable, CF table row); rows match cases/<case>/referee/cf-table.json
 TABLE = {
@@ -315,12 +369,15 @@ def panel_title(field: str, start: datetime, valid: datetime) -> str:
     return f"{field}  init {start:%Y-%m-%d %H}Z  valid {valid:%Y-%m-%d %H}Z (+{fh}h)"
 
 
-def cf_row(product: str, title: str, note: str | None = None) -> dict:
-    """The product's CF table row with its panel title (and an optional subtitle note, e.g. the data credit)."""
+def cf_row(product: str, title: str, note: str | None = None, scale: dict | None = None) -> dict:
+    """The product's CF table row with its panel title (and an optional subtitle note, e.g. the data credit, and an
+    optional colour scale that replaces the recipe's, e.g. the wind ladder past 60 kt)."""
     row = json.loads(json.dumps(TABLE[product][1]))
     row["title"] = title
     if note:
         row["note"] = note
+    if scale is not None:
+        row["scale"] = scale
     return row
 
 
@@ -465,7 +522,8 @@ def _prep_frame(job):
     _write_cf(cf, lat, lon, valid, flds, label)
     table = Path(work) / f"cf-table_{valid:%Y%m%d%H%M}.json"
     note = credit_note()
-    table.write_text(json.dumps([cf_row(p, panel_title(TABLE[p][1]["title"], start, valid), note) for p in products]))
+    table.write_text(json.dumps([cf_row(p, panel_title(TABLE[p][1]["title"], start, valid), note,
+                                        wind_row_scale(p, flds.get(TABLE[p][0], (None,))[0])) for p in products]))
     return str(cf), valid, start, sorted(flds), sk, str(table), frame
 
 
