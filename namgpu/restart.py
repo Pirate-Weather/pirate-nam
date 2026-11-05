@@ -87,6 +87,41 @@ def read_meta(rset) -> dict:
     return meta
 
 
+# Table entries the 32 GB fit path drops between uses and every user rebuilds before reading: the RRTM chunk
+# context (rrtm_call.KEY_CHUNK: chunk copies and chunk-local scratch, rebuilt zero-filled by the next radiation call),
+# driver-prep's per-call scratch (rrtm_prep:*, not the rrtm_prep:vec:* vectors), the horizontal-diffusion step
+# tables (hdiff_*) and the 30-arcsec terrain read only by init-gwd-orog (gwd_dem, 1.78 GiB).
+TRANSIENT_TABLES = ("rrtm_call:chunkctx", "gwd_dem")
+TRANSIENT_TABLE_PREFIXES = ("rrtm_prep:", "hdiff_")
+TRANSIENT_TABLE_KEEP_PREFIXES = ("rrtm_prep:vec:",)
+TRANSIENT_ATTRS = ("history_fields",)
+
+
+def transient(ctx) -> dict:
+    """What a set leaves out: exactly what the 32 GB fit path (state.memory_path) has already released at the hour
+    boundary where a set is taken (after that hour's history write), so a set holds the same arrays on either memory
+    path. The full path (cards of 64 GiB and more) keeps these for the whole run; they are written before they are
+    read in every step (the NAMGPU_SCRATCH_POISON=1 A/B, state.py), and a resumed run allocates them again on first
+    use exactly as a fresh start does. Defect fixed (2026-11-05, WOOF owner canary run_4c391d9e4ea194ef, full path on
+    a 96 GB card): a 12 km set was 36.7 GiB with these in, 15 GiB on the fit path."""
+    from namgpu import state as S
+    fields = set(S.STEP_SCRATCH) | set(S.HISTORY_SCRATCH) | set(S.INIT_ONLY)
+    for names in S.UNIT_SCRATCH.values():
+        fields |= set(names)
+    drv = getattr(ctx, "driver", None)
+    if drv is not None and hasattr(drv, "_phys_last_use"):
+        # only the PHYS_SCRATCH names the fit path releases (their last user is a physics driver unit); the
+        # others have readers elsewhere and stay in the state on both paths
+        if getattr(drv, "_phys_lu", None) is None:
+            drv._phys_lu = drv._phys_last_use()
+        for names in drv._phys_lu.values():
+            fields |= set(names)
+    tables = {k for k in ctx.tables
+              if k in TRANSIENT_TABLES or (k.startswith(TRANSIENT_TABLE_PREFIXES)
+                                          and not k.startswith(TRANSIENT_TABLE_KEEP_PREFIXES))}
+    return {"fields": sorted(fields), "tables": sorted(tables), "attrs": list(TRANSIENT_ATTRS)}
+
+
 class Writer:
     """Writes a restart set every `every_hours` of forecast (after that step's history)."""
 
@@ -128,7 +163,7 @@ class Writer:
         t_wait = time.perf_counter() - t0
         stream = ctx.stream if ctx.stream is not None else cp.cuda.get_current_stream()
         with stream:
-            jobs, header, rec = slab_init.plan(ctx)
+            jobs, header, rec = slab_init.plan(ctx, leave_out=transient(ctx))
             sizes = [(-(-a.nbytes // _ALIGN)) * _ALIGN for _, a in jobs]
             buf = self._buffer(sum(sizes))
             staged, keep, off = [], [], 0

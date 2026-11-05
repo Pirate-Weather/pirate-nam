@@ -87,6 +87,30 @@ def test_nam_levels():
     assert len(products.NAM_LEVELS_HPA) == 39
 
 
+def test_set_leaves_out_full_path_scratch():
+    """A full-memory-path set leaves out what the fit path has released at the hour (restart.transient): step,
+    history, unit and init-only scratch, the RRTM chunk context and driver-prep tables, the init-only terrain."""
+    import types
+    from namgpu import state as S
+    ctx = types.SimpleNamespace(tables={"rrtm_call:chunkctx": object(), "rrtm_prep:out": {}, "rrtm_prep:KTOP": 1,
+                                        "rrtm_prep:vec:SGML": 2, "hdiff_x": 3, "gwd_dem": 4, "co2_table": 5})
+    lo = restart.transient(ctx)
+    assert set(lo["tables"]) == {"rrtm_call:chunkctx", "rrtm_prep:out", "rrtm_prep:KTOP", "hdiff_x", "gwd_dem"}
+    assert set(S.STEP_SCRATCH) | set(S.HISTORY_SCRATCH) | set(S.INIT_ONLY) <= set(lo["fields"])
+    assert "history_fields" in lo["attrs"]
+
+
+def test_unsaveable_entries_are_left_unset():
+    """An entry the walker cannot save is left out of its dict (not a _Skipped placeholder a resumed unit would
+    read: `--resume` died on "'_Skipped' object has no attribute 'w'"), and old sets' placeholders are dropped."""
+    import threading
+    from namgpu.init import slab_init
+    sv = slab_init._Saver()
+    out = sv.walk({"keep": 1, "lock": threading.Lock(), "inner": {"lock": threading.Lock(), "n": 2}}, "tables")
+    assert out == {"keep": 1, "inner": {"n": 2}}, out
+    assert len(sv.skipped) == 2
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

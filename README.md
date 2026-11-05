@@ -202,7 +202,9 @@ woof-nam run --resume runs/x/restart        # case, source, end hour and output 
   - the tables built at init;
   - the step and radiation counters and the clock.
 
-  It is `<out>/restart/wrfrst_d01_<valid time>/`, 15.3 GiB for the 12 km grid. `<out>/restart/LATEST` names
+  It is `<out>/restart/wrfrst_d01_<valid time>/`, 15-16 GiB for the 12 km grid on either memory path: on a card of
+  64 GiB or more (the full path) a set leaves out the step scratch that path keeps between steps, as the 32 GB fit path
+  has already released it. `<out>/restart/LATEST` names
   the newest complete set, and `forecast-receipt.json` gives its path as `restart_latest`. The run's boundary
   files are copied once into `<out>/restart/boco`, so a set also resumes on a machine whose case folder is
   somewhere else.
@@ -218,6 +220,9 @@ woof-nam run --resume runs/x/restart        # case, source, end hour and output 
   - a straight run, and a run killed with SIGKILL right after its 3 h set, then resumed from that set;
   - all 7 hourly history files (0-6 h) of the two runs are byte-identical (`cmp`, and `woof-nam compare`: 0 values differ);
   - the resumed process loaded the set in 5.8 s.
+  - The same on the full memory path (an RTX PRO 6000 96 GB, 2023-03-31 12Z GFS start, both runs from one saved
+    initial state): a 2 h run with `--restart-every 1h`, resumed to 3 h, wrote f00-f03 byte-identical to a straight
+    3 h run (85 variables, 0 values differ). Each set was 16.2 GiB, written in 2-4 s; the resume loaded it in 8-9 s.
 - **Scope.** One card. With `--cards N` the restart options stop with a message: each card would have to write its
   own rows and resume on the same N cards, and that path is not written yet.
 
@@ -316,7 +321,7 @@ For the 12 km grid, per forecast hour:
 | awphys GRIB2 (`woof-nam products`) | 60-66 MB (f00-f06) | about 5.6 GB |
 | history `wrfout_d01_*`, lossless (zlib 1 + shuffle) | about 1.0 GB | about 86 GB |
 | history, uncompressed (for scale) | 2.93 GB | - |
-| restart set (`--restart-every`) | 15.3 GiB per set | `--restart-keep` sets (default 1) |
+| restart set (`--restart-every`) | 15-16 GiB per set | `--restart-keep` sets (default 1) |
 
 - The 84 h GRIB2 figure is 85 files at the f06 size. NOAA's own files run about 10 % smaller (60.4 MB at f06).
 - The history is compressed losslessly by default: 2.93 GB -> 1.01 GB an hour (2.9x), and every value reads back

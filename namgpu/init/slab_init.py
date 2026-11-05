@@ -100,7 +100,10 @@ class _Saver:
                 return _Skipped(path)
             return self.ref(obj)
         if isinstance(obj, dict):
-            return {k: self.walk(v, f"{path}/{k}") for k, v in obj.items()}
+            # an entry that cannot be saved (a unit's working object such as the RRTM chunk context) is left out,
+            # so the load leaves the key unset and the unit builds it again exactly as on a fresh start
+            out = {k: self.walk(v, f"{path}/{k}") for k, v in obj.items()}
+            return {k: v for k, v in out.items() if not isinstance(v, _Skipped)}
         if isinstance(obj, (list, tuple)):
             out = [self.walk(v, f"{path}[{i}]") for i, v in enumerate(obj)]
             return out if isinstance(obj, list) else tuple(out)
@@ -129,17 +132,24 @@ def _ptr(a):
     return int(a.data.ptr) if _is_cp(a) else int(a.__array_interface__["data"][0])
 
 
-def plan(ctx):
+def plan(ctx, leave_out=None):
     """What save() writes, without writing it: (jobs, header, receipt). jobs = [(file name, array)], largest
     first, each array C-contiguous (device or host); header = the skeleton.pkl dict. Arrays are not copied
     except a non-contiguous one or a reinterpreting view (copied on the current stream). The restart writer
-    (namgpu/restart.py) uses this to stage the same set into pinned host memory."""
+    (namgpu/restart.py) uses this to stage the same set into pinned host memory.
+
+    leave_out = {"fields": names, "tables": keys, "attrs": names}: state fields, table entries and ctx attributes
+    not saved (the restart writer's step scratch, restart.transient); the load leaves them unset and their units
+    allocate them again as on a fresh start."""
     import cupy as cp
     sv = _Saver()
-    attrs = {k: v for k, v in vars(ctx).items() if k not in CTX_SKIP}
-    tables = {k: v for k, v in ctx.tables.items() if k not in PER_RANK_TABLES}
+    lo = leave_out or {}
+    lo_f, lo_t, lo_a = (frozenset(lo.get(k, ())) for k in ("fields", "tables", "attrs"))
+    attrs = {k: v for k, v in vars(ctx).items() if k not in CTX_SKIP and k not in lo_a}
+    tables = {k: v for k, v in ctx.tables.items() if k not in PER_RANK_TABLES and k not in lo_t}
+    fields = {k: v for k, v in ctx.st.fields.items() if k not in lo_f}
     skel = {
-        "st": sv.walk(dict(ctx.st.fields), "st"),
+        "st": sv.walk(fields, "st"),
         "bc": sv.walk(ctx.bc, "bc"),
         "tables": sv.walk(tables, "tables"),
         "attrs": sv.walk(attrs, "attrs"),
@@ -195,7 +205,18 @@ def plan(ctx):
               "jm": int(g.jm), "im": int(g.im), "lm": int(g.lm)}
     rec = {"arrays": len(meta), "owners": len({m["owner"] for m in meta.values()}), "split_groups": nsplit,
            "gib": round(nbytes / 2**30, 2),
-           "skipped": sv.skipped, "jm": int(g.jm), "im": int(g.im)}
+           "skipped": sv.skipped, "jm": int(g.jm), "im": int(g.im),
+           "left_out": {"fields": sorted(lo_f & set(ctx.st.fields)), "tables": sorted(lo_t & set(ctx.tables)),
+                        "attrs": sorted(lo_a & set(vars(ctx)))}}
+    if lo:
+        # bytes not written: the left-out fields' own allocations (an alias of a saved array costs nothing)
+        kept = {_alloc_key(a) for a in sv.arrays.values()}
+        gone = {}
+        for k in rec["left_out"]["fields"]:
+            a = ctx.st.fields[k]
+            if (_is_cp(a) or isinstance(a, np.ndarray)) and _alloc_key(a) not in kept:
+                gone[_alloc_key(a)] = int(a.nbytes)
+        rec["left_out"]["field_gib"] = round(sum(gone.values()) / 2**30, 2)
     return jobs, header, rec
 
 
@@ -335,7 +356,10 @@ def load(ctx, src) -> dict:
         if isinstance(obj, _Ref):
             return build(obj.k)
         if isinstance(obj, dict):
-            return {k: rebuild(v) for k, v in obj.items()}
+            # sets written before 2026-11-05 kept unsaveable entries as _Skipped placeholders (a full-memory-path
+            # restart set held the RRTM chunk context so: `--resume` died on "'_Skipped' object has no attribute
+            # 'w'"); leave the key unset, as a fresh start has it, and the unit builds it again
+            return {k: rebuild(v) for k, v in obj.items() if not isinstance(v, _Skipped)}
         if isinstance(obj, list):
             return [rebuild(v) for v in obj]
         if isinstance(obj, tuple):

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Restart sets on the full memory path (cards of 64 GiB and more): a set leaves out the step, history, unit and
+  init-only scratch, the RRTM chunk context and driver-prep tables and the init-only 30-arcsec terrain, exactly what the
+  32 GB fit path has already released at the hour (`restart.transient`). Every one of them is written before it is read
+  in a step, and the resumed run allocates them again on first use as a fresh start does. A 12 km set on a 96 GB card
+  was 36.7 GiB with them; it is now the size of a fit-path set.
+- `woof-nam run --resume` from a full-path set no longer stops with `AttributeError: '_Skipped' object has no attribute
+  'w'`: an entry the set cannot hold (the RRTM chunk context) is left unset, so the radiation call builds it as on a
+  fresh start; sets written before this fix load the same way.
 - `woof-nam nest`: the CuPy pool cap follows the memory path the forecast takes on the card (the 32 GB fit below
   64 GiB of card, the full path at and above, `NAMGPU_MEMORY_PATH` as set). A 12 km parent on a 96 GB card ran out
   of memory under a cap sized for the fit path. When the card size cannot be read and no path is set, no cap is set.
