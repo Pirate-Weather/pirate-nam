@@ -2,6 +2,12 @@
 
 ## 0.1.1 (2026-11-05)
 
+- `woof-nam nest --follow tc | low | object:refl | object:uh | path`: a nest that follows a storm. Start it with
+  `--storm LAT,LON` or `--storm-id` (an IBTrACS id). The window moves by whole grid cells at the source's boundary
+  times. The nest keeps its own state where the old and new windows overlap, and the new strip starts from the
+  source. Maps and sheets follow the window. On Typhoon Ampil (48 h from GFS) the mean track error against IBTrACS
+  was 62 km, against 95 km for the same nest held still, which lost the storm at +30 h. README "Moving nests".
+
 - `woof-nam nest --two-way` and `--concurrent`: a 12 km parent and a 3 km (or 4 km) nest on the parent's own grid, run
   together in one process on one card. The nest takes its lateral boundaries from the live parent every parent step
   (NMMB's PARENT_UPDATE_CHILD_PSFC / _BNDRY and UPDATE_BC_TENDS), as the operational NAM nests ran (`--concurrent`).

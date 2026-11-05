@@ -82,7 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="woof-nam", description="WOOF-NAM on the GPU")
     sub = ap.add_subparsers(dest="cmd", required=True)
     n = sub.add_parser("nest", help="a nest anywhere: centre, size, resolution -> forecast, maps, receipt")
-    n.add_argument("--center", required=True, help="LAT,LON (signed degrees or with N/S/E/W)")
+    n.add_argument("--center", default=None, help="LAT,LON (signed degrees or with N/S/E/W); with --follow the "
+                   "default is the storm's start position")
     n.add_argument("--size-km", type=float, default=1000.0)
     n.add_argument("--size-y-km", type=float, default=None, help="north-south size (default = --size-km)")
     n.add_argument("--res-km", type=float, default=3.0, help=f"one of {sorted(domain.RES_TABLE)} (RES_TABLE)")
@@ -111,6 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--no-sheets", action="store_true")
     from namgpu.nest import twoway_door           # --two-way / --concurrent (a parent and this nest in one process)
     twoway_door.add_args(n)
+    from namgpu.nest import follow_door           # --follow (a storm-following nest, one-way from a parent run or a source)
+    follow_door.add_args(n)
     return ap
 
 
@@ -287,8 +290,11 @@ def fetch_rows(cycle: datetime, case_dir: Path, hours: int, cfg, args) -> dict:
     holds the domain), byte-range subsets in a 16-thread pool."""
     from namgpu.init import fetch_case
     lines = []
+    # a storm-following run (args.follow, the door's --follow) fetches the start record set at every boundary lead:
+    # a window move lands there and the new window's fresh start is made from it (fetch_case.plan follow)
     bad = fetch_case.fetch(cycle, case_dir, hours, 16, cfg, args.source_name, args.boco_age_h,
-                           log=lambda m: (lines.append(m), print(m, flush=True)))
+                           log=lambda m: (lines.append(m), print(m, flush=True)),
+                           follow=bool(getattr(args, "follow", None)))
     raw = Path(case_dir) / "raw"
     nbytes = sum(f.stat().st_size for f in raw.rglob("*") if f.is_file()) if raw.is_dir() else 0
     return {"failed": [l for l in lines if l.startswith("FAILED") and "(optional)" not in l] if bad else [],
@@ -343,20 +349,38 @@ def run_logged(cmd, env, log: Path, sampler: Sampler, marks=()):
 
 
 def main(argv=None) -> int:
-    a = build_parser().parse_args(argv)
+    ap = build_parser()
+    a = ap.parse_args(argv)
     if a.cmd != "nest":
         return 2
+    following = bool(a.follow or a.storm or a.storm_id or a.follow_config)
     # A live parent (--two-way, --concurrent, or any --parent-* option) runs two-way unless --concurrent asks for the
     # feedback off. The --source parent hand-off and the one-domain door below stay one-way.
     if a.two_way or a.concurrent or a.parent_center or a.parent_size_km or a.parent_size_y_km:
+        if following:
+            # twoway_door builds one fixed nest inside its live parent and has no move step: a --follow there would
+            # run a nest that never moves while the receipt says it follows
+            ap.error("nest: --follow runs one-way, from a parent run (--source parent) or a source such as gfs; "
+                     "a live parent (--two-way, --concurrent, --parent-*) does not move its nest")
+        if a.center is None:
+            ap.error("nest: --center LAT,LON is required with a live parent")
         a.two_way = a.two_way or not a.concurrent
         from namgpu.nest import twoway_door
         return twoway_door.main(a, argv)
+    cycle = datetime.strptime(a.start, "%Y%m%d%H")
+    follow = None
+    if following:
+        # --follow: a storm-following nest (namgpu/nest/follow_door.py); every check is before any output
+        from namgpu.nest import follow_door
+        follow = follow_door.resolve(a, cycle, parse_center)
+        lat, lon = follow_door.center_from(follow, a, parse_center)
+    elif a.center is None:
+        ap.error("nest: --center LAT,LON is required (or --follow with --storm / --storm-id)")
+    else:
+        lat, lon = parse_center(a.center)
     t_all = time.perf_counter()
     out = a.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
-    lat, lon = parse_center(a.center)
-    cycle = datetime.strptime(a.start, "%Y%m%d%H")
     hours = float(a.hours)
     source, region = (domain.default_source(lat, lon, cycle) if a.source == "auto" else (a.source, "given"))
     if a.source != "auto" and source in FETCH and source != "parent" and not domain.serves(source, cycle):
@@ -367,12 +391,16 @@ def main(argv=None) -> int:
     if source == "parent":
         a.parent_run = resolve_parent_run(a.parent_run)
     boco_age, boco_why = boco_age_for(source, cycle, a.boco_age_h)
+    if follow is not None:
+        follow["landable"] = follow_door.landable(source, follow)
     credit, credit_lines = data_credits(source, parent_run=a.parent_run, given=a.parent_credit)
     sampler = Sampler().start()
     stages, rec = {}, {"door": "woof-nam nest", "argv": sys.argv[1:] if argv is None else list(argv),
                        "start": cycle.isoformat(), "hours": hours, "source": source, "source_region": region,
                        "boco_age_h": boco_age, "boco_age_why": boco_why, "data_credit": credit,
                        "data_licences": credit_lines, "host": os.uname().nodename}
+    if follow is not None:
+        rec["follow"] = {"spec": follow}
 
     def stage(name):
         sampler.mark(name)
@@ -405,6 +433,13 @@ def main(argv=None) -> int:
                           "io_history_fields.handoff_fields is one-card only)")
         print(f"woof-nam: {rec['handoff']}", flush=True)
     keys = domain.write_configfile(cfgfile, g, name, static, a.spec_adv, handoff=handoff)
+    if follow is not None and source == "parent":
+        # a moving nest under our own parent lands every hour (follow.SOURCE_LANDING), so its boundaries are hourly:
+        # READ_BC names each interval's file from the forecast hour, and a window landing at hour H reads boco.H of its
+        # own boundary set (parent_bocos boco_interval_h 1); 3-hourly files would leave a landing at H = 1, 2, 4, ...
+        # with no file for its interval
+        cfgfile.write_text(domain.render(cfgfile.read_text(), {"boco_interval_h": "1"}, name))
+        keys["boco_interval_h"] = 1
     rec.update(domain=name, grid=g, configfile=str(cfgfile), keys=keys)
     rec.setdefault("handoff", "on" if handoff else "off")
     done("domain")
@@ -562,7 +597,27 @@ def main(argv=None) -> int:
             cmd += ["--card-list", a.card_list]
     stage("init")
     marks = [(r"^init done ", "forecast"), (r"^card released", "maps"), (r"^launched \d+ ranks", "forecast")]
-    code, stamps = run_logged(cmd, env, out / "run.log", sampler, marks)
+    if follow is None:
+        code, stamps = run_logged(cmd, env, out / "run.log", sampler, marks)
+    else:
+        # --follow: the controller drives the segments and the preparer (namgpu/nest/follow_run.py)
+        from namgpu.nest import follow_run
+        sampler.mark("forecast")
+        door = {"out": out, "run_dir": run_dir, "cfgfile": cfgfile, "grid": g, "name": name, "static": static,
+                "case": case, "case_dir": case_dir, "source": source, "cycle": cycle, "hours": hours,
+                "boco_age_h": boco_age, "env": env, "keys": keys, "parent_run": a.parent_run,
+                "lnsh": keys.get("lnsh", 5), "boco_interval_h": keys.get("boco_interval_h")}
+        code, fblock = follow_run.run(follow, door, log=lambda m: print(m, flush=True))
+        rec["follow"].update(fblock)
+        seg0 = (fblock.get("segments") or [{}])[0]
+        stamps = {"forecast": stages["init"]["t0"] + float(seg0.get("init_s") or 0) + float(seg0.get("tdfi_s") or 0)}
+        if code == 0:
+            steps = sum(int(s.get("steps_done") or 0) - (0 if i == 0 else 0) for i, s in enumerate(fblock["segments"][-1:]))
+            run_s = sum(float(s.get("run_s") or 0) for s in fblock["segments"])
+            rec["forecast"] = {"steps_done": steps, "run_s": round(run_s, 2),
+                               "ms_per_step_by_segment": fblock.get("ms_per_step_by_segment"),
+                               "nonfinite_end": (fblock["segments"][-1] or {}).get("nonfinite_end"),
+                               "moves": len(fblock.get("moves") or []), "follow_wall_s": fblock.get("wall_s")}
     _rm_init(init_tmp, rec)
     t_end = time.perf_counter()
     t_init0 = stages["init"]["t0"]

@@ -47,7 +47,10 @@
 #define GC_SCALAR_PARAMS                                                                   \
     const int JM, const int global_, const float dt, const float smag2,                    \
     const float codamp, const float wcor, const float tph0d, const float tlm0d,            \
-    const float sbd, const float wbd, const float dphd, const float dlmd
+    const float sbd, const float wbd, const float dphd, const float dlmd,                      const int ioff, const int joff
+// sbd/wbd are the REFERENCE grid's origin; ioff/joff the moving-nest window's whole-cell offset from it (0, 0 for
+// every grid without window keys), so every rotated coordinate is origin + (index + offset) x step and a ground
+// point shared by two windows gets the same bits (namgpu/nest/move.py alignment check)
 
 #define GC_ROW_PARAMS                                                                      \
     float* __restrict__ dxh, float* __restrict__ rdxh, float* __restrict__ dxv,            \
@@ -111,7 +114,7 @@ extern "C" __global__ void gc_rows_interior(GC_SCALAR_PARAMS, GC_ROW_PARAMS,
         if (J < 3 || J > JM - 2) return;              // jds+2 .. jde-2
         tph = s.sb + (float)(J - 2) * s.dph;          // tph=sb+(j-jds-1)*dph
     } else {
-        tph = s.sb + (float)(J - 1) * s.dph;          // tph=sb+(j-jds)*dph
+        tph = s.sb + (float)(J - 1 + joff) * s.dph;   // tph=sb+(j-jds)*dph (window: reference row)
     }
     const float tpv = tph + s.dph * 0.5f;             // tpv=tph+dph*0.5
     const float dlm = s.dlm, cp = NMMB_CP;
@@ -157,7 +160,8 @@ extern "C" __global__ void gc_poles_scalars(GC_SCALAR_PARAMS, GC_ROW_PARAMS, flo
     const float a = NMMB_A;
     const float dt_ = s.dt, wcor_ = s.wcor, acdt = s.acdt, cddamp = s.cddamp;
     const float dyh = s.dyh, dyv = s.dyv, dph = s.dph, dlm = s.dlm, cp = NMMB_CP;
-    const float sb = s.sb, wb = s.wb;
+    // this grid's own SW corner: the reference origin plus the window offset (x + 0.0f = x without a window)
+    const float sb = s.sb + (float)joff * s.dph, wb = s.wb + (float)ioff * s.dlm;
 
     const float ddmpv = cddamp * dyv / (2.f * dyv);   // ddmpv=cddamp*dyv/(2.*dyv)
 
@@ -359,6 +363,9 @@ extern "C" __global__ void gc_fields_2d(GC_SCALAR_PARAMS, GC_ROW_PARAMS, const i
     if (i0 >= IM || j0 >= JM) return;
     const int I = i0 + 1, J = j0 + 1;
     const size_t idx = IDX2(i0, j0, IM);
+    // rotated-coordinate index on the reference grid (moving-nest window offset; I, J without a window). The
+    // boundary blocks below stay on this grid's own I, J.
+    const float Ir = (float)(I + ioff), Jr = (float)(J + joff);
 
     const GCS s = gc_scalars(dt, smag2, codamp, wcor, tph0d, tlm0d, sbd, wbd, dphd, dlmd);
     const float sb = s.sb, wb = s.wb, dph = s.dph, dlm = s.dlm;
@@ -375,17 +382,17 @@ extern "C" __global__ void gc_fields_2d(GC_SCALAR_PARAMS, GC_ROW_PARAMS, const i
 
         // coriolis parameter in tll system
         float tph_base = sb - dph - dph * 0.5f;
-        float tph = tph_base + (float)J * dph;
+        float tph = tph_base + Jr * dph;
         float stph = sinf(tph), ctph = cosf(tph);
         float tlm_base = wb - dlm - dlm * 0.5f;
-        float tlm = tlm_base + (float)I * dlm;
+        float tlm = tlm_base + Ir * dlm;
         f[idx] = twom * (ctph0 * stph + stph0 * ctph * cosf(tlm));
 
         // latitudes and longitudes of h points (global: pole-aware wrap)
         tph_base = sb - dph - dph;
-        float aph = tph_base + (float)J * dph;
+        float aph = tph_base + Jr * dph;
         tlm_base = wb - dlm - dlm;
-        float alm = tlm_base + (float)I * dlm;
+        float alm = tlm_base + Ir * dlm;
         if (alm > GC_PI) {
             if (I <= IM - 2) alm = alm - GC_PI - GC_PI;
             else             alm = GC_PI + (float)(I - IM + 1) * dlm;
@@ -399,9 +406,9 @@ extern "C" __global__ void gc_fields_2d(GC_SCALAR_PARAMS, GC_ROW_PARAMS, const i
 
         // V-point offset lat/lon
         tph_base = sb - dph - 0.5f * dph;
-        aph = tph_base + (float)J * dph;
+        aph = tph_base + Jr * dph;
         tlm_base = wb - dlm - 0.5f * dlm;
-        alm = tlm_base + (float)I * dlm;
+        alm = tlm_base + Ir * dlm;
         if (alm > GC_PI) alm = alm - GC_PI - GC_PI;
         if (alm < -GC_PI) alm = alm + GC_PI + GC_PI;
         vlat[idx] = aph;
@@ -428,19 +435,19 @@ extern "C" __global__ void gc_fields_2d(GC_SCALAR_PARAMS, GC_ROW_PARAMS, const i
 
         // coriolis parameter in tll system (regional)
         float tph_base = sb - dph * 0.5f;
-        float tph = tph_base + (float)J * dph;
+        float tph = tph_base + Jr * dph;
         float stph = sinf(tph), ctph = cosf(tph);
         float tlm_base = wb - dlm * 0.5f;
-        float tlm = tlm_base + (float)I * dlm;
+        float tlm = tlm_base + Ir * dlm;
         f[idx] = twom * (ctph0 * stph + stph0 * ctph * cosf(tlm));
 
         // latitudes and longitudes of h points (regional)
         tph_base = sb - dph;
-        tph = tph_base + (float)J * dph;
+        tph = tph_base + Jr * dph;
         stph = sinf(tph);
         ctph = cosf(tph);
         tlm_base = wb - dlm;
-        tlm = tlm_base + (float)I * dlm;
+        tlm = tlm_base + Ir * dlm;
         float stlm = sinf(tlm), ctlm = cosf(tlm);
         float sph = ctph0 * stph + stph0 * ctph * ctlm;
         float aph = asinf(sph);
@@ -455,11 +462,11 @@ extern "C" __global__ void gc_fields_2d(GC_SCALAR_PARAMS, GC_ROW_PARAMS, const i
 
         // V-point offset lat/lon (regional)
         tph_base = sb - 0.5f * dph;
-        tph = tph_base + (float)J * dph;
+        tph = tph_base + Jr * dph;
         stph = sinf(tph);
         ctph = cosf(tph);
         tlm_base = wb - 0.5f * dlm;
-        tlm = tlm_base + (float)I * dlm;
+        tlm = tlm_base + Ir * dlm;
         stlm = sinf(tlm);
         ctlm = cosf(tlm);
         sph = ctph0 * stph + stph0 * ctph * ctlm;

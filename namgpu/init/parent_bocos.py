@@ -38,7 +38,9 @@ def parent_files(run: Path, start, hours: int, step_h: int):
     return [(fh, ps.history_path(run, start + timedelta(hours=fh))) for fh in range(0, int(hours) + 1, step_h)]
 
 
-def build(ctx, hours: int, out_dir: Path, log=print):
+def build(ctx, hours: int, out_dir: Path, log=print, from_hour: int = 0, generation: int | None = None):
+    """Write the boco files from the parent history. from_hour / generation: a storm-following window landing
+    at that hour (gfs_bocos.build): the intervals from from_hour on, named in hours from the run start."""
     import cupy as cp
     from types import SimpleNamespace
     from namgpu import state as statemod
@@ -49,6 +51,12 @@ def build(ctx, hours: int, out_dir: Path, log=print):
     step = interval_h(ctx)
     run = ps.parent_run(ctx)
     files = parent_files(run, ctx.start, hours, step)
+    if from_hour:
+        if int(from_hour) % step:
+            raise ValueError(f"{UNIT}: from_hour {from_hour} is not a boundary time (every {step} h)")
+        files = [(fh, p) for fh, p in files if fh >= int(from_hour)]
+        if len(files) < 2:
+            raise ValueError(f"{UNIT}: from_hour {from_hour} leaves no boundary interval before +{hours} h")
     missing = [str(p) for _, p in files if not p.is_file()]
     if missing:
         raise FileNotFoundError(f"{UNIT}: parent history missing for {len(missing)} boundary times: {missing[:3]} "
@@ -57,6 +65,7 @@ def build(ctx, hours: int, out_dir: Path, log=print):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / STAMP).unlink(missing_ok=True)       # files from another parent are not this run's
+    (out_dir / "BOCO-SOURCE.json").unlink(missing_ok=True)   # nor a GFS build's (gfs_bocos.build, P1 2026-11-05)
     bcfg = dataclasses.replace(cfg, do_clouds=True)
     st = statemod.State(g, names=gfs_bocos.BC_FIELDS)
     bctx = SimpleNamespace(cfg=bcfg, grid=g, st=st, stream=ctx.stream, tables={}, case_dir=ctx.case_dir,
@@ -91,7 +100,8 @@ def build(ctx, hours: int, out_dir: Path, log=print):
         prev = cur
     log(f"{UNIT}: {len(files) - 1} boco files from {run} in {time.perf_counter() - t1:.1f} s on the GPU "
         f"(+{t_read:.1f} s reads); smallest margin {pl['min_cells']} parent cells ({pl['min_km']} km)")
-    write_stamp(out_dir, ctx)
+    write_stamp(out_dir, ctx, **({"from_hour": int(from_hour), "generation": generation}
+                                 if (from_hour or generation is not None) else {}))
     del st, bctx
     cp.get_default_memory_pool().free_all_blocks()
     return out_dir
@@ -117,6 +127,8 @@ def stamp(ctx) -> dict:
 def current(out_dir: Path, hours: int, ctx) -> bool:
     import json
     p = Path(out_dir) / STAMP
+    if (Path(out_dir) / "BOCO-SOURCE.json").is_file():
+        return False                   # a GFS build wrote this folder after this marker (gfs_bocos.build)
     try:
         same = json.loads(p.read_text()) == stamp(ctx)
     except (OSError, ValueError):
@@ -124,6 +136,6 @@ def current(out_dir: Path, hours: int, ctx) -> bool:
     return same and all(f.is_file() for f in wanted(out_dir, hours, interval_h(ctx)))
 
 
-def write_stamp(out_dir: Path, ctx) -> None:
+def write_stamp(out_dir: Path, ctx, **extra) -> None:
     import json
-    (Path(out_dir) / STAMP).write_text(json.dumps(stamp(ctx)))
+    (Path(out_dir) / STAMP).write_text(json.dumps(dict(stamp(ctx), **extra)))

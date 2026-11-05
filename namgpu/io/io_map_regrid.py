@@ -127,8 +127,9 @@ def build_tables(g, f: LambertFrame = NAM218):
     X, Y = np.meshgrid(xs, ys)                            # [ny, nx]
     lat, lon = lambert_inverse(f, X, Y)
     tlm, tph = geo_to_rotated(g.tph0, g.tlm0, lat * DEG, lon * DEG)
-    xi = ((tlm - g.wb + np.pi) % (2.0 * np.pi) - np.pi) / g.dlm    # fractional H column index
-    yj = (tph - g.sb) / g.dph                                       # fractional H row index
+    # g.wb/g.sb are the reference origin; a moving-nest window's H(0, 0) is win_i0/win_j0 cells from it
+    xi = ((tlm - g.wb + np.pi) % (2.0 * np.pi) - np.pi) / g.dlm - getattr(g, "win_i0", 0)   # fractional H column index
+    yj = (tph - g.sb) / g.dph - getattr(g, "win_j0", 0)                                       # fractional H row index
     valid = (xi >= 0.0) & (xi <= g.im - 1) & (yj >= 0.0) & (yj <= g.jm - 1)
     i0 = np.clip(np.floor(xi), 0, g.im - 2).astype(np.int32)
     j0 = np.clip(np.floor(yj), 0, g.jm - 2).astype(np.int32)

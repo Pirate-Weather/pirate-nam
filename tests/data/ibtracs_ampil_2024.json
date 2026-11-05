@@ -1,0 +1,177 @@
+{
+ "name": "Ampil",
+ "sid": "2024225N22135",
+ "agency": "JMA (RSMC Tokyo)",
+ "start": "2024-08-15 12:00:00",
+ "source": "IBTrACS v04r01 (NOAA NCEI, public domain), https://www.ncei.noaa.gov/products/international-best-track-archive, ibtracs.WP.list.v04r01.csv, fetched 2026-11-05",
+ "rows": [
+  {
+   "time": "2024-08-15 12:00:00",
+   "lat": 31.6,
+   "lon": 140.8,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-15 15:00:00",
+   "lat": 32.0,
+   "lon": 140.8,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-15 18:00:00",
+   "lat": 32.6,
+   "lon": 140.8,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-15 21:00:00",
+   "lat": 33.2,
+   "lon": 140.9,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 00:00:00",
+   "lat": 33.5,
+   "lon": 140.7,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 03:00:00",
+   "lat": 33.8,
+   "lon": 140.8,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 06:00:00",
+   "lat": 34.1,
+   "lon": 141.1,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 09:00:00",
+   "lat": 34.5,
+   "lon": 141.7,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 12:00:00",
+   "lat": 35.0,
+   "lon": 142.0,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 15:00:00",
+   "lat": 35.5,
+   "lon": 142.3,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 18:00:00",
+   "lat": 35.9,
+   "lon": 142.9,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-16 21:00:00",
+   "lat": 36.3,
+   "lon": 143.3,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 00:00:00",
+   "lat": 36.6,
+   "lon": 143.8,
+   "pres_hpa": 950.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 03:00:00",
+   "lat": 37.0,
+   "lon": 144.6,
+   "pres_hpa": 953.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 06:00:00",
+   "lat": 37.3,
+   "lon": 145.6,
+   "pres_hpa": 955.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 09:00:00",
+   "lat": 37.3,
+   "lon": 146.9,
+   "pres_hpa": 958.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 12:00:00",
+   "lat": 37.3,
+   "lon": 148.2,
+   "pres_hpa": 960.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 15:00:00",
+   "lat": 37.7,
+   "lon": 149.1,
+   "pres_hpa": 963.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 18:00:00",
+   "lat": 38.3,
+   "lon": 150.1,
+   "pres_hpa": 965.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-17 21:00:00",
+   "lat": 38.9,
+   "lon": 151.4,
+   "pres_hpa": 968.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  },
+  {
+   "time": "2024-08-18 00:00:00",
+   "lat": 39.5,
+   "lon": 152.8,
+   "pres_hpa": 970.0,
+   "position_from": "TOKYO",
+   "nature": "TS"
+  }
+ ]
+}

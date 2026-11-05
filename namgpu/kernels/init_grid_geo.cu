@@ -55,7 +55,7 @@ __device__ __forceinline__ void geo_rotated_to_geographic(
 extern "C" __global__ void init_grid_geo(
     const int IM, const int JM, const int global_flag,
     const float tph0d, const float tlm0d, const float sbd, const float wbd,
-    const float dlmd, const float dphd,
+    const float dlmd, const float dphd, const int ioff, const int joff,
     float* __restrict__ glat, float* __restrict__ glon,
     float* __restrict__ vlat, float* __restrict__ vlon,
     float* __restrict__ sw)
@@ -67,14 +67,18 @@ extern "C" __global__ void init_grid_geo(
     const float tph0 = tph0d * GEO_DTR;
     const float wb = wbd * GEO_DTR;
     const float sb = sbd * GEO_DTR;
+    const float wb_ref = wb, sb_ref = sb;
     const float dlm = dlmd * GEO_DTR;
     const float dph = dphd * GEO_DTR;
     const float stph0 = sinf(tph0);
     const float ctph0 = cosf(tph0);
     const float tlm0 = tlm0d * GEO_DTR;
 
-    const int i = i0 + 1;   // Fortran i (ids = 1)
-    const int j = j0 + 1;   // Fortran j (jds = 1)
+    // Fortran i, j (ids = jds = 1) of this point on the REFERENCE grid: a moving-nest window passes the reference
+    // origin (sbd, wbd) and its whole-cell offset (ioff, joff), so a ground point shared by two windows gets the same
+    // bits; 0, 0 for every grid without window keys (the same operations as before)
+    const int i = i0 + 1 + ioff;
+    const int j = j0 + 1 + joff;
     const size_t idx = IDX2(i0, j0, IM);
 
     if (global_flag) {
@@ -122,6 +126,9 @@ extern "C" __global__ void init_grid_geo(
 
     // ---- SW corner of the domain (898-907 global, 1124-1133 regional); one thread writes it ----
     if (i0 == 0 && j0 == 0) {
+        // this grid's own SW H point: the reference origin plus the window offset (x + 0.0f = x without a window)
+        const float sb = sb_ref + (float)joff * dph;
+        const float wb = wb_ref + (float)ioff * dlm;
         float arg = sinf(sb) * ctph0 + cosf(sb) * stph0 * cosf(wb);
         arg = fminf(arg, 1.0f);
         arg = fmaxf(arg, -1.0f);

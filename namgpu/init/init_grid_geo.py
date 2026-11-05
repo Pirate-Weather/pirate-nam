@@ -156,8 +156,9 @@ def run(ctx):
         kern(kernels.grid_2d(im, jm, 1), kernels.BLOCK_2D, (
             np.int32(im), np.int32(jm), np.int32(1 if is_global else 0),
             np.float32(cfg.tph0d), np.float32(cfg.tlm0d),
-            np.float32(cfg.sbd), np.float32(cfg.wbd),
+            np.float32(cfg.ref_sbd), np.float32(cfg.ref_wbd),     # reference origin (= sbd/wbd without a window)
             np.float32(cfg.dlmd), np.float32(cfg.dphd),
+            np.int32(cfg.win_i0), np.int32(cfg.win_j0),           # moving-nest window offset (0, 0 otherwise)
             st["GLAT"], st["GLON"], st["VLAT"], st["VLON"], sw,
         ))
         analysis = getattr(ctx, "analysis", None)

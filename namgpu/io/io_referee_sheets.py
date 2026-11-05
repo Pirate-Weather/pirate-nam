@@ -232,6 +232,8 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
     files = sorted(Path(h) for h in history)
     times = {f: maps._times(f) for f in files}
     files.sort(key=lambda f: times[f][0])
+    # sheets are hourly: frames off the hour (a moving run's extra frames after a move) are left to the maps
+    files = [f for f in files if (times[f][0] - times[f][1]).total_seconds() % 3600 == 0]
     start = times[files[0]][1]
     by_lead = {int(round((times[f][0] - start).total_seconds() / 3600)): f for f in files}
     leads = sorted(by_lead) if leads is None else [h for h in leads if h in by_lead]
@@ -246,12 +248,34 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
     res_maps = maps.render([*map(str, files), "--out", str(model_dir), "--products", ",".join(products),
                             "--width", str(width), "--height", str(height)])
     frame = tuple(float(v) for v in res_maps["frame"])
+    # a storm-following window (namgpu/nest/window.py): every lead has its own frame and grid, and the referee and
+    # source panels of that lead are sampled onto that lead's window and drawn on its frame
+    lead_frames = {}
+    if res_maps.get("frames"):
+        for h, f_ in by_lead.items():
+            lead_frames[h] = tuple(res_maps["frames"][f"{times[f_][0]:%Y-%m-%dT%H:%M}"])
+        from namgpu.nest import window as _win  # noqa: PLC0415
+        frame = _win.frame_union(list(lead_frames.values()))
+
+    def frame_of(h):
+        return lead_frames.get(h, frame)
     stages["woof_nam_panels"] = {"wall_s": round(time.time() - t0, 1), "parallel": f"{cores // 2} procs + threads",
                                  "written": len(res_maps["written"]), "failures": res_maps["failures"]}
-    _, _, f0 = maps._read(files[0], {"XLAT", "XLONG"})
     work = Path(tempfile.mkdtemp(prefix=".ref-", dir=out))
-    grid_npz = work / "grid.npz"
-    np.savez(grid_npz, lat=f0["XLAT"], lon=f0["XLONG"])
+    grid_of = {}
+    for h in (sorted(by_lead) if lead_frames else [None]):
+        fh_ = by_lead[h] if h is not None else files[0]
+        fr_ = frame_of(h)
+        if fr_ not in grid_of.values() or h is None:
+            _, _, f0 = maps._read(fh_, {"XLAT", "XLONG"})
+            gp = work / f"grid_{len(grid_of)}.npz"
+            np.savez(gp, lat=f0["XLAT"], lon=f0["XLONG"])
+            grid_of[gp] = fr_
+    by_frame = {fr_: gp for gp, fr_ in grid_of.items()}
+    grid_npz = next(iter(grid_of))
+
+    def grid_for(h):
+        return by_frame.get(frame_of(h), grid_npz)
 
     # 2. rows by region, source and dates
     hours = max(leads) if leads else 0
@@ -279,7 +303,7 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
                     continue
                 if row.get("lead") == "analysis" and valid.hour % row["cadence_h"]:
                     continue
-                jobs.append(((prod, role, h), row, prod, start, valid, str(grid_npz), str(cache), str(work),
+                jobs.append(((prod, role, h), row, prod, start, valid, str(grid_for(h)), str(cache), str(work),
                              label))
 
     # 3. fetch + decode + sample on all cores (processes), then draw every panel (threads)
@@ -309,7 +333,7 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
         valid = start + timedelta(hours=h)
         od = Path(tempfile.mkdtemp(prefix="r-", dir=work))
         cmd = [rw, "--cf", cf, "--variable", var, "--out-dir", od, "--valid", f"{valid:%Y-%m-%dT%H:%M:%SZ}",
-               "--bounds", maps.bounds_arg(frame), "--cf-table", table, "--width", str(width),
+               "--bounds", maps.bounds_arg(frame_of(h)), "--cf-table", table, "--width", str(width),
                "--height", str(height)]
         p = subprocess.run([str(c) for c in cmd], capture_output=True, text=True)
         pngs = sorted(od.rglob("*.png"))
@@ -344,8 +368,29 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
             want.add(v)
             want.update(v - timedelta(hours=maps.WINDOW_H[pr]) for pr in products if pr in maps.WINDOW_H)
         sel = [str(pvalid[v]) for v in sorted(want) if v in pvalid]
-        pres = maps.render([*sel, "--out", str(panel_dir / "parent"), "--products", ",".join(products),
-                            "--width", str(width), "--height", str(height), "--bounds", maps.bounds_arg(frame)])
+        if lead_frames:
+            # one parent render per window frame (a storm-following nest): each lead's parent panel on its frame
+            pres = {"written": [], "failures": []}
+            for fr_ in dict.fromkeys(lead_frames.values()):
+                hs = [h for h in leads if lead_frames.get(h) == fr_]
+                want_f = set()
+                for h in hs:
+                    v = start + timedelta(hours=h)
+                    want_f.add(v)
+                    want_f.update(v - timedelta(hours=maps.WINDOW_H[pr]) for pr in products if pr in maps.WINDOW_H)
+                sel_f = [str(pvalid[v]) for v in sorted(want_f) if v in pvalid]
+                r_ = maps.render([*sel_f, "--out", str(panel_dir / "parent" / f"w{abs(hash(fr_)) % 10**8}"),
+                                  "--products", ",".join(products), "--width", str(width), "--height", str(height),
+                                  "--bounds", maps.bounds_arg(fr_)])
+                keep_v = {f"{start + timedelta(hours=h):%Y%m%d%H}" for h in hs}
+                r_["written"] = [p_ for p_ in r_["written"] if any(
+                    f"_f{int(round(((start + timedelta(hours=h)) - ptime[pfiles[0]][1]).total_seconds() / 3600)):03d}_"
+                    in Path(p_).name for h in hs)] if keep_v else []
+                pres["written"] += r_["written"]
+                pres["failures"] += r_["failures"]
+        else:
+            pres = maps.render([*sel, "--out", str(panel_dir / "parent"), "--products", ",".join(products),
+                                "--width", str(width), "--height", str(height), "--bounds", maps.bounds_arg(frame)])
         plabel = maps.source_label(maps.resolution_km(pfiles[-1])) + " parent"
         steps = sorted(pvalid)
         gaps = [b - a for a, b in zip(steps, steps[1:])]
@@ -444,7 +489,9 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
     lic = referee_rows.licences(used)
     failed_model = res_maps["failures"]
     lines = [f"# {label} sheets: init {start:%Y-%m-%d %H}Z, source {source}", "",
-             f"- Frame (W, E, S, N): {frame} (from the history's XLAT/XLONG; E past 180 = across the dateline)",
+             f"- Frame (W, E, S, N): {frame} (from the history's XLAT/XLONG; E past 180 = across the dateline)"
+             + (f"; storm-following window: each lead on its own frame ({len(set(lead_frames.values()))} windows), "
+                f"the frame above holds them all" if lead_frames else ""),
              f"- Renderer: {rw}", f"- Leads: {leads[0] if leads else '-'}..{leads[-1] if leads else '-'} h", "",
              "## Panels per product", ""]
     for prod in products:
@@ -461,6 +508,7 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
         lines.append(f"- {dst.relative_to(out)}: {' | '.join(names)}" + (f"  (missing: {'; '.join(missing)})" if missing else ""))
     (out / "INDEX.md").write_text("\n".join(lines) + "\n")
     receipt = {"run_start": f"{start:%Y-%m-%d %H}Z", "source": source, "label": label, "frame": frame,
+               **({"lead_frames": {str(h): list(f_) for h, f_ in lead_frames.items()}} if lead_frames else {}),
                "renderer": str(rw), "leads": leads, "stages": stages, "licences": lic,
                "wall_s": round(time.time() - t_all, 1), "cores": cores,
                "missing": {f"{k[0]} {k[1]} f{k[2]:03d}": v for k, v in errors.items()}}
@@ -471,8 +519,11 @@ def nest_sheets(history, source: str, out: Path, leads=None, products=NEST_PRODU
 def _leads(spec):
     if spec is None:
         return None
-    a, _, b = spec.partition("-")
-    return list(range(int(a), int(b or a) + 1))
+    out = []
+    for part in spec.split(","):            # 1-24, or 12,24,36,48, or both
+        a, _, b = part.partition("-")
+        out += range(int(a), int(b or a) + 1)
+    return sorted(set(out))
 
 
 def main_nest(argv):
@@ -480,7 +531,7 @@ def main_nest(argv):
     ap.add_argument("--history", type=Path, nargs="+", required=True)
     ap.add_argument("--source", default="gfs", help="the run's init/boundary source (gfs, ifs, parent, ...)")
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--leads", default=None, help="e.g. 1-24 (default: every frame)")
+    ap.add_argument("--leads", default=None, help="e.g. 1-24 or 12,24,36,48 (default: every frame)")
     ap.add_argument("--products", default=",".join(NEST_PRODUCTS))
     ap.add_argument("--cache", type=Path, default=None)
     ap.add_argument("--parent-run", type=Path, default=None, help="--source parent: draw the parent's history "

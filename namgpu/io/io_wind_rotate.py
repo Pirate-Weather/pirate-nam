@@ -54,8 +54,9 @@ def _v_rotation(g, offset=0.5):
     jm, im = int(g.jm), int(g.im)
     jj = np.arange(jm)[:, None] + int(getattr(g, "joff", 0))   # GLOBAL rows (row slab: namgpu/slab.py)
     ii = np.arange(im)[None, :]
-    tlm_v = np.broadcast_to(g.wb + ii * g.dlm + offset * g.dlm, (jm, im)).astype(np.float64)
-    tph_v = np.broadcast_to(g.sb + jj * g.dph + offset * g.dph, (jm, im)).astype(np.float64)
+    # g.wb/g.sb are the reference origin; a moving-nest window adds its whole-cell offset (0 otherwise)
+    tlm_v = np.broadcast_to(g.wb + (ii + g.win_i0) * g.dlm + offset * g.dlm, (jm, im)).astype(np.float64)
+    tph_v = np.broadcast_to(g.sb + (jj + g.win_j0) * g.dph + offset * g.dph, (jm, im)).astype(np.float64)
     _, lat0 = rotated_to_geographic(tlm_v, tph_v, g.tlm0, g.tph0)
     cos0 = np.cos(lat0)
 

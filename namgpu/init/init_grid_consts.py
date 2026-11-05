@@ -67,8 +67,9 @@ def run(ctx):
     common = (
         np.int32(jm), np.int32(1 if is_global else 0),
         np.float32(cfg.dt), np.float32(cfg.smag2), np.float32(cfg.codamp), np.float32(cfg.wcor),
-        np.float32(cfg.tph0d), np.float32(cfg.tlm0d), np.float32(cfg.sbd), np.float32(cfg.wbd),
+        np.float32(cfg.tph0d), np.float32(cfg.tlm0d), np.float32(cfg.ref_sbd), np.float32(cfg.ref_wbd),
         np.float32(cfg.dphd), np.float32(cfg.dlmd),
+        np.int32(cfg.win_i0), np.int32(cfg.win_j0),     # moving-nest window offset from the reference origin (0, 0)
     )
     row_args = tuple(rows[n] for n in (
         "dxh", "rdxh", "dxv", "rdxv", "dare", "rare", "wpdar", "curv", "fad", "fah", "fcp",

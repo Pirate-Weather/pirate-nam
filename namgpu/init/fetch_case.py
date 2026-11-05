@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import os
 import re
 import shutil
 import threading
@@ -115,10 +116,16 @@ FETCH_ROWS = (
      "source": "gfs", "role": "init", "host": GFS, "eras": GFS_ERAS, "cycle": "start",
      "leads": "f000", "kind": "subset", "records": "gfs_init", "region": "global",
      "dest": "gfs/gfs.t{hh}z.pgrb2.0p25.f000"},
+    # follow_dest / follow_records: a storm-following run (fetch(follow=True)) lands a window move at a boundary
+    # lead, where the new window's fresh start is made from that lead (namgpu/nest/prepare.py), so each lead is
+    # fetched with the START record set (soil, snow, ice, canopy water: gfs_init) as follow_dest, and the boundary
+    # file name is a hard link to it (the start set holds every boundary record). Lead 0 of the start cycle is
+    # the gfs-f000 row's file.
     {"name": "gfs-boco", "licence": "NOAA/NCEP GFS 0.25, US government work (public domain), AWS NODD noaa-gfs-bdp-pds",
      "source": "gfs", "role": "boco", "host": GFS, "eras": GFS_ERAS, "cycle": "boco",
      "leads": "boco", "kind": "subset", "records": "gfs_boco", "region": "global",
-     "dest": "gfs/gfs.t{hh}z.f{lead:03d}.grib2"},
+     "dest": "gfs/gfs.t{hh}z.f{lead:03d}.grib2",
+     "follow_dest": "gfs/gfs.t{hh}z.f{lead:03d}.start.grib2", "follow_records": "gfs_init"},
     {"name": "nam-bgrd3d00", "licence": "NOAA/NCEP NAM, US government work (public domain), AWS NODD noaa-nam-pds",
      "source": "native", "role": "init", "host": NAM, "eras": NAM_ERAS,
      "stem": "bgrd3d", "cycle": "start", "leads": "f000", "kind": "whole", "region": "nam12",
@@ -171,6 +178,19 @@ def _download(url: str, dest: Path) -> str:
     _retry(once)
     tmp.rename(dest)
     return f"got {dest.name} {dest.stat().st_size / 1e6:.0f} MB"
+
+
+def _follow_lead(url: str, dest: Path, start_dest: Path, pattern: re.Pattern) -> str:
+    """A storm-following run's boundary lead: the start record set as start_dest, and dest (the boundary file
+    name) a hard link to it when dest is not already there (a boundary-only file from an earlier run is kept)."""
+    msg = _subset(url, start_dest, pattern)
+    if not (dest.exists() and dest.stat().st_size > 0):
+        try:
+            os.link(start_dest, dest)
+        except OSError:
+            shutil.copy2(start_dest, dest)
+        msg += f"; {dest.name} -> {start_dest.name}"
+    return msg
 
 
 def _subset(url: str, dest: Path, pattern: re.Pattern) -> str:
@@ -328,8 +348,9 @@ def _leads(row, hours: int, age: int, interval: int):
 
 
 def plan(cycle: datetime, hours: int, raw: Path, cfg=None, source: str = "gfs", age_h: int | None = None,
-         rows=FETCH_ROWS):
-    """Jobs [(fn, *args, required)] for one case on one domain, plus the skipped rows [(name, reason)]."""
+         rows=FETCH_ROWS, follow: bool = False):
+    """Jobs [(fn, *args, required)] for one case on one domain, plus the skipped rows [(name, reason)].
+    follow: a storm-following run; rows with follow_dest fetch each lead's start record set (see FETCH_ROWS)."""
     from namgpu.init import sources as srcmod
     srow = srcmod.SOURCES["gfs"]
     age = srcmod.boco_age_h(srow, cfg, age_h)
@@ -357,6 +378,10 @@ def plan(cycle: datetime, hours: int, raw: Path, cfg=None, source: str = "gfs", 
         for f in _leads(row, hours, age, interval):
             url = f"{row['host']}/{_era_path(row, cyc, f)}"
             dest = raw / row["dest"].format(hh=f"{cyc:%H}", lead=f)
+            if follow and row.get("follow_dest") and not (cyc == cycle and f == 0):
+                sdest = raw / row["follow_dest"].format(hh=f"{cyc:%H}", lead=f)
+                jobs.append((_follow_lead, url, dest, sdest, PATTERNS[row["follow_records"]], required))
+                continue
             if row["kind"] == "whole":
                 jobs.append((_download, url, dest, required))
             else:
@@ -365,9 +390,11 @@ def plan(cycle: datetime, hours: int, raw: Path, cfg=None, source: str = "gfs", 
 
 
 def fetch(cycle: datetime, case_dir: Path, hours: int = 48, workers: int = 16, cfg=None, source: str = "gfs",
-          age_h: int | None = None, log=print, rows=FETCH_ROWS) -> int:
+          age_h: int | None = None, log=print, rows=FETCH_ROWS, follow: bool = False) -> int:
     """Fetch every planned input of one case. Returns the number of failed REQUIRED requests (0 = the run's
-    init and boundary files are complete); failed referee/truth requests are printed and not counted."""
+    init and boundary files are complete); failed referee/truth requests are printed and not counted.
+    follow: a storm-following run (start record sets at every boundary lead; plan()). The ifs rows need nothing
+    more: each of their leads already carries the whole start selection (sources.SOURCES fetch "select")."""
     raw = Path(case_dir) / "raw"
     from namgpu.init import sources as srcmod
     if "fetch" in srcmod.SOURCES.get(source, {}):
@@ -388,7 +415,7 @@ def fetch(cycle: datetime, case_dir: Path, hours: int = 48, workers: int = 16, c
         log(f"fetch-case: {source} {len(sjobs)} files, {total / 1e6:.0f} MB in {time.perf_counter() - t0:.0f} s, "
             f"{bad} failed")
         return bad
-    jobs, skipped = plan(cycle, hours, raw, cfg, source, age_h, rows)
+    jobs, skipped = plan(cycle, hours, raw, cfg, source, age_h, rows, follow=follow)
     for name, why in skipped:
         log(f"fetch-case: skip {name}: {why}")
     for d in {Path(j[2]).parent if j[0] is not _mrms_hour else Path(j[2]) for j in jobs}:
@@ -612,6 +639,8 @@ def main(argv=None):
     ap.add_argument("--boco-age", type=int, default=None, help="boundary cycle age, h (default: the row's)")
     ap.add_argument("--case-dir", type=Path, default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--follow", action="store_true", help="storm-following run: the start record set at every "
+                    "boundary lead (a window move lands on a lead)")
     a = ap.parse_args(argv)
     from namgpu.init import sources as srcmod
     if "fetch" in srcmod.SOURCES.get(a.source, {}):
@@ -621,13 +650,13 @@ def main(argv=None):
     cycle = datetime.strptime(a.cycle, "%Y%m%d%H")
     case = a.case_dir or paths.work_root() / "cases" / cycle.strftime("%Y-%m-%d_%Hz")
     if a.dry_run:
-        jobs, skipped = plan(cycle, a.hours, case / "raw", cfg, a.source, a.boco_age)
+        jobs, skipped = plan(cycle, a.hours, case / "raw", cfg, a.source, a.boco_age, follow=a.follow)
         for name, why in skipped:
             print(f"skip {name}: {why}")
         for fn, *args in jobs:
             print(fn.__name__, *(str(x) for x in args[:2]), "required" if args[-1] else "optional")
         return 0
-    bad = fetch(cycle, case, a.hours, a.workers, cfg, a.source, a.boco_age)
+    bad = fetch(cycle, case, a.hours, a.workers, cfg, a.source, a.boco_age, follow=a.follow)
     return 1 if bad else 0
 
 
