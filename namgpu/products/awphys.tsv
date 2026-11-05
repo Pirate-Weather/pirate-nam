@@ -1,8 +1,8 @@
 # WOOF-NAM awphys record table (namgpu/products/spec.py documents the columns). Order = NAM's.
 rec	name	dcp	level	level2	stat	window	source	bits	note
 1	PRMSL	0.3.1	101:0	-	-	-	PRMSL_ON_MEAN_SEA_LVL	-	WOOF post NMC sea-level reduction
-2	REFD	0.16.195	105:1	-	-	-	REFD_ON_HYBRID_LVL	-	REFL_10CM at the lowest mass level (NAM: DBZ at level LM); the history floors it at -20 dBZ as NAM does
-3	REFC	0.16.196	200:0	-	-	-	carrier:COMPOSITE	-	column maximum of REFL_10CM on the native grid (history COMPOSITE), then regridded, as NAM's post then interpolation; -20 dBZ floor
+2	REFD	0.16.195	105:1	-	-	-	REFD_ON_HYBRID_LVL	-	history REFL_10CM (microphysics plus the BMJ convective term, as NAM's post DBZ) at the lowest mass level (NAM: DBZ at level LM); the history floors it at -20 dBZ as NAM does
+3	REFC	0.16.196	200:0	-	-	-	carrier:COMPOSITE	-	column maximum of history REFL_10CM (microphysics plus the BMJ convective term, as NAM's post) on the native grid (history COMPOSITE), then regridded, as NAM's post then interpolation; -20 dBZ floor
 4	VIS	0.19.0	1:0	-	-	-	NAM_VIS	-	UPP CALVIS hydrometeor extinction at the lowest level, at most 24,135 m (NAM's cap)
 5	VIS	0.19.0	3:0	-	-	-	-	-	left out: NAM's visibility at cloud top has no published method to port
 6	var2_0_197	2.0.197	105:1	-	-	-	-	-	left out: NAM's file holds 0 at every point; the model does not export the Blackadar mixing length
@@ -334,8 +334,8 @@ rec	name	dcp	level	level2	stat	window	source	bits	note
 292	var0_19_11	0.19.11	100:100000	-	-	-	Q2_ON_ISOBARIC_SFC	-	MYJ q2 = 2 TKE (history TKE_PBL x 2): NAM's post writes the NMMB q2 under TKE as it is (INITPOST_NEMS reads q2, MDL2P writes Q2SL)
 293	MSLET	0.3.192	101:0	-	-	-	MSLET_ON_MEAN_SEA_LVL	-	the model membrane reduction (io_quasipost_mslp), the NAM post method
 294	HGT	0.3.5	100:100000	-	-	-	HGT_ON_ISOBARIC_SFC	-	interface heights FIS/G + hydrostatic Tv integral (G 9.81), linear in ln p between interfaces; below ground hydrostatic from the level above (UPP MDL2P, NMM)
-295	REFD	0.16.195	103:4000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	REFL_10CM at 4000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
-296	REFD	0.16.195	103:1000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	REFL_10CM at 1000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
+295	REFD	0.16.195	103:4000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	history REFL_10CM (with the BMJ convective term) at 4000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
+296	REFD	0.16.195	103:1000	-	-	-	NAM_REFD_ON_SPEC_HGT_LVL_ABOVE_GRND	-	history REFL_10CM (with the BMJ convective term) at 1000 m above ground, linear in dBZ between mass levels, -20 dBZ floor (MDL2AGL.f)
 297	PRES	0.3.0	1:0	-	-	-	PRES_ON_SURFACE	-	PSFC
 298	HGT	0.3.5	1:0	-	-	-	HGT_ON_SURFACE	-	model terrain
 299	TMP	0.0.0	1:0	-	-	-	TMP_ON_SURFACE	-	skin temperature (TSK)

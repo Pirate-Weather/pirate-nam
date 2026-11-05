@@ -146,3 +146,67 @@ extern "C" __global__ void hist_surface(
     RAINC[n2] = cu;
     RAINNC[n2] = ACPREC_TOT[n2] * 1000.0f - cu;
 }
+
+// Reflectivity as NAM's post writes it: the microphysics REFL_10CM plus the BMJ convective-rain reflectivity
+// (woof-nam 0.1.3, 2026-11-05). NCEP's NAM post (nam_nceppost.fd MDLFLD.f 247-345 and 2675-2683, as cited in
+// the NAM start study) adds, in Z units, Z = CU_A * R**CU_B (CU_A 300, CU_B 1.4; Marshall-Palmer-type Z-R, the
+// same constants as module_DIAGNOSE's CUREFL, see io_max_fields.cu) for the convective rain rate R (mm/h) =
+// CPRATE * 3.6e6 / (DT*NPHS), from the convective cloud top (CNVTOP, a bottom-up layer number, 1 = lowest) down
+// to the ground: full strength at and below the freezing level (the highest level with T >= 273.15 K, else the
+// lowest level), falling off above it as 10**(-2 dz / max(1000 m, zct - zfrz)), i.e. 20 dBZ weaker at the cloud
+// top. REFC is the column maximum of that sum, REFD its value at a level. Written from that description (our own
+// offline check, tools in the study folder), not from the post's source.
+// Levels with no convective term keep REFL_10CM exactly (no dBZ -> Z -> dBZ round trip), so a column without
+// convective rain is byte-identical to the plain microphysics field.
+// One thread per column. write3 != 0: OUT3 [LM,JM,IM] gets every level; COMP [JM,IM] always gets the maximum.
+#define HR_CU_A   300.0f
+#define HR_CU_B   1.4f
+#define HR_DBZMIN (-20.0f)
+#define HR_ZMIN   0.01f          // 10**(0.1*DBZMIN)
+#define HR_TFRZ   273.15f
+extern "C" __global__ void hist_refl_post(
+    int IM, int JM, int LM,
+    const float* __restrict__ REFL, const float* __restrict__ T, const float* __restrict__ Z,
+    const float* __restrict__ CPRATE, const float* __restrict__ CNVTOP, const float rdtphs,
+    const int write3, float* __restrict__ OUT3, float* __restrict__ COMP)
+{
+    COLUMN_IJ(IM, JM)
+    const size_t c = IDX2(i0, j0, IM);
+    const float cuprate = rdtphs * CPRATE[c];
+    const int cnvtop = (int)CNVTOP[c];
+    const bool has = (cuprate > 0.0f) && (cnvtop >= 1);
+    float cmax = -1.0e30f;
+    if (!has) {
+        for (int l0 = 0; l0 < LM; ++l0) {
+            const float r = REFL[IDX3(i0, j0, l0, IM, JM)];
+            if (write3) OUT3[IDX3(i0, j0, l0, IM, JM)] = r;
+            cmax = fmaxf(cmax, r);
+        }
+        COMP[c] = cmax;
+        return;
+    }
+    // freezing level: the highest level (smallest l0, state levels run top-down) with T >= TFRZ, else the lowest
+    float zfrz = Z[IDX3(i0, j0, LM - 1, IM, JM)];
+    for (int l0 = 0; l0 < LM; ++l0) {
+        if (T[IDX3(i0, j0, l0, IM, JM)] >= HR_TFRZ) { zfrz = Z[IDX3(i0, j0, l0, IM, JM)]; break; }
+    }
+    const int kct = min(max(cnvtop - 1, 0), LM - 1);      // bottom-up 0-based
+    const int lct = LM - 1 - kct;                           // state (top-down) index of the cloud-top layer
+    const float zct = Z[IDX3(i0, j0, lct, IM, JM)];
+    const float curefl_s = HR_CU_A * powf(cuprate, HR_CU_B);
+    const float curefl_i = -2.0f / fmaxf(1000.0f, zct - zfrz);
+    for (int l0 = 0; l0 < LM; ++l0) {
+        const size_t p = IDX3(i0, j0, l0, IM, JM);
+        float r = REFL[p];
+        if (l0 >= lct) {
+            const float delz = Z[p] - zfrz;
+            const float fctr = (delz <= 0.0f) ? 1.0f : powf(10.0f, curefl_i * delz);
+            const float zr = powf(10.0f, 0.1f * r);
+            const float zt = zr + fctr * curefl_s;
+            r = fmaxf(HR_DBZMIN, 10.0f * log10f(fmaxf(HR_ZMIN, zt)));
+        }
+        if (write3) OUT3[p] = r;
+        cmax = fmaxf(cmax, r);
+    }
+    COMP[c] = cmax;
+}

@@ -18,8 +18,10 @@ Fields written (names as WRF where WRF has them, values from NMMB state):
   points, not WRF's staggered U/V) and W for soundings.
   PRES is the full mid-layer pressure (Pa). It is not WRF's perturbation P, and the file has no PB
   or PHB, so a reader must take PRES as the pressure itself.
-  REFL_10CM and COMPOSITE (column maximum of REFL_10CM) are written when the Ferrier microphysics
-  has produced REFL_10CM (phys-fer-calmict); otherwise they are absent.
+  REFL_10CM and COMPOSITE are written when the Ferrier microphysics has produced REFL_10CM (phys-fer-calmict),
+  as NAM's post writes them: the microphysics field plus the BMJ convective-rain term, COMPOSITE its column maximum
+  (io_history_fields._refl_post); otherwise they are absent.
+
 WRF dims: Time, south_north, west_east, bottom_top (bottom-up: NMMB l is flipped on write).
 Global attrs: MAP_PROJ=203 (rotated lat-lon, as WRF-NMM); CEN_LAT/CEN_LON = geographic lat/lon at
 the domain centre; POLE_LAT/POLE_LON = rotated-pole coordinates (tph0d, tlm0d); DX/DY in metres
