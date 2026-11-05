@@ -1,0 +1,7 @@
+[Unit]
+Description=Check for a new Pirate NAM run every 15 minutes
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+[Install]
+WantedBy=timers.target

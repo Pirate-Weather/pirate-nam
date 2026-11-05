@@ -1,0 +1,5 @@
+[Unit]
+Description=Build the newest Pirate NAM run for the WMS
+[Service]
+Type=oneshot
+ExecStart=/srv/wms/update_store.sh

@@ -44,15 +44,29 @@ Hourly fields from 0 to 84 hours, on the NAM's 12 km rotated latitude-longitude 
 |---|---|---|
 | **Map viewer** | Browsing a forecast | [index.html](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) |
 | **GRIB2** | Full field set, for forecast tools | `<YYYYMMDDHH>/woof/grib/woofnam.t<HH>z.f<FFF>.grib2`, 85 files of about 43 MB |
+| **WMS** | Map layers for GIS tools and web maps, newest run only | `https://51-79-94-42.sslip.io/datasets/pirate-nam/wms` |
 | **Zarr v3** | 10 key fields for Python, with no server or download step | `<YYYYMMDDHH>/woof/zarr`, about 680 MB |
 
-Paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`.
+Zarr and GRIB2 paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`.
 
 ```python
 import xarray as xr
 ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110512/woof/zarr")
 ds.t2m.sel(fhr=24)
 ```
+
+### WMS
+
+The [WMS 1.3.0 service](https://51-79-94-42.sslip.io/datasets/pirate-nam/wms?service=WMS&version=1.3.0&request=GetCapabilities) serves the same 10 fields as the Zarr store: `t2m`, `d2m`, `mslp`, `wind10`, `wind250`, `apcp`, `refc`, `pwat`, `z500` and `t850`. Here's 2 m temperature for one tile, valid 00Z on 6 November:
+
+```
+https://51-79-94-42.sslip.io/datasets/pirate-nam/wms?service=WMS&version=1.3.0&request=GetMap&format=image/png&transparent=true&styles=raster/default&crs=EPSG:3857&width=256&height=256&layers=t2m&colorscalerange=-40,40&autoscale=false&time=2026-11-06T00:00:00Z&bbox=-10018754,3757033,-7514065,6261721
+```
+
+- **Fields are regridded:** the NAM's grid contains the North Pole, which the WMS software draws wrongly, so layers come from a 0.1° lat-lon copy using the nearest model point. Use the Zarr or GRIB2 data for native-grid values.
+- **Newest run only:** a new run appears within about 20 minutes of being published, and older times stop being available.
+- **Use EPSG:3857:** if you use EPSG:4326, give the bounding box as `lon,lat`, not the `lat,lon` order WMS 1.3.0 specifies. The other order returns an empty response.
+- **Limits:** images can be up to 2048 pixels on each side, and requests are limited to 40 per second per address, with short bursts allowed.
 
 ## Main differences from the NAM
 

@@ -1,0 +1,16 @@
+[Unit]
+Description=Pirate NAM WMS (xpublish-wms behind nginx)
+After=network-online.target
+[Service]
+# The app only reads a local store, so it runs as a throwaway user with a read-only system.
+DynamicUser=yes
+ProtectSystem=strict
+PrivateTmp=yes
+NoNewPrivileges=yes
+Environment=WMS_STORE=/srv/wms/current MPLCONFIGDIR=/tmp HOME=/tmp NUMBA_CACHE_DIR=/tmp
+WorkingDirectory=/srv/wms
+ExecStart=/srv/wms/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8974 --workers 3 --log-level warning --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

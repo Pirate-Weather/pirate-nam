@@ -11,6 +11,7 @@ This folder holds everything added to WOOF-NAM. Upstream's `namgpu/` is left unc
 | `inputs/` | Substitute inputs: GEFS ensemble for GSI, MRMS radar |
 | `build/` | Builds GSI and its libraries in a container, and the job harness |
 | `infra/` | Creates and sets up an OVHcloud GPU machine |
+| `wms/` | The WMS server: regrids the newest run to lat-lon on the server itself, then serves it with xpublish-wms behind nginx |
 | `viewer/` | The static map viewer and data page |
 
 **This isn't turnkey yet.** `prod/run_cycle.sh` has completed one live cycle and assumes a machine already set up by `infra/`. Nothing schedules it yet.
