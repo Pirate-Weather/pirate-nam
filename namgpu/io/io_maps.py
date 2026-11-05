@@ -30,7 +30,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .io_history import drain as drain_history
-from .maps import DEFAULT_PRODUCTS, render as render_series
+from .maps import DEFAULT_PRODUCTS, WINDOW_H, render as render_series
 
 # slug -> why a skip of that product is expected, and on which frame.  A qpf_1h
 # skip is expected only on the run's first frame (nothing earlier to difference against).
@@ -106,10 +106,12 @@ def _expected_skip(slug: str, reason: str, first_name: str) -> bool:
         return False
     if slug in FIRST_FRAME_SKIPS:
         return first_name in reason
+    if slug in WINDOW_H and "dry window" in reason:
+        # maps.py skips a rain window with no rain instead of painting zeros domain-wide; a 3 km nest's first hour is
+        # often dry, and the nest door exited rc 1 here after a finished forecast (2026-11-05)
+        return True
     if slug in WINDOW_SKIPS:
-        # no earlier frame yet, or a dry window (maps.py skips a window with no rain instead of painting zeros
-        # domain-wide; a 3 km nest's first hour is often dry, and the nest door died here at maps, 2026-11-05)
-        return "earlier to difference" in reason or "dry window" in reason
+        return "earlier to difference" in reason
     return True
 
 
