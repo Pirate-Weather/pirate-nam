@@ -80,7 +80,7 @@ test_rows = "".join(f"| {t} | {versus(r)} | {d} |\n" for t, r, d in tests)
 radiance, lightning = versus(VAR + "ens_radar_rap_rad/series.csv", VAR + "ens_radar_rap/series.csv", "mine"), versus(VAR + "all/series.csv", VAR + "ens_radar_rap_rad/series.csv", "mine")
 seven, four = (drop_prmsl(rmse(W + r + "/series.csv") / plain).dropna().median() for r in ("hyb1", "hyb2"))
 by_hour = ratio.groupby(level=0).median()
-gc = pd.read_csv(ASSETS + "gfs_check_2026110512.csv"); GH = sorted(gc.fhr.unique()); GN = {"z500": "500 mb height (m)", "mslp": "Sea level pressure (mb)", "t850": "850 mb temperature (K)", "t2m": "2 m temperature (K)"}
+gc = pd.read_csv(ASSETS + "gfs_check_2026110518.csv"); GH = sorted(gc.fhr.unique()); GN = {"z500": "500 mb height (m)", "mslp": "Sea level pressure (mb)", "t850": "850 mb temperature (K)", "t2m": "2 m temperature (K)"}
 gfs_rows = "".join(f"| {t} | " + " | ".join(f"{gc[(gc.field == k) & (gc.fhr == h)].rmse.iloc[0]:.2f} ({gc[(gc.field == k) & (gc.fhr == h)].bias.iloc[0]:+.2f})" for h in GH) + " |\n" for k, t in GN.items())
 out = open(f"{REPO}/BENCHMARKS.md", "w")
 out.write(f"""# Pirate NAM benchmarks
@@ -134,7 +134,7 @@ Three other choices come from separate comparisons:
 
 ## The first live run
 
-The 12Z 5 November 2026 cycle, on a two-card t2-90 machine already set up. The first attempt at this cycle failed at the handoff to the forecast and was fixed; these times are from the run that completed.
+The 12Z 5 November 2026 cycle, on a two-card t2-90 machine already set up. The first attempt at this cycle failed at the handoff to the forecast and was fixed; these times are from the run that completed. The forecast itself was later withdrawn because of the sun-angle bug described below, but these times still stand: the 18Z run with the fix took 73 min for the forecast and 17 min to build and upload.
 
 | Step | Time | Notes |
 |---|--:|---|
@@ -148,12 +148,22 @@ Output was 85 GRIB2 files of about 43 MB each and a 679 MB Zarr store.
 
 ### Compared with GFS
 
-There's no NAM left to score a live run against, so this compares it with the 12Z GFS at the same valid times. GFS isn't the truth, and the two models should drift apart, so this is a check for problems and not a skill score. Each cell is RMSE, with the mean difference in brackets.
+There's no NAM left to score a live run against, so this compares the 18Z 5 November 2026 run, on WOOF-NAM 0.1.3 with the sun-angle fix, with the 18Z GFS at the same valid times. GFS isn't the truth, and the two models should drift apart, so this is a check for problems and not a skill score. Each cell is RMSE, with the mean difference in brackets.
 
 | Field | {" | ".join(f"{h} h" for h in GH)} |
 |---|{"--:|" * len(GH)}
 {gfs_rows}
-**Pirate NAM gets steadily colder than GFS,** by 1.5 K at 2 m and 0.8 K at 850 mb by hour 84. Scoring against the NAM stops at 36 hours, so it's not yet known whether the NAM did the same or whether this is specific to this setup.
+**Sun-angle bug, now fixed.** The first live run grew steadily colder than GFS, reaching -3.25 K at 2 m by hour 84 on the NAM's output grid, and -5.12 K over land. The handoff from catch-up to forecast kept a cached start hour, so the sun angle that scales shortwave heating ran 6 hours behind and US morning warming began 6 hours late. With the fix, warming starts within an hour of GFS in every US longitude band checked, and that run has been removed.
+
+**The fixed run is still a little colder than the archive.** These numbers are on the NAM's output grid at hour 84, valid 06Z, each against its own cycle's GFS. The archive range is three 18Z NAM cycles from 28 October to 1 November 2026, so the weather differs.
+
+| Mean difference from GFS (K) | Pirate NAM | Archived NAM |
+|---|--:|--:|
+| 2 m temperature, land | -0.82 | -0.58 to -0.12 |
+| 2 m temperature, sea | -0.95 | -0.55 to -0.44 |
+| 850 mb temperature | -0.20 | -0.41 to -0.13 |
+
+2 m air over water is the clearest remaining gap, and evening cooling over the western US is about twice GFS's rate. Causes aren't established, and one cycle can't show whether these persist. The scores against the NAM above come from a test cycle run before this fix and before WOOF-NAM 0.1.3. They stop at 12 hours, on a 00Z cycle that's mostly overnight in North America, and haven't been rerun.
 
 ### Estimated costs for other setups
 

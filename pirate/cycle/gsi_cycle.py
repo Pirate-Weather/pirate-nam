@@ -12,12 +12,16 @@ import os, shutil, struct, subprocess, sys, time
 from datetime import datetime, timedelta
 from pathlib import Path
 import numpy as np, cupy as cp
+from namgpu import state as namgpu_state
 from namgpu.driver import Driver
 from namgpu import run_forecast
 from namgpu.init import init_derive_state
 from namgpu.steps import drv_dfi_tdfi_driver
 from namgpu.boundary import bnd_read_bc
 from namgpu.init import slab_init
+# The step after an analysis runs as a first step, which skips the units writing these, while later units still read them mid-run.
+# WOOF-NAM 0.1.1 started dropping them after each step, so they have to stay in memory here, as they did in 0.1.0 (0.8 GB).
+namgpu_state.STEP_SCRATCH = namgpu_state.STEP_SCRATCH - {"DEF3D", "FMLX_3D", "FMLY_3D", "RTOP"}
 
 C = os.environ["NAM_CYCLE"]; CYC_HH = C[8:]    # the forecast's start, YYYYMMDDHH
 CYCLE_TIME = datetime.strptime(C, "%Y%m%d%H")
@@ -226,6 +230,9 @@ def save_handoff(ctx):
     ctx.start = ctx.start_time = CYCLE_TIME; ctx.case_dir = case_dir; ctx.boco_dir = str(case_dir / "boco")
     # The forecast's 0 h file is the analysis, and it's only written when the saved context says hour 0 hasn't been yet.
     ctx.ntimestep = 0; ctx.wrote_first_hist = False; ctx.first_step = True
+    # RDTEMP caches its start date and hour on first use. Saved as is, the forecast would take the sun angle it scales
+    # shortwave heating by from the catch-up's start, 6 h early, and lose most of the morning's sun. Dropped, each run rebuilds it.
+    ctx.tables.pop("RDTEMP_CAL", None)
     t0 = time.time(); rec = slab_init.save(ctx, HANDOFF)
     ctx.start, ctx.start_time, ctx.case_dir, ctx.boco_dir, ctx.ntimestep, ctx.wrote_first_hist, ctx.first_step = keep
     if rec.get("skipped"): print("handoff skipped:", rec["skipped"], flush=True)

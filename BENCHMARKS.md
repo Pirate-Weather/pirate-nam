@@ -80,7 +80,7 @@ Three other choices come from separate comparisons:
 
 ## The first live run
 
-The 12Z 5 November 2026 cycle, on a two-card t2-90 machine already set up. The first attempt at this cycle failed at the handoff to the forecast and was fixed; these times are from the run that completed.
+The 12Z 5 November 2026 cycle, on a two-card t2-90 machine already set up. The first attempt at this cycle failed at the handoff to the forecast and was fixed; these times are from the run that completed. The forecast itself was later withdrawn because of the sun-angle bug described below, but these times still stand: the 18Z run with the fix took 73 min for the forecast and 17 min to build and upload.
 
 | Step | Time | Notes |
 |---|--:|---|
@@ -94,16 +94,26 @@ Output was 85 GRIB2 files of about 43 MB each and a 679 MB Zarr store.
 
 ### Compared with GFS
 
-There's no NAM left to score a live run against, so this compares it with the 12Z GFS at the same valid times. GFS isn't the truth, and the two models should drift apart, so this is a check for problems and not a skill score. Each cell is RMSE, with the mean difference in brackets.
+There's no NAM left to score a live run against, so this compares the 18Z 5 November 2026 run, on WOOF-NAM 0.1.3 with the sun-angle fix, with the 18Z GFS at the same valid times. GFS isn't the truth, and the two models should drift apart, so this is a check for problems and not a skill score. Each cell is RMSE, with the mean difference in brackets.
 
 | Field | 0 h | 12 h | 24 h | 48 h | 84 h |
 |---|--:|--:|--:|--:|--:|
-| 500 mb height (m) | 4.04 (-1.44) | 5.78 (-2.04) | 7.41 (-1.76) | 15.24 (-3.96) | 26.32 (-5.08) |
-| Sea level pressure (mb) | 0.96 (-0.13) | 1.37 (+0.52) | 1.56 (+0.57) | 2.57 (+0.85) | 4.07 (+1.47) |
-| 850 mb temperature (K) | 0.69 (-0.02) | 1.20 (-0.38) | 1.31 (-0.28) | 1.70 (-0.51) | 2.13 (-0.78) |
-| 2 m temperature (K) | 1.47 (-0.19) | 2.00 (-0.68) | 2.49 (-0.94) | 2.86 (-1.22) | 3.36 (-1.53) |
+| 500 mb height (m) | 4.16 (-1.52) | 5.51 (-0.23) | 6.78 (+0.38) | 13.31 (-1.63) | 20.16 (-1.60) |
+| Sea level pressure (mb) | 0.93 (-0.12) | 1.07 (+0.12) | 1.32 (+0.25) | 1.90 (+0.15) | 2.42 (+0.26) |
+| 850 mb temperature (K) | 0.73 (-0.08) | 0.98 (-0.08) | 1.21 (-0.00) | 1.38 (-0.08) | 1.54 (-0.11) |
+| 2 m temperature (K) | 1.33 (-0.16) | 1.70 (-0.28) | 1.95 (-0.65) | 2.19 (-0.77) | 2.32 (-0.61) |
 
-**Pirate NAM gets steadily colder than GFS,** by 1.5 K at 2 m and 0.8 K at 850 mb by hour 84. Scoring against the NAM stops at 36 hours, so it's not yet known whether the NAM did the same or whether this is specific to this setup.
+**Sun-angle bug, now fixed.** The first live run grew steadily colder than GFS, reaching -3.25 K at 2 m by hour 84 on the NAM's output grid, and -5.12 K over land. The handoff from catch-up to forecast kept a cached start hour, so the sun angle that scales shortwave heating ran 6 hours behind and US morning warming began 6 hours late. With the fix, warming starts within an hour of GFS in every US longitude band checked, and that run has been removed.
+
+**The fixed run is still a little colder than the archive.** These numbers are on the NAM's output grid at hour 84, valid 06Z, each against its own cycle's GFS. The archive range is three 18Z NAM cycles from 28 October to 1 November 2026, so the weather differs.
+
+| Mean difference from GFS (K) | Pirate NAM | Archived NAM |
+|---|--:|--:|
+| 2 m temperature, land | -0.82 | -0.58 to -0.12 |
+| 2 m temperature, sea | -0.95 | -0.55 to -0.44 |
+| 850 mb temperature | -0.20 | -0.41 to -0.13 |
+
+2 m air over water is the clearest remaining gap, and evening cooling over the western US is about twice GFS's rate. Causes aren't established, and one cycle can't show whether these persist. The scores against the NAM above come from a test cycle run before this fix and before WOOF-NAM 0.1.3. They stop at 12 hours, on a 00Z cycle that's mostly overnight in North America, and haven't been rerun.
 
 ### Estimated costs for other setups
 

@@ -51,7 +51,7 @@ Zarr and GRIB2 paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.o
 
 ```python
 import xarray as xr
-ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110512/woof/zarr")
+ds = xr.open_zarr("https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/2026110518/woof/zarr")
 ds.t2m.sel(fhr=24)
 ```
 
