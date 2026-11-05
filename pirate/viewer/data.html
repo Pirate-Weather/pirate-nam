@@ -8,9 +8,9 @@ body { background:var(--bg); color:var(--text); font:16px/1.5 system-ui,sans-ser
 pre { background:var(--code); padding:12px; overflow-x:auto; font-size:14px; } code { font-size:14px; } a { color:inherit; } .m { color:var(--muted); }
 </style></head><body>
 <h1>Pirate NAM data</h1>
-<p>Experimental 48-hour forecasts on the 12 km NAM grid, made with WOOF-NAM, a GPU port of the NMMB model, started from GFS data with no data assimilation. <b>Not a NOAA or NCEP product and not an official forecast.</b> No delivery schedule is promised, and old runs are deleted. <a href="index.html">Map viewer</a> · <a href="https://github.com/Pirate-Weather/pirate-nam">About</a></p>
+<p>Experimental forecasts on the 12 km NAM grid, made with WOOF-NAM, a GPU port of the NMMB model. Runs from 12Z on 5 November go out 84 hours and start from a 6-hour catch-up with NOAA's GSI analysing RAP observations at three points. The earlier run is a plain 48-hour start from GFS data. <b>Not a NOAA or NCEP product and not an official forecast.</b> No delivery schedule is promised, and old runs are deleted. <a href="index.html">Map viewer</a> · <a href="https://github.com/Pirate-Weather/pirate-nam">About</a></p>
 <h2>Runs</h2><p>The list of available cycles is <a href="runs.json">runs.json</a>. WOOF-NAM runs have <code>woof</code> in their <code>domains</code>.</p>
-<h2>GRIB2</h2><p>One file per forecast hour, about 41 MB, on the rotated latitude-longitude grid:</p>
+<h2>GRIB2</h2><p>One file per forecast hour, about 43 MB, on the rotated latitude-longitude grid:</p>
 <pre>https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/&lt;YYYYMMDDHH&gt;/woof/grib/woofnam.t&lt;HH&gt;z.f&lt;FFF&gt;.grib2</pre>
 <p>Contents: temperature, wind, height and relative humidity at 1000, 925, 850, 700, 500, 300 and 250 mb; 2 m temperature and dew point; 10 m wind; surface and mean sea level pressure; composite reflectivity; precipitable water; total and hourly precipitation.</p>
 <h2>xarray</h2><p>A Zarr v3 store with a smaller set of fields, on the same grid, with <code>latitude</code> and <code>longitude</code> as 2D coordinates:</p>
