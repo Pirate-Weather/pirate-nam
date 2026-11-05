@@ -40,6 +40,12 @@ for lead in $ANALYSIS_LEADS; do
   docker run --rm --user 1000:1000 -v /nam:/nam namhar python /nam/prod/make_refd3d.py $AD$AH | tail -1 || echo "radar missing for $AD$AH: GSI skips its cloud analysis"
 done
 
+# At tm00 NAM's script has no RAP fallback: it only looks for NAM's own files. So the final analysis hour's RAP files go under those names,
+# or GSI silently runs with no observations. Links in the same layout as production's dump directory.
+D=/nam/com/obsproc/v1.3/nam.$PDY; mkdir -p $D; R=../rap.$PDY/rap.t${HH}z
+ln -sf $R.prepbufr.tm00 $D/nam.t${HH}z.prepbufr.tm00
+for t in satwnd nexrad lgycld; do [ -e $D/$R.$t.tm00.bufr_d ] && ln -sf $R.$t.tm00.bufr_d $D/nam.t${HH}z.$t.tm00.bufr_d; done
+
 echo "ensemble $(date -u +%H:%M:%S)"
 # GEFS init at T stands in for the EnKF's 6 h forecast from T-6. Use the newest init that exists, no later than the forecast's start.
 for back in 0 6 12; do T=$(at $back %Y%m%d%H); curl -sf -I -m 20 https://noaa-gefs-pds.s3.amazonaws.com/gefs.${T:0:8}/${T:8:2}/atmos/init/p30/gfs_data.tile1.nc >/dev/null && break; T=""; done
