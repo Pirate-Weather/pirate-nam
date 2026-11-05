@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-11-05)
 
 - Nests run one-way by default, as NOAA's NAM did: a live parent (`--parent-center`, `--parent-size-km`,
   `--parent-size-y-km`) without `--two-way` now runs as `--concurrent`. `--two-way` enables feedback; two-way made
