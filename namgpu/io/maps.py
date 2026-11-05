@@ -601,6 +601,11 @@ def render(argv=None) -> dict:
         frame = tuple(float(v) for v in a.bounds.split(","))
     elif results:
         frame = results[-1][6]                 # the domain does not move between frames
+        if frame[1] - frame[0] >= 359.0 and legacy_frame(frame) is not None:
+            # a domain that holds the pole (the 12 km parent) gets the whole longitude circle, which gpuwm 2.9.12's
+            # renderer draws as a world map with the polar rows smeared across Eurasia (fresh pip install,
+            # 2026-11-05): draw it on the CONUS frame, as 0.1.0 did, on every renderer
+            frame = legacy_frame(frame)
     from namgpu.io.referee_rows import ROWS, _overlaps  # noqa: PLC0415
     mrms_region = next(r["region"] for r in ROWS if r["name"] == "mrms")
     for cf, valid, start, have, sk, table, _frame in results:
