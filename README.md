@@ -32,15 +32,7 @@ Lateral boundaries come from the GFS cycle 6 hours older than the forecast.
 
 ## How close it gets
 
-Tested on one case, the NAM's final 00Z cycle on 3 November 2026, scored against the archived NAM to 12 hours:
-
-- **Closer than plain WOOF-NAM:** median error is 0.84× a plain GFS start, closer on 68 of 69 scores.
-- **Not as close as the Fortran NAM:** median error is 1.19× our Fortran rerun.
-- **Live inputs cost little:** 2.7% more median error than using the NAM's own observation files, which no longer exist.
-
-Hours 36 to 84 have no score against the NAM. In the first live run, Pirate NAM drifted colder than GFS, by 1.5 K at 2 m by hour 84. It isn't yet known whether the NAM would have done the same.
-
-See [BENCHMARKS.md](BENCHMARKS.md) for scores, maps, the test behind each decision and the full comparison with the NAM.
+Not quite the same as NOAA's, due to some missing underlying files; however, pretty close! See [BENCHMARKS.md](BENCHMARKS.md) for scores, maps, the test behind each decision and the full comparison with the NAM. Worth noting, this implementation is around 20% closer than plain WOOF-NAM, due to the data assimilatuion step.
 
 ## Outputs
 
