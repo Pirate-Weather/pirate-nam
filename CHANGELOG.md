@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-11-05)
 
 - Radiation no longer hangs when it runs in 2-row chunks. A chunk of 2 rows owned no row, so the chunk loop never
   advanced and grew in host memory until the machine ran out; on an 8 GB card every 3 km nest from about 361 x 360 to

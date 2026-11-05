@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "recast-woof-nam"
-version = "0.1.3.dev1"
+version = "0.1.3"
 description = "GPU port of the NOAA/NCEP NAM (NMMB dynamics + NAM physics) 12 km CONUS parent"
 readme = "README.md"
 license = "Apache-2.0"
