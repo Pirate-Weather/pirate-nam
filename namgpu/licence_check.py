@@ -24,10 +24,22 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # checkout 
 CHECKOUT = os.path.isfile(os.path.join(ROOT, "pyproject.toml"))
 
 
+def _installed_dist(metadata):
+    """The installed distribution that owns the namgpu package, whatever its distribution name
+    (woof-nam today; the PyPI name may differ)."""
+    names = list(metadata.packages_distributions().get("namgpu", [])) + ["woof-nam", "recast-woof-nam"]
+    for n in dict.fromkeys(names):
+        try:
+            return metadata.distribution(n)
+        except metadata.PackageNotFoundError:
+            pass
+    raise SystemExit("licence_check: FAIL (no installed distribution ships namgpu)")
+
+
 def _installed_text(name: str) -> str:
-    """NOTICE (licence file) or README (long description) of the installed woof-nam distribution."""
+    """NOTICE (licence file) or README (long description) of the installed distribution that ships namgpu."""
     from importlib import metadata
-    dist = metadata.distribution("woof-nam")
+    dist = _installed_dist(metadata)
     if name == "README.md":
         return dist.metadata.get_payload() or ""
     for f in dist.files or ():
