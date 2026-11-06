@@ -29,6 +29,8 @@ SSH_OPTS = ["-i", KEY, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectT
 HOUR = 3600
 # OVH's API drops about 1 call in 12 at a 15 s spacing (measured 2026-11-06), and also answers with passing 500s.
 API_ATTEMPTS = 5; API_RETRY_S = 10
+# Booting the 67 GB snapshot (800 GB minimum disk) outlasted 24 min on 2026-11-06, and deleting a machine mid-build took over an hour.
+BUILD_POLLS = int(float(E("BUILD_WAIT_MINUTES", "90")) * 60 / 15)
 
 
 def log(*a): print(datetime.now(timezone.utc).strftime("%H:%M:%S"), *a, flush=True)
@@ -117,12 +119,13 @@ def create(cycle):
         r = next((i for i in ours() if i["name"] == PREFIX + cycle), None) if api_transient(e) else None
         if r is None: log("machine refused:", str(e)[:160]); return None
         log("machine request lost its answer, but", r["name"], "exists")
-    s = r
-    for _ in range(80):
+    s = r; build_start = time.time()
+    for _ in range(BUILD_POLLS):
         time.sleep(15); s = api_retry(api.get, f"/cloud/project/{PID}/instance/{r['id']}")
         if s["status"] != "BUILD": break
     if s["status"] != "ACTIVE":
         log("machine ended up", s["status"]); return None
+    log(f"machine built in {(time.time() - build_start) / 60:.0f} min")
     return r["id"], next(a["ip"] for a in s["ipAddresses"] if a["version"] == 4 and a["type"] == "public")
 
 def wait_for_ssh(ip):
