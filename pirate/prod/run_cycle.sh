@@ -1,10 +1,10 @@
 #!/bin/bash
 # Run one Pirate NAM cycle end to end from the control host, with credentials staying here: inputs and model on the GPU machine,
-# then GRIB2, Zarr and upload here. A failed cycle publishes nothing, so the last good forecast stays listed.
+# then GRIB2 and Zarr there too, uploaded through URLs signed here. A failed cycle publishes nothing, so the last good forecast stays listed.
 # Usage: run_cycle.sh GPU_IP [YYYYMMDDHH]   With no cycle, picks the newest whose inputs are all out.
 set -uo pipefail
 export GPU_IP=$1; C=${2:-}; export FCST_HOURS=${FCST_HOURS:-84}
-K=${NAM_SSH_KEY:?}; SSH="ssh -i $K -o ServerAliveInterval=60 -o StrictHostKeyChecking=accept-new ubuntu@$GPU_IP"; H=$(cd "$(dirname "$0")/.." && pwd)
+K=${NAM_SSH_KEY:?}; OPT="-i $K -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"; SSH="ssh $OPT -o ServerAliveInterval=60 ubuntu@$GPU_IP"; H=$(cd "$(dirname "$0")/.." && pwd)
 stop() { echo "CYCLE_FAILED $*"; exit 1; }
 at() { date -u -d "${1:0:4}-${1:4:2}-${1:6:2} ${1:8:2}:00 UTC -$2 hours" +"$3"; }   # UTC is required: "12:00 -6" would read as a timezone
 ready() { # a cycle is ready when RAP's analysis-hour observations and the older GFS run's last boundary file are out
@@ -18,9 +18,9 @@ if [ -z "$C" ]; then
   [ -n "$C" ] || stop "no cycle has its inputs yet"
 fi
 echo "CYCLE $C on $GPU_IP, $FCST_HOURS h, started $(date -u +%H:%M:%S)"
-scp -q -i $K $H/cycle/gsi_cycle.py $H/publish/product_fields.py ubuntu@$GPU_IP:/woof/work/gpuda/ || stop "sync"
-$SSH "mkdir -p /nam/prod /nam/gpuda" 2>/dev/null; scp -q -i $K $H/prod/fetch_inputs.sh $H/prod/run_on_gpu.sh $H/inputs/gefs_init_to_atmf.py $H/inputs/make_refd3d.py ubuntu@$GPU_IP:/nam/prod/ || stop "sync"
-scp -q -i $K $H/cycle/gsi_mem.sh ubuntu@$GPU_IP:/nam/gpuda/ || stop "sync"
+scp -q $OPT $H/cycle/gsi_cycle.py $H/publish/product_fields.py $H/publish/publish_product.py $H/publish/put_urls.py ubuntu@$GPU_IP:/woof/work/gpuda/ || stop "sync"
+$SSH "mkdir -p /nam/prod /nam/gpuda" 2>/dev/null; scp -q $OPT $H/prod/fetch_inputs.sh $H/prod/run_on_gpu.sh $H/inputs/gefs_init_to_atmf.py $H/inputs/make_refd3d.py ubuntu@$GPU_IP:/nam/prod/ || stop "sync"
+scp -q $OPT $H/cycle/gsi_mem.sh ubuntu@$GPU_IP:/nam/gpuda/ || stop "sync"
 STEP=$(mktemp)
 $SSH "FCST_HOURS=$FCST_HOURS bash /nam/prod/fetch_inputs.sh $C" 2>&1 | grep --line-buffered -vE "Ubuntu 24|documentation" | tee $STEP; grep -q INPUTS_READY $STEP || stop "inputs"
 $SSH "FCST_HOURS=$FCST_HOURS bash /nam/prod/run_on_gpu.sh $C" 2>&1 | grep --line-buffered -vE "Ubuntu 24|documentation" | tee $STEP; grep -q GPU_DONE $STEP || stop "model"
