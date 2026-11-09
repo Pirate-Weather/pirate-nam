@@ -6,6 +6,8 @@ Keeping the retired North American Mesoscale model sailing, on one GPU machine. 
 
 > **Experimental.** Not an official forecast, and not a NOAA or NCEP product. Runs may stop or change without notice, and there's no regular schedule yet. Don't use it for decisions that affect safety.
 
+> **Paused since 9 November 2026.** No new runs are being made, and the WMS server is offline. The published runs below stay available, and the newest is 00Z on 9 November. See [pirate/STATUS.md](pirate/STATUS.md).
+
 > **Support this project:** running a model like this costs real money. Help keep it going by [sponsoring me on GitHub](https://github.com/sponsors/alexander0042) or [signing up for Pirate Weather](https://pirate-weather.apiable.io/).
 
 **[Map viewer](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) · [Data access (GRIB2 and Zarr)](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/data.html) · [Benchmarks](BENCHMARKS.md)**
@@ -44,7 +46,7 @@ Hourly fields from 0 to 84 hours, on the NAM's 12 km rotated latitude-longitude 
 |---|---|---|
 | **Map viewer** | Browsing a forecast | [index.html](https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/index.html) |
 | **GRIB2** | Full field set, for forecast tools | `<YYYYMMDDHH>/woof/grib/woofnam.t<HH>z.f<FFF>.grib2`, 85 files of about 43 MB |
-| **WMS** | Map layers for GIS tools and web maps, newest run only | `https://nam-wms.pirateweather.net/datasets/pirate-nam/wms` |
+| **WMS** | Map layers for GIS tools and web maps, newest run only. **Offline while runs are paused** | `https://nam-wms.pirateweather.net/datasets/pirate-nam/wms` |
 | **Zarr v3** | 10 key fields for Python, with no server or download step | `<YYYYMMDDHH>/woof/zarr`, about 680 MB |
 
 Zarr and GRIB2 paths are under `https://pirate-nam-tor.s3.ca-east-tor.io.cloud.ovh.net/`.
@@ -56,6 +58,8 @@ ds.t2m.sel(fhr=24)
 ```
 
 ### WMS
+
+**Offline while runs are paused.** The address below will come back when runs resume.
 
 The [WMS 1.3.0 service](https://nam-wms.pirateweather.net/datasets/pirate-nam/wms?service=WMS&version=1.3.0&request=GetCapabilities) serves the same 10 fields as the Zarr store: `t2m`, `d2m`, `mslp`, `wind10`, `wind250`, `apcp`, `refc`, `pwat`, `z500` and `t850`. Here's 2 m temperature for one tile, valid 00Z on 6 November:
 
